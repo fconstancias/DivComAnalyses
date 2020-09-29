@@ -36,4 +36,12 @@ Imports:
     mctoolsr,
     fantaxtic,
     GGally,
-    microbiomeSeq
+    microbiomeSeq,
+    ape,
+    abdiv,
+    GUniFrac,
+    zCompositions,
+    Rtsne,
+    ggrepel,
+    plotly,
+    vegan

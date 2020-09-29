@@ -103,6 +103,7 @@ phyloseq_compute_bdiv <- function(phylo_tmp,
 
   }
   return(dlist)
+  detach("package:ape", unload=TRUE); detach("package:abdiv", unload=TRUE); detach("package:GUniFrac", unload=TRUE)
 
 }
 

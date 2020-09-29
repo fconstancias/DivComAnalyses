@@ -66,6 +66,8 @@ return(alpha)
     ) -> alpha
 
     return(alpha)
+    detach("package:metagMisc", unload=TRUE);     detach("package:microbiome", unload=TRUE)
+
   }
 
 }
