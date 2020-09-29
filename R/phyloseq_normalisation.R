@@ -325,6 +325,8 @@ phyloseq_filter_samples <- function(physeq, thrs)
 
 phyloseq_get_strains <- function(physeq)
 {
+
+  require(fantaxtic)
   physeq_tmp = physeq
 
   physeq %>%
