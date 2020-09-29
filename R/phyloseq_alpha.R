@@ -13,7 +13,7 @@
 #' data("esophagus")
 #'
 #' phyloseq_alphas(esophagus) -> results
-#' 
+#'
 
 phyloseq_alphas <- function(physeq,
                             phylo)
@@ -22,7 +22,7 @@ phyloseq_alphas <- function(physeq,
   require(microbiome)
   if (phylo == TRUE)
   {
-    
+
     bind_cols(
       microbiome::meta(physeq) %>%
         rownames_to_column('id1'),
@@ -36,25 +36,25 @@ phyloseq_alphas <- function(physeq,
         rownames_to_column('id3'),
       metagMisc::phyloseq_phylo_div(physeq) %>%
         rownames_to_column('id4')) -> tmp
-    
-    
+
+
     metagMisc::phyloseq_phylo_ses(physeq,
-                                  package = "PhyloMeasures", 
+                                  package = "PhyloMeasures",
                                   verbose = FALSE) -> tmp2
-    
+
     left_join(tmp,
               tmp2,
               by = c("id1" = "SampleID"),
-              suffix = c("", "_PM"), 
+              suffix = c("", "_PM"),
               keep = TRUE ) -> tmp3
 
-tmp3 %>% 
-  mutate(bNTI = (MNTD_PM - MNTD.rand.mean) / MNTD.rand.sd ) -> alpha 
+tmp3 %>%
+  mutate(bNTI = (MNTD_PM - MNTD.rand.mean) / MNTD.rand.sd ) -> alpha
 
 return(alpha)
   }else
   {
-    
+
     bind_cols(
       microbiome::meta(physeq) %>%
         rownames_to_column('id'),
@@ -63,13 +63,24 @@ return(alpha)
       phyloseq::estimate_richness(physeq,measures =c("Observed", "Chao1", "ACE")) %>%
         as.data.frame() %>%
         rownames_to_column('id')
-    ) -> alpha 
-    
+    ) -> alpha
+
     return(alpha)
   }
-  
+
 }
 
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .remove ASV assigned to Chloroplast and Mitochondria
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
 
 
 plot_alphas <- function(alphas,
@@ -96,9 +107,9 @@ plot_alphas <- function(alphas,
                 aes_string(shape = shape_group)) +
     # geom_point(size=2,position=position_jitterdodge(dodge.width=0.9)) +
     ylab("Diversity index")  + xlab(NULL) + theme_light() -> p
-  
+
   p
-  
+
   ggpubr::compare_means(formula = as.formula(paste0("value ~ ", paste0(test_group))),
                         group.by = c("alphadiversiy", test_group_2),
                         data = p$data,
@@ -107,11 +118,60 @@ plot_alphas <- function(alphas,
     select(-.y., -p.format, -p.signif) %>%
     arrange(p) %>%
     mutate(signif = ifelse(p.adj <= 0.05, 'SIGN', 'NS'))-> stat
-  
-  
-  out <- list("plot" = p, 
+
+
+  out <- list("plot" = p,
               "stat" = stat)
-  
+
   return(out)
-  
+
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .remove ASV assigned to Chloroplast and Mitochondria
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'library(phyloseq)
+#'data("enterotype")
+#'
+#'
+#'
+#'
+#' #"spearman"
+correlate_alpha <- function(alphas_all,
+                            colnums_to_plot,
+                            colour,
+                            shape,
+                            method)
+{
+  # define a function to plot scatter plot
+  my_fn <- function(data, mapping, ...){
+    p <- ggplot(data = data, mapping = mapping) +
+      geom_point() +
+      geom_smooth(method=lm, ...)
+    p
+  }
+
+  # where alphas_all is a dataframe with alpha div and covaraibles i.e., Observed", "evenness_pielou",
+  # "diversity_shannon", "SES.MPD","TMAO", "Choline" and also here diet as columns
+
+  alphas_all %>%
+    GGally::ggpairs(columns = colnums_to_plot,
+                    ggplot2::aes(colour = colour, shape = shape ),
+                    legend = 1,
+                    progress = FALSE,
+                    upper = list(
+                      continuous = GGally::wrap('cor', method = method)
+                    ),
+                    lower = list(continuous = my_fn)) -> corplot
+
+  return(corplot)
 }

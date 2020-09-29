@@ -34,4 +34,6 @@ Imports:
     DESeq2,
     ALDEx2,
     mctoolsr,
-    fantaxtic
+    fantaxtic,
+    GGally,
+    microbiomeSeq
