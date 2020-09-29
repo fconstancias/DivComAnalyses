@@ -1,0 +1,15 @@
+Package: DivComAnalyses
+Title: Community Analysis and visualisation using R
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Florentin",
+           family = "CONSTANCIAS",
+           role = c("aut", "cre"),
+           email = "florentinconstancias@gmail.com",
+           comment = c(ORCID = "0000-0002-8612-384X"))
+Description: Based on phyloseq R package the aim of this package is to: facilitate data filtering (i.e., potential contaminants identified using decontam R package), help in normalizing data (i.e., 16S qPCR normalization), generate phylogenetic and taxonomic alpha-diversity metrics, visualize community composition and structure using ordination, facilitate statistical analysis based on DEseq2, ALDex, vegan R packages.
+License: Apache License (>= 2.0)
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
