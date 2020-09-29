@@ -28,4 +28,10 @@ Imports:
     speedyseq,
     HTSSIP,
     metagMisc,
-    microbiome
+    microbiome,
+    ggpubr,
+    decontam,
+    DESeq2,
+    ALDEx2,
+    mctoolsr,
+    fantaxtic
