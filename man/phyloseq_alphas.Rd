@@ -22,9 +22,9 @@ phyloseq_alphas(physeq, phylo)
 \examples{
 library(phyloseq)
 library(tidyverse)
-data("esophagus")
+data("GlobalPatterns")
 
-phyloseq_alphas(esophagus) -> results
+phyloseq_alphas(GlobalPatterns, phylo = TRUE) -> results
 
 }
 \author{
