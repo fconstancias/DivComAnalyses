@@ -18,6 +18,7 @@
 phyloseq_alphas <- function(physeq,
                             phylo)
 {
+  options(getClass.msg=FALSE)
   require(metagMisc)
   require(microbiome)
   if (phylo == TRUE)
