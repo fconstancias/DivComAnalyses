@@ -244,7 +244,7 @@ phyloseq_correlate_taxa <- function(ps_tmp,
   ps_tmp %>%
     transform_sample_counts(function(x) x/sum(x) * 100) %>%
     microbiome::transform("log10") %>%
-    microbiomeSeq::taxa.env.correlation(grouping_column="run", method= method, pvalue.threshold=0.05,
+    microbiomeSeq::taxa.env.correlation(grouping_column= grouping_column, method= method, pvalue.threshold=0.05,
                                         padjust.method="fdr", adjustment=3, num.taxa=20, select.variables = cor_variables) -> env.taxa.cor
 
   # plot
