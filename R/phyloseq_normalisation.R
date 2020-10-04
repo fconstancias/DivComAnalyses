@@ -78,7 +78,7 @@ phyloseq_check_lib_size <- function(physeq, data_color, data_facet, nreads_displ
 phyloseq_rarefaction_curves<- function (physeq, stepsize, color_data, facet_data)
 {
   require(ampvis2)
-  # devtools::source_gist("8d0ca4206a66be7ff6d76fc4ab8e66c6") # to source phyloseq_to_ampvis2()
+  devtools::source_gist("8d0ca4206a66be7ff6d76fc4ab8e66c6") # to source phyloseq_to_ampvis2()
 
   tax_table(physeq) <- tax_table(physeq)[,c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")] # because amp_rarecurve() doesn't want to deal with our "Strain" level taxonomy
 
