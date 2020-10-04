@@ -169,7 +169,7 @@ correlate_alpha <- function(alphas_all,
   alphas_all %>%
     GGally::ggpairs(columns = colnums_to_plot,
                    # ggplot2::aes(colour = colour, shape = shape ),
-                    legend = 1,
+                   # legend = 1,
                     progress = FALSE,
                     upper = list(
                       continuous = GGally::wrap('cor', method = method)
