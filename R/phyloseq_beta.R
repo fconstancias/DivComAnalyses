@@ -206,7 +206,7 @@ phyloseq_plot_bdiv <- function(ps_rare,
       # Add title to each plot
     if(m == "NMDS")
         {
-          p <- p + ggtitle(paste0(m," using distance method ",   print(i), "\n",
+          p <- p + ggtitle(paste0(m," using distance method ",   i, "\n",
                                   " NMDS 2d stress = ", iMDS$grstress %>% round(2))) +
             geom_point(size = 4) + theme_bw() #+
           # ggrepel::geom_text_repel(cex=2.5,aes(label=sample))
@@ -214,7 +214,7 @@ phyloseq_plot_bdiv <- function(ps_rare,
         }
         if(m == "PCoA")
         {
-          p <- p + ggtitle(paste0(m," using distance method ",   print(i))) +
+          p <- p + ggtitle(paste0(m," using distance method ",  i)) +
             geom_point(size = 4) + theme_bw() #+
           # ggrepel::geom_text_repel(cex=2.5,aes(label=sample))}
           # Save the graphic to file.
