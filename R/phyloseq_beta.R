@@ -204,33 +204,33 @@ phyloseq_plot_bdiv <- function(ps_rare,
       p <- phyloseq::plot_ordination(ps_rare, iMDS,
                                      axes = axis1:axis2)
       # Add title to each plot
-      if(m == "NMDS")
-      {
-        p <- p + ggtitle(paste0(m," using distance method ", i, "\n",
-                                " NMDS 2d stress = ", iMDS$grstress %>% round(2))) +
-          geom_point(size = 4) + theme_bw() #+
-        # ggrepel::geom_text_repel(cex=2.5,aes(label=sample))
-        plot_list[[i]] = p
-      }
-      if(m == "PCoA")
-      {
-        p <- p + ggtitle(paste0(m," using distance method ", i)) +
-          geom_point(size = 4) + theme_bw() #+
-        # ggrepel::geom_text_repel(cex=2.5,aes(label=sample))}
-        # Save the graphic to file.
-        plot_list[[i]] = p
-        # # Save the pairwise permanova
-        # tmp_list_2[[i]] <- vegan::adonis(dlist[[i]] ~ get_variable(tmp, color))$aov.tab %>% data.frame()
-        # # Save betadisper
-        # tmp_list_3[[i]]  <- vegan::permutest(vegan::betadisper(dlist[[i]], get_variable(tmp, color)))$tab$`Pr(>F)`[1]
-        # TW https://github.com/alekseyenko/WdStar/blob/master/16S_alone_taxa_of_interest.html
-        # tmp_list_4[[i]]  <- Tw2.test(dlist[[i]], get_variable(tmp, color)) %>% as.data.frame() #%>% mutate(Day = day)
-
+    if(m == "NMDS")
+        {
+          p <- p + ggtitle(paste0(m," using distance method ",   print(i), "\n",
+                                  " NMDS 2d stress = ", iMDS$grstress %>% round(2))) +
+            geom_point(size = 4) + theme_bw() #+
+          # ggrepel::geom_text_repel(cex=2.5,aes(label=sample))
+          plot_list[[i]] = p
+        }
+        if(m == "PCoA")
+        {
+          p <- p + ggtitle(paste0(m," using distance method ",   print(i))) +
+            geom_point(size = 4) + theme_bw() #+
+          # ggrepel::geom_text_repel(cex=2.5,aes(label=sample))}
+          # Save the graphic to file.
+          plot_list[[i]] = p
+          # # Save the pairwise permanova
+          # tmp_list_2[[i]] <- vegan::adonis(dlist[[i]] ~ get_variable(tmp, color))$aov.tab %>% data.frame()
+          # # Save betadisper
+          # tmp_list_3[[i]]  <- vegan::permutest(vegan::betadisper(dlist[[i]], get_variable(tmp, color)))$tab$`Pr(>F)`[1]
+          # TW https://github.com/alekseyenko/WdStar/blob/master/16S_alone_taxa_of_interest.html
+          # tmp_list_4[[i]]  <- Tw2.test(dlist[[i]], get_variable(tmp, color)) %>% as.data.frame() #%>% mutate(Day = day)
+          
+        }
       }
     }
-  }
-
-  return(plot_list)
+    
+    return(plot_list)
 }
 }
 
