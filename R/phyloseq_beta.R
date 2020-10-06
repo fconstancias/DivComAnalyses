@@ -27,7 +27,6 @@ phyloseq_compute_bdiv <- function(phylo_tmp,
   require(tidyverse)
   require(ape)
   require(phyloseq)
-  require(abdiv)
   require(GUniFrac)
 
   set.seed(seed)
@@ -103,7 +102,7 @@ phyloseq_compute_bdiv <- function(phylo_tmp,
 
   }
   return(dlist)
-  detach("package:ape", unload=TRUE); detach("package:abdiv", unload=TRUE); detach("package:GUniFrac", unload=TRUE)
+  detach("package:ape", unload=TRUE); detach("package:GUniFrac", unload=TRUE)
 
 }
 
