@@ -297,6 +297,37 @@ tables.correlate<-function(table1, table2, groups=NULL, method){
   return(df)
 }
 
+# df is a data frame
+p.adjust.cor <- function(df,adjustment=1,padjust.method="BH"){
+  if(adjustment==1){
+    df$AdjPvalue<-df$Pvalue
+  } else if (adjustment==2){
+    for(i in unique(df$Env)){
+      for(j in unique(df$Type)){
+        sel<-df$Env==i & df$Type==j
+        df$AdjPvalue[sel]<-p.adjust(df$Pvalue[sel],method=padjust.method)
+      }
+    }
+  } else if (adjustment==3){
+    for(i in unique(df$Taxa)){
+      for(j in unique(df$Type)){
+        sel<-df$Taxa==i & df$Type==j
+        df$AdjPvalue[sel]<-p.adjust(df$Pvalue[sel],method=padjust.method)
+      }
+    }
+  } else if (adjustment==4){
+    for(i in unique(df$Taxa)){
+      sel<-df$Taxa==i
+      df$AdjPvalue[sel]<-p.adjust(df$Pvalue[sel],method=padjust.method)
+    }
+  } else if (adjustment==5){
+    for(i in unique(df$Env)){
+      sel<-df$Env==i
+      df$AdjPvalue[sel]<-p.adjust(df$Pvalue[sel],method=padjust.method)
+    }
+  }
+  return(df)
+}
 
 #' @title ...
 #' @param .
