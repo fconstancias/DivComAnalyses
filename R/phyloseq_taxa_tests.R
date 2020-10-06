@@ -265,6 +265,38 @@ phyloseq_taxa_env_correlation <- function (physeq, grouping_column, method = "pe
   df <- df[complete.cases(df), ]
   return(df)
 }
+                  
+tables.correlate<-function(table1, table2, groups=NULL, method){
+  df<-NULL
+  for(i in colnames(table1)){
+    for(j in colnames(table2)){
+
+      if(!is.null(groups)){
+        for(k in unique(groups)){
+          a<-table1[groups==k,i,drop=F]
+          b<-table2[groups==k,j,drop=F]
+          tmp<-c(i,j,cor(a[complete.cases(b),],b[complete.cases(b),],use="everything",method=method),cor.test(a[complete.cases(b),],b[complete.cases(b),],method=method)$p.value,k)
+
+          if(is.null(df)){df<-tmp} else{df<-rbind(df,tmp)}
+         }
+      }
+      else{
+
+        a<-table1[,i,drop=F]
+        b<-table2[,j,drop=F]
+        tmp<-c(i,j,cor(a[complete.cases(b),],b[complete.cases(b),],use="everything",method=method),cor.test(a[complete.cases(b),],b[complete.cases(b),],method=method)$p.value)
+
+        if(is.null(df)){df<-tmp} else{df<-rbind(df,tmp)}
+
+        }
+
+      }
+    }
+
+  df<-data.frame(row.names=NULL,df)
+  return(df)
+}
+
 
 #' @title ...
 #' @param .
