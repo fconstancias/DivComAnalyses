@@ -709,3 +709,51 @@ p = p + ggtitle(paste0("Ordination using various distance metrics ")) +
 
 return(p)
 }
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+              
+phyloseq_dbRDA <- function(ps,
+                           dist,
+                           forumla = paste0(variables, collapse=" + "))
+{
+require(plyr); require(ggvegan)
+
+  
+ps %>% sample_data() %>% data.frame() -> metadata
+
+dbRDA <- vegan::capscale(formula(paste0("dist","~",forumla)), 
+                         metadata,
+                         add = TRUE)
+
+# overll significance of the model
+anova(dbRDA) %>%
+  data.frame() -> anova_all
+
+# significance of different covariables
+anova(dbRDA, by = "terms") %>%
+  data.frame() -> anova_terms
+
+# source('https://raw.githubusercontent.com/fawda123/ggord/master/R/ggord.R')
+
+# ggord(dbRDA, grp_in = metadata[,variables]) -> p
+autoplot(dbRDA) -> p
+
+return(out <- list("plot" = p,
+                   "dbRDA" = dbRDA,
+                   "anova_all" = anova_all,
+                   "anova_terms" = anova_terms))
+
+detach("package:plyr", unload=TRUE);detach("package:ggvegan", unload=TRUE)
+
+}
