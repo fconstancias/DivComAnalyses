@@ -405,6 +405,32 @@ filter_dm <- function (input_dm, filter_cat, filter_vals, keep_vals)
   list(dm_loaded = dm_use, map_loaded = map_use)
 }
 
+.filt_map = function(map, filter_cat, filter_vals, keep_vals){
+  if(!missing(filter_vals) & !missing(keep_vals)){
+    stop('Can only handle filter_vals or keep_vals, not both.')
+  }
+  if(!filter_cat %in% names(map)){
+    stop('filter_cat not found in mapping file headers. Check spelling.')
+  }
+  # filter out values within mapping category
+  else if(!missing(filter_cat) & !missing(filter_vals)){
+    map_f = map[!map[, filter_cat] %in% filter_vals, , drop = FALSE]
+    map_f = droplevels(map_f)
+    if(nrow(map_f) == 0){
+      stop('All rows filtered out. Check spelling of filter parameters.')
+    }
+  }
+  # keep certain values with mapping category
+  else if(!missing(filter_cat) & !missing(keep_vals)){
+    map_f = map[map[,filter_cat] %in% keep_vals, , drop = FALSE]
+    map_f = droplevels(map_f)
+    if(nrow(map_f) == 0){
+      stop('All rows filtered out. Check spelling of filter parameters.')
+    }
+  }
+  map_f
+}
+
 #' @title ...
 #' @param .
 #' @param ..
