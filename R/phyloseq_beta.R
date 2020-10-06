@@ -490,7 +490,7 @@ physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat
 #'
 #'
 
-betadisper <- function(dm,
+physeq_betadisper <- function(dm,
                        physeq,
                        variable) {
   require(vegan)
