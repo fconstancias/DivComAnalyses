@@ -20,7 +20,7 @@
 #'
 
 phyloseq_compute_bdiv <- function(phylo_tmp,
-                                  norm,
+                                  norm = "pc",
                                   phylo,
                                   seed)
 {
