@@ -663,4 +663,49 @@ phyloseq_adonis <- function(dm,
   return(out)
 }
 
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'library(phyloseq)
+#'data(esophagus)
+#'phyloseq_compute_bdiv(esophagus, 100) -> dist
+#'
+#'
+#'
+#'plot_list %>%
+#'  phyloseq_plot_ordinations_facet(color_group = "SampleType",
+#'                                 shape_group = NULL)
+#'
 
+
+phyloseq_plot_ordinations_facet <- function(plot_list,
+                                            color_group,
+                                            shape_group = NULL)
+{
+  plot_list %>%
+  plyr::ldply(function(x) x$data) -> df
+
+names(df)[1] <- "distance"
+
+df %>%
+  ggplot(aes_string(colnames(df)[2], colnames(df)[3])) -> p
+
+p = p + geom_point(size=2,
+                   aes_string(color= color_group, 
+                              shape = shape_group))
+
+p = p + facet_wrap( ~ distance, scales="free")
+
+p = p + ggtitle(paste0("Ordination using various distance metrics ")) +
+  theme_light() 
+
+return(p)
+}
