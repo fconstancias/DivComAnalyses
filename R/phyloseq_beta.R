@@ -394,7 +394,7 @@ calc_pairwise_permanovas_strata <- function(dm, metadata_map, compare_header, n_
 
 filter_dm <- function (input_dm, filter_cat, filter_vals, keep_vals) 
 {
-  map_filt = .filt_map(input_dm$map_loaded, filter_cat, filter_vals, 
+  map_filt = test_filt_map(input_dm$map_loaded, filter_cat, filter_vals, 
                        keep_vals)
   dm = as.matrix(input_dm$dm_loaded)
   samplesToUse = intersect(colnames(dm), row.names(map_filt))
@@ -405,7 +405,7 @@ filter_dm <- function (input_dm, filter_cat, filter_vals, keep_vals)
   list(dm_loaded = dm_use, map_loaded = map_use)
 }
 
-.filt_map = function(map, filter_cat, filter_vals, keep_vals){
+test_filt_map = function(map, filter_cat, filter_vals, keep_vals){
   if(!missing(filter_vals) & !missing(keep_vals)){
     stop('Can only handle filter_vals or keep_vals, not both.')
   }
