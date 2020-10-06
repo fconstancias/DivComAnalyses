@@ -211,6 +211,96 @@ phyloseq_run_ALDEx2 <- function(tmp = tmp,
 
 }
 
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note . correlates ASV/Taxa with metadata
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'library(phyloseq)
+#'data("enterotype")
+#'
+#'
+#'
+#'
+
+
+phyloseq_taxa_env_correlation <- function (physeq, grouping_column, method = "pearson", pvalue.threshold = 0.05, 
+          padjust.method = "BH", adjustment = 3, num.taxa = 50, select.variables = NULL) 
+{
+  method <- match.arg(method, c("pearson", "kendall", "spearman"), 
+                      several.ok = F)
+  if (taxa_are_rows(physeq)) {
+    physeq <- t(physeq)
+  }
+  abund_table <- as.data.frame(otu_table(physeq))
+  meta_table <- data.frame(sample_data(physeq))
+  groups <- meta_table[, grouping_column]
+  if (!is.null(select.variables)) {
+    meta_table <- subset(meta_table, select = select.variables)
+  }
+  mt_env <- meta_table[, sapply(meta_table, is.numeric)]
+  abund_table_filt <- abund_table[rownames(mt_env), ]
+  abund_table_filt <- abund_table_filt[, order(colSums(abund_table_filt), 
+                                               decreasing = TRUE)]
+  taxa_list <- colnames(abund_table_filt)[1:num.taxa]
+  taxa_list <- taxa_list[!grepl("Unknown", taxa_list)]
+  abund_table_filt <- data.frame(abund_table_filt[, colnames(abund_table_filt) %in% 
+                                                    taxa_list])
+  df <- tables.correlate(abund_table_filt, mt_env, groups, 
+                         method)
+  colnames(df) <- c("Taxa", "Env", "Correlation", "Pvalue", 
+                    "Type")
+  df$Pvalue <- as.numeric(as.character(df$Pvalue))
+  df$Correlation <- as.numeric(as.character(df$Correlation))
+  df$AdjPvalue <- rep(0, dim(df)[1])
+  df <- p.adjust.cor(df, adjustment, padjust.method)
+  df$Significance <- cut(df$AdjPvalue, breaks = c(-Inf, 0.001, 
+                                                  0.01, 0.05, Inf), label = c("***", "**", "*", ""))
+  df <- df[complete.cases(df), ]
+  return(df)
+}
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note . correlates ASV/Taxa with metadata
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'library(phyloseq)
+#'data("enterotype")
+#'
+#'
+#'
+#'
+
+phyloseq_plot_taxa_env_correlation <- function(df) 
+{
+  p <- ggplot2::ggplot(aes(x = Type, y = Taxa, fill = Correlation), 
+                       data = df)
+  p <- p + ggplot2::geom_tile() + scale_fill_gradient2(low = "#2C7BB6", 
+                                                       mid = "white", high = "#D7191C")
+  p <- p + ggplot2::theme(axis.text.x = element_text(angle = 90, 
+                                                     hjust = 1, vjust = 0.5))
+  p <- p + ggplot2::geom_text(aes(label = Significance), color = "black", 
+                              size = 3) + labs(y = NULL, x = NULL)
+  p <- p + ggplot2::facet_grid(. ~ Env, drop = TRUE, scale = "free", 
+                               space = "free_x")
+  p <- p + ggplot2::xlab("Groups")
+  p <- p + ggplot2::theme(strip.background = element_rect(fill = "white"))
+  return(p)
+}
+
 
 #' @title ...
 #' @param .
@@ -244,11 +334,11 @@ phyloseq_correlate_taxa <- function(ps_tmp,
   ps_tmp %>%
     transform_sample_counts(function(x) x/sum(x) * 100) %>%
     microbiome::transform("log10") %>%
-    microbiomeSeq::taxa.env.correlation(grouping_column= grouping_column, method= method, pvalue.threshold=0.05,
+    phyloseq_taxa_env_correlation(grouping_column= grouping_column, method= method, pvalue.threshold=0.05,
                                         padjust.method="fdr", adjustment=3, num.taxa=20, select.variables = cor_variables) -> env.taxa.cor
 
   # plot
-  p <- microbiomeSeq::plot_taxa_env(env.taxa.cor)
+  p <- phyloseq_plot_taxa_env_correlation(env.taxa.cor)
 
   p$data %>%
     dplyr::left_join(tmp %>% rownames_to_column("ASV"),
