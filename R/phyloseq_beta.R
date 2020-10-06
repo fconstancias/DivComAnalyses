@@ -21,8 +21,8 @@
 
 phyloseq_compute_bdiv <- function(phylo_tmp,
                                   norm = "pc",
-                                  phylo,
-                                  seed)
+                                  phylo = FALSE,
+                                  seed = 123)
 {
   require(tidyverse)
   require(ape)
@@ -131,7 +131,7 @@ phyloseq_compute_bdiv <- function(phylo_tmp,
 phyloseq_plot_bdiv <- function(ps_rare,
                                dlist,
                                m = "PCoA",
-                               seed,
+                               seed = 123,
                                axis1 = axis1,
                                axis2 = axis2)
 {
@@ -257,7 +257,7 @@ phyloseq_plot_bdiv <- function(ps_rare,
 phyloseq_plot_PCoA_3d <- function(ps_rare,
                                   dlist,
                                   m = "PCoA",
-                                  seed,
+                                  seed = 123,
                                   color,
                                   shape)
 {
