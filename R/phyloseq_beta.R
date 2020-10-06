@@ -340,7 +340,7 @@ phyloseq_plot_PCoA_3d <- function(ps_rare,
 #'
 
 calc_pairwise_permanovas_strata <- function(dm, metadata_map, compare_header, n_perm, strat) {
-  require(mctoolsr)
+  #require(mctoolsr)
 
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
     as.dist() -> dm
@@ -353,7 +353,7 @@ calc_pairwise_permanovas_strata <- function(dm, metadata_map, compare_header, n_
     pair = comp_pairs[, i]
     dm_w_map = list(dm_loaded = dm, map_loaded = metadata_map)
     dm_w_map$map_loaded$in_pair = comp_var %in% pair
-    dm_w_map_filt = mctoolsr::filter_dm(dm_w_map, filter_cat = "in_pair",
+    dm_w_map_filt = filter_dm(dm_w_map, filter_cat = "in_pair",
                                         keep_vals = TRUE)
 
     if (strat %in% colnames(metadata_map)){
@@ -388,10 +388,22 @@ calc_pairwise_permanovas_strata <- function(dm, metadata_map, compare_header, n_
   results$pvalFDR = round(pval * (length(pval)/rank(pval, ties.method = "average")),
                           3)
 
-  detach("package:mctoolsr", unload=TRUE)
+  #detach("package:mctoolsr", unload=TRUE)
   return(results)
 }
 
+filter_dm <- function (input_dm, filter_cat, filter_vals, keep_vals) 
+{
+  map_filt = .filt_map(input_dm$map_loaded, filter_cat, filter_vals, 
+                       keep_vals)
+  dm = as.matrix(input_dm$dm_loaded)
+  samplesToUse = intersect(colnames(dm), row.names(map_filt))
+  dm_use = as.dist(dm[match(samplesToUse, colnames(dm)), match(samplesToUse, 
+                                                               colnames(dm))])
+  map_use = map_filt[match(samplesToUse, row.names(map_filt)), 
+  ]
+  list(dm_loaded = dm_use, map_loaded = map_use)
+}
 
 #' @title ...
 #' @param .
@@ -413,7 +425,7 @@ calc_pairwise_permanovas_strata <- function(dm, metadata_map, compare_header, n_
 
 
 physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat) {
-  require(mctoolsr)
+ # require(mctoolsr)
 
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
     as.dist() -> dm
@@ -430,7 +442,7 @@ physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat
     pair = comp_pairs[, i]
     dm_w_map = list(dm_loaded = dm, map_loaded = metadata_map)
     dm_w_map$map_loaded$in_pair = comp_var %in% pair
-    dm_w_map_filt = mctoolsr::filter_dm(dm_w_map, filter_cat = "in_pair",
+    dm_w_map_filt = filter_dm(dm_w_map, filter_cat = "in_pair",
                                         keep_vals = TRUE)
 
     if (strat %in% colnames(metadata_map)){
@@ -465,7 +477,7 @@ physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat
   results$pvalFDR = round(pval * (length(pval)/rank(pval, ties.method = "average")),
                           3)
 
-  detach("package:mctoolsr", unload=TRUE)
+  #detach("package:mctoolsr", unload=TRUE)
 
   return(results)
 }
