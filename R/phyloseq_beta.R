@@ -340,7 +340,7 @@ phyloseq_plot_PCoA_3d <- function(ps_rare,
 #'
 
 calc_pairwise_permanovas_strata <- function(dm, metadata_map, compare_header, n_perm, strat) {
-  #require(mctoolsr)
+  require(mctoolsr)
 
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
     as.dist() -> dm
@@ -388,48 +388,48 @@ calc_pairwise_permanovas_strata <- function(dm, metadata_map, compare_header, n_
   results$pvalFDR = round(pval * (length(pval)/rank(pval, ties.method = "average")),
                           3)
 
-  #detach("package:mctoolsr", unload=TRUE)
+  detach("package:mctoolsr", unload=TRUE)
   return(results)
 }
 
-filter_dm <- function (input_dm, filter_cat, filter_vals, keep_vals) 
-{
-  map_filt = test_filt_map(input_dm$map_loaded, filter_cat, filter_vals, 
-                       keep_vals)
-  dm = as.matrix(input_dm$dm_loaded)
-  samplesToUse = intersect(colnames(dm), row.names(map_filt))
-  dm_use = as.dist(dm[match(samplesToUse, colnames(dm)), match(samplesToUse, 
-                                                               colnames(dm))])
-  map_use = map_filt[match(samplesToUse, row.names(map_filt)), 
-  ]
-  list(dm_loaded = dm_use, map_loaded = map_use)
-}
+#filter_dm <- function (input_dm, filter_cat, filter_vals, keep_vals) 
+#{
+#  map_filt = test_filt_map(input_dm$map_loaded, filter_cat, filter_vals, 
+#                       keep_vals)
+#  dm = as.matrix(input_dm$dm_loaded)
+#  samplesToUse = intersect(colnames(dm), row.names(map_filt))
+#  dm_use = as.dist(dm[match(samplesToUse, colnames(dm)), match(samplesToUse, 
+#                                                               colnames(dm))])
+#  map_use = map_filt[match(samplesToUse, row.names(map_filt)), 
+#  ]
+#  list(dm_loaded = dm_use, map_loaded = map_use)
+#}
 
-test_filt_map = function(map, filter_cat, filter_vals, keep_vals){
-  if(!missing(filter_vals) & !missing(keep_vals)){
-    stop('Can only handle filter_vals or keep_vals, not both.')
-  }
-  if(!filter_cat %in% names(map)){
-    stop('filter_cat not found in mapping file headers. Check spelling.')
-  }
-  # filter out values within mapping category
-  else if(!missing(filter_cat) & !missing(filter_vals)){
-    map_f = map[!map[, filter_cat] %in% filter_vals, , drop = FALSE]
-    map_f = droplevels(map_f)
-    if(nrow(map_f) == 0){
-      stop('All rows filtered out. Check spelling of filter parameters.')
-    }
-  }
-  # keep certain values with mapping category
-  else if(!missing(filter_cat) & !missing(keep_vals)){
-    map_f = map[map[,filter_cat] %in% keep_vals, , drop = FALSE]
-    map_f = droplevels(map_f)
-    if(nrow(map_f) == 0){
-      stop('All rows filtered out. Check spelling of filter parameters.')
-    }
-  }
-  map_f
-}
+#test_filt_map = function(map, filter_cat, filter_vals, keep_vals){
+#  if(!missing(filter_vals) & !missing(keep_vals)){
+#    stop('Can only handle filter_vals or keep_vals, not both.')
+#  }
+#  if(!filter_cat %in% names(map)){
+#    stop('filter_cat not found in mapping file headers. Check spelling.')
+#  }
+#  # filter out values within mapping category
+#  else if(!missing(filter_cat) & !missing(filter_vals)){
+#    map_f = map[!map[, filter_cat] %in% filter_vals, , drop = FALSE]
+#    map_f = droplevels(map_f)
+#    if(nrow(map_f) == 0){
+#      stop('All rows filtered out. Check spelling of filter parameters.')
+#    }
+#  }
+#  # keep certain values with mapping category
+#  else if(!missing(filter_cat) & !missing(keep_vals)){
+#    map_f = map[map[,filter_cat] %in% keep_vals, , drop = FALSE]
+#    map_f = droplevels(map_f)
+#    if(nrow(map_f) == 0){
+#      stop('All rows filtered out. Check spelling of filter parameters.')
+#    }
+#  }
+#  map_f
+#}
 
 #' @title ...
 #' @param .
