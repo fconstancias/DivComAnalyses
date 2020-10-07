@@ -112,8 +112,7 @@ plot_alphas <- function(alphas,
   
 if (facet_group == FALSE) {
   p + facet_grid(as.formula(paste0("alphadiversiy ~ ", scales = "free_y", space = "fixed") -> p
-} 
-if (facet_group != FALSE) {
+} else {
   p + facet_grid(as.formula(paste0("alphadiversiy ~ ",paste(facet_group))), scales = "free_y", space = "fixed") -> p
   
 }
