@@ -113,9 +113,9 @@ if(facet_group != NULL)
 {
   p + facet_grid(as.formula(paste0("alphadiversiy ~ ",paste(facet_group))), scales = "free_y", space = "fixed") -> p
 }
-  p
-
-  ggpubr::compare_means(formula = as.formula(paste0("value ~ ", paste0(test_group))),
+else()
+  {p = p}
+ggpubr::compare_means(formula = as.formula(paste0("value ~ ", paste0(test_group))),
                         group.by = c("alphadiversiy", test_group_2),
                         data = p$data,
                         method = "wilcox.test",
