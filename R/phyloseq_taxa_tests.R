@@ -9,6 +9,80 @@
 #' @export
 #' @examples
 #'
+#'
+#'library(phyloseq)
+#'data(GlobalPatterns)
+#'phyloseq_compute_bdiv(esophagus, 100) -> dist
+#'
+
+
+phyloseq_Firmi_Bact_ratio <- function(ps = GlobalPatterns,
+                                      level = "Phylum",
+                                      a_name = "Bacteroidetes",
+                                      b_name = "Firmicutes",
+                                      Group = "SampleType")
+{
+require(microbiome)
+require(tidyverse)
+  
+microbiome::transform(microbiome::aggregate_taxa(ps, level = level), "compositional") -> tmp
+a <- microbiome::abundances(tmp)[a_name, ]
+b <- microbiome::abundances(tmp)[b_name, ]
+
+name <- paste0(b_name, "_", b_name) 
+
+a/b %>%
+  data.frame() %>%
+  dplyr::rename(!!name :=  ".") -> tmp
+
+tmp %>%
+  tibble::rownames_to_column('sample') %>%
+  dplyr::full_join(
+    ps %>%
+      sample_data() %>%
+      data.frame() %>%
+      rownames_to_column('sample'),
+    by = c("sample" = "sample")
+  ) -> df
+
+
+df %>%
+  ggplot(aes_string(x=Group,
+                    y=name,
+                    colour=Group, 
+                    fill = Group, 
+                    label = "sample")) +
+  # facet_grid(as.formula(paste("~","diet")), drop=T,scale="free",space="free_x") +
+  geom_boxplot(outlier.colour = NA,alpha=0.2,
+               position = position_dodge(width=0.7)) +
+  # geom_violin(alpha = 0.1) +
+  geom_jitter(size=2, alpha=0.8, position=position_jitterdodge(1)) +
+  ggrepel::geom_text_repel(position = position_jitterdodge(1),
+                  size = 2,
+                  # color = 'black',
+                  segment.color = 'grey50'# ,    min.segment.length = 0
+  ) +
+  ylab(paste0(paste0(b_name, "_", b_name), " ratio"))  + xlab(NULL)  +
+  theme(axis.text.x = element_blank()) +
+  theme_classic() -> p
+
+return(out = list("plot" = p,
+                   "df" = df))
+
+detach("package:microbiome", unload=TRUE)
+}
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
 #'library(phyloseq)
 #'data(esophagus)
 #'phyloseq_compute_bdiv(esophagus, 100) -> dist
