@@ -411,7 +411,7 @@ phyloseq_correlate_taxa <- function(ps_tmp,
                      by = c("Taxa" = "ASV")) %>%
     dplyr::select(-Taxa) %>%
     dplyr::rename(Taxa = Strain) %>%
-    microbiomeSeq::plot_taxa_env() +
+    phyloseq_plot_taxa_env_correlation() +
     scale_fill_gradient2(low = "#2C7BB6", high = "#D7191C", mid = "white",
                          midpoint = 0, limit = c(-1,1), space = "Lab") -> plot
 
