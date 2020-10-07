@@ -16,15 +16,17 @@
 #'
 
 
-phyloseq_Firmi_Bact_ratio <- function(ps = GlobalPatterns,
+phyloseq_A_B_ratio <- function(ps = GlobalPatterns,
                                       level = "Phylum",
                                       a_name = "Bacteroidetes",
                                       b_name = "Firmicutes",
-                                      Group = "SampleType")
+                                      Group = "SampleType",
+                                      sampleID = TRUE)
 {
 require(microbiome)
 require(tidyverse)
-  
+require(ggpubr)
+
 microbiome::transform(microbiome::aggregate_taxa(ps, level = level), "compositional") -> tmp
 a <- microbiome::abundances(tmp)[a_name, ]
 b <- microbiome::abundances(tmp)[b_name, ]
@@ -57,19 +59,30 @@ df %>%
                position = position_dodge(width=0.7)) +
   # geom_violin(alpha = 0.1) +
   geom_jitter(size=2, alpha=0.8, position=position_jitterdodge(1)) +
-  ggrepel::geom_text_repel(position = position_jitterdodge(1),
-                  size = 2,
-                  # color = 'black',
-                  segment.color = 'grey50'# ,    min.segment.length = 0
-  ) +
   ylab(paste0(paste0(b_name, "_", b_name), " ratio"))  + xlab(NULL)  +
   theme(axis.text.x = element_blank()) +
   theme_classic() -> p
 
-return(out = list("plot" = p,
-                   "df" = df))
+if(sampleID == TRUE)
+{
+  p +
+  ggrepel::geom_text_repel(position = position_jitterdodge(1),
+                           size = 2,
+                           # color = 'black',
+                           segment.color = 'grey50'# ,    min.segment.length = 0
+  ) -> p
+}
 
-detach("package:microbiome", unload=TRUE)
+ggpubr::compare_means(as.formula(paste0(name, " ~ ", Group)),
+                      # group.by = "variable",
+                      data = df,
+                      method = "wilcox.test") -> KW_tests
+
+return(out = list("plot" = p,
+                  "df" = df,
+                  "KW_tests" = KW_tests))
+
+detach("package:microbiome", unload = TRUE); detach("package:ggpubr", unload = TRUE)
 }
 
 #' @title ...
