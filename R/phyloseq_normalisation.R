@@ -407,7 +407,7 @@ phyloseq_filter_samples <- function(physeq, thrs)
 phyloseq_get_strains <- function(physeq)
 {
 
-  require(fantaxtic)
+  # require(fantaxtic)
   physeq_tmp = physeq
 
   physeq %>%
@@ -419,7 +419,7 @@ phyloseq_get_strains <- function(physeq)
     as.matrix() -> tax_table(physeq_tmp)
 
   physeq_tmp %>%
-    name_taxa(label = "unknown",
+    get_strains(label = "unknown",
               species = TRUE) %>%
     tax_table() %>%
     as.data.frame() %>%
@@ -441,6 +441,55 @@ phyloseq_get_strains <- function(physeq)
     as.matrix() -> tax_table(physeq)
 
   return(physeq)
+}
+
+get_strains <- function(physeq_obj, label = "Unannotated", other_label = NULL, 
+          species = FALSE, unique_rank = NULL, unique_sep = " ") 
+{
+  tax_tbl <- phyloseq::tax_table(physeq_obj)
+  tax_names <- colnames(tax_tbl)
+  tax_tbl <- t(apply(tax_tbl, 1, function(x) {
+    n <- length(x)
+    if (sum(is.na(x)) == n) {
+      tax_ranks <- rep("Unknown", n)
+    }
+    else {
+      if (sum(is.na(x)) != 0) {
+        i <- max(which(!is.na(x)))
+        rank <- x[i]
+        x[which(is.na(x))] <- sprintf("%s %s (%s)", label, 
+                                      rank, names(x)[i])
+      }
+      else {
+        if (!is.null(other_label)) {
+          if (sum(other_label %in% x) > 0) {
+            tax_ranks <- x
+          }
+          else {
+            if (species) {
+              x[n] <- sprintf("%s %s", x[n - 1], x[n])
+            }
+          }
+        }
+        else {
+          if (species) {
+            x[n] <- sprintf("%s %s", x[n - 1], x[n])
+          }
+        }
+      }
+      tax_ranks <- x
+      return(tax_ranks)
+    }
+  }))
+  if (!is.null(unique_rank)) {
+    ind <- which(colnames(tax_tbl) == unique_rank)
+    tax_tbl[, ind] <- as.character(tax_tbl[, ind])
+    tax_tbl[, ind] <- as.character(gen_uniq_lbls(tax_tbl[, 
+                                                         ind], sep_char = unique_sep))
+  }
+  phyloseq::tax_table(physeq_obj) <- tax_tbl
+  colnames(phyloseq::tax_table(physeq_obj)) <- tax_names
+  return(physeq_obj)
 }
 
 #' @title ...

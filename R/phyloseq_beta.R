@@ -783,11 +783,15 @@ phyloseq_ordinations_expl_var <- function(plot_list)
 #'
 #'
 
-phyloseq_distance_boxplot <- function(p = ps_rare_diet, dist, s = "SampleID", d = "group") 
+phyloseq_distance_boxplot <- function(p = ps, dist = dlist$wjaccard, d = "SampleType") 
   {
   
   require("phyloseq")
   require("tidyverse")
+  
+  s <- sample_names(p)
+  as.matrix(dist)[s,s] %>%
+    as.dist() -> dm
   
   # calc distances
   # wu = phyloseq::distance(p, m)
@@ -801,7 +805,8 @@ phyloseq_distance_boxplot <- function(p = ps_rare_diet, dist, s = "SampleID", d 
   # get sample data (S4 error OK and expected)
   sd = sample_data(p) %>%
     data.frame() %>%
-    select(s, d) %>%
+    rownames_to_column("tmp") %>%
+    select(tmp, all_of(d)) %>%
     mutate_if(is.factor,as.character)
   
   # combined distances with sample data
@@ -819,7 +824,7 @@ phyloseq_distance_boxplot <- function(p = ps_rare_diet, dist, s = "SampleID", d 
     scale_color_identity() +
     facet_wrap(~ Type1, scales = "free_x") +
     theme(axis.text.x=element_text(angle = 90, hjust = 1, vjust = 0.5)) +
-    ggtitle(paste0("Distance Metric = ")) +
+    # ggtitle(paste0("Distance Metric = ")) +
     ylab("Distance")# +
   # xlab()
   
