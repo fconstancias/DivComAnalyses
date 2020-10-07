@@ -12,7 +12,7 @@
 #'
 #'library(phyloseq)
 #'data(GlobalPatterns)
-#'phyloseq_compute_bdiv(esophagus, 100) -> dist
+#'phyloseq_A_B_ratio()
 #'
 
 
@@ -21,7 +21,7 @@ phyloseq_A_B_ratio <- function(ps = GlobalPatterns,
                                       a_name = "Bacteroidetes",
                                       b_name = "Firmicutes",
                                       Group = "SampleType",
-                                      sampleID = TRUE)
+                                      sampleID = FALSE)
 {
 require(microbiome)
 require(tidyverse)
@@ -31,7 +31,7 @@ microbiome::transform(microbiome::aggregate_taxa(ps, level = level), "compositio
 a <- microbiome::abundances(tmp)[a_name, ]
 b <- microbiome::abundances(tmp)[b_name, ]
 
-name <- paste0(b_name, "_", b_name) 
+name <- paste0(a_name, "_", b_name) 
 
 a/b %>%
   data.frame() %>%
@@ -59,7 +59,7 @@ df %>%
                position = position_dodge(width=0.7)) +
   # geom_violin(alpha = 0.1) +
   geom_jitter(size=2, alpha=0.8, position=position_jitterdodge(1)) +
-  ylab(paste0(paste0(b_name, "_", b_name), " ratio"))  + xlab(NULL)  +
+  ylab(paste0(paste0(a_name, "/", b_name) , " ratio"))  + xlab(NULL)  +
   theme(axis.text.x = element_blank()) +
   theme_classic() -> p
 
