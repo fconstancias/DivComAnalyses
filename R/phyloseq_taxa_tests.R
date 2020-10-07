@@ -231,7 +231,7 @@ phyloseq_run_ALDEx2 <- function(tmp = tmp,
 
 
 phyloseq_taxa_env_correlation <- function (physeq, grouping_column, method = "pearson", pvalue.threshold = 0.05, 
-          padjust.method = "BH", adjustment = 3, num.taxa = 50, select.variables = NULL) 
+          padjust.method = "fdr", adjustment = 3, num.taxa = 50, select.variables = NULL) 
 {
   method <- match.arg(method, c("pearson", "kendall", "spearman"), 
                       several.ok = F)
@@ -244,7 +244,10 @@ phyloseq_taxa_env_correlation <- function (physeq, grouping_column, method = "pe
   if (!is.null(select.variables)) {
     meta_table <- subset(meta_table, select = select.variables)
   }
-  mt_env <- meta_table[, sapply(meta_table, is.numeric)]
+  # mt_env <- meta_table[, sapply(meta_table, as.numeric)] %>%
+  #   column_to_rownames("tmp") %>%
+  #   rownames_to_column("tmp")
+  mt_env <- meta_table
   abund_table_filt <- abund_table[rownames(mt_env), ]
   abund_table_filt <- abund_table_filt[, order(colSums(abund_table_filt), 
                                                decreasing = TRUE)]
