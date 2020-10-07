@@ -102,7 +102,6 @@ plot_alphas <- function(alphas,
                       "value",
                       colour = colour_group,
                       fill = fill_group)) +
-    facet_grid(as.formula(paste0("alphadiversiy ~ ",paste(facet_group))), scales = "free_y", space = "fixed") +
     geom_boxplot(outlier.colour = NA, alpha=0.2) +
     # ggbeeswarm::geom_beeswarm(size=1, alpha=0.2,
     #                           position=position_jitterdodge(dodge.width=0.9)) +
@@ -110,7 +109,10 @@ plot_alphas <- function(alphas,
                 aes_string(shape = shape_group)) +
     # geom_point(size=2,position=position_jitterdodge(dodge.width=0.9)) +
     ylab("Diversity index")  + xlab(NULL) + theme_light() -> p
-
+if(facet_group != NULL)
+{
+  p + facet_grid(as.formula(paste0("alphadiversiy ~ ",paste(facet_group))), scales = "free_y", space = "fixed") -> p
+}
   p
 
   ggpubr::compare_means(formula = as.formula(paste0("value ~ ", paste0(test_group))),
@@ -120,7 +122,7 @@ plot_alphas <- function(alphas,
                         p.adjust.method = "fdr") %>%
     select(-.y., -p.format, -p.signif) %>%
     arrange(p) %>%
-    mutate(signif = ifelse(p.adj <= 0.05, 'SIGN', 'NS'))-> stat
+    mutate(signif = ifelse(p.adj <= 0.05, 'SIGN', 'NS')) -> stat
 
 
   out <- list("plot" = p,
