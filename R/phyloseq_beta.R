@@ -747,6 +747,90 @@ p = p + ggtitle(paste0("Ordination using various distance metrics ")) +
 return(p)
 }
 
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
+
+phyloseq_ordinations_expl_var <- function(plot_list)
+{
+  plot_list %>%
+    plyr::ldply(function(x) x$labels$x) %>%
+    bind_cols(plyr::ldply(plot_list, function(x) x$labels$y)) %>%
+    data.frame() -> df
+  
+  return(df)
+}
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
+
+phyloseq_distance_boxplot <- function(p = ps_rare_diet, dist, s = "SampleID", d = "group") 
+  {
+  
+  require("phyloseq")
+  require("tidyverse")
+  
+  # calc distances
+  # wu = phyloseq::distance(p, m)
+  wu.m = reshape2::melt(as.matrix(dist))
+  
+  # remove self-comparisons
+  wu.m = wu.m %>%
+    filter(as.character(Var1) != as.character(Var2)) %>%
+    mutate_if(is.factor, as.character)
+  
+  # get sample data (S4 error OK and expected)
+  sd = sample_data(p) %>%
+    data.frame() %>%
+    select(s, d) %>%
+    mutate_if(is.factor,as.character)
+  
+  # combined distances with sample data
+  colnames(sd) = c("Var1", "Type1")
+  wu.sd = left_join(wu.m, sd, by = "Var1")
+  
+  colnames(sd) = c("Var2", "Type2")
+  wu.sd = left_join(wu.sd, sd, by = "Var2")
+  
+  # plot
+  p = ggplot(wu.sd, aes(x = Type2, y = value)) +
+    theme_bw() +
+    geom_boxplot(aes(color = ifelse(Type1 == Type2, "red", "black"))) +
+    geom_jitter(aes(color = ifelse(Type1 == Type2, "red", "black")))+
+    scale_color_identity() +
+    facet_wrap(~ Type1, scales = "free_x") +
+    theme(axis.text.x=element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+    ggtitle(paste0("Distance Metric = ")) +
+    ylab("Distance")# +
+  # xlab()
+  
+  # return
+  out = list(plot=p,
+             matrix = wu.sd)
+  return(out)
+  
+}
+
+
 
 #' @title ...
 #' @param .
