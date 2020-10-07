@@ -110,13 +110,11 @@ plot_alphas <- function(alphas,
     # geom_point(size=2,position=position_jitterdodge(dodge.width=0.9)) +
     ylab("Diversity index")  + xlab(NULL) + theme_light() -> p
   
-if(facet_group != FALSE){
+if (facet_group != FALSE) {
   p + facet_grid(as.formula(paste0("alphadiversiy ~ ", scales = "free_y", space = "fixed") -> p
-}else {
+} else {
     p + facet_grid(as.formula(paste0("alphadiversiy ~ ",paste(facet_group))), scales = "free_y", space = "fixed") -> p
 }
-  
-  
 
 ggpubr::compare_means(formula = as.formula(paste0("value ~ ", paste0(test_group))),
                         group.by = c("alphadiversiy", test_group_2),
