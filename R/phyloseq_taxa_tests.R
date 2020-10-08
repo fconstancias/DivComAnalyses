@@ -217,24 +217,18 @@ phyloseq_boxplot_abundance <- function (ps,
     p <- p + geom_jitter(size = size, 
                          alpha = alpha,
                          aes_string(colour = color,
-                                    fill = color)) +
-      scale_colour_manual(values = colors) + 
-      scale_fill_manual(values = colors) 
+                                    fill = color))
   }
   if (!violin) {
     p <- p + geom_boxplot(outlier.size = 0,
                           outlier.shape = "",
                           aes_string(color = color,
                                      fill = color),
-                          alpha = 0.8) +
-      scale_colour_manual(values = colors) + 
-      scale_fill_manual(values = colors) 
+                          alpha = 0.8) 
   }else {
     p <- p + geom_violin(fill = NA,
                          aes_string(color = color,
-                                    fill = color)) + 
-      scale_colour_manual(values = colors) + 
-      scale_fill_manual(values = colors) 
+                                    fill = color)) 
   }
   if (!is.null(line)) {
     df$linevar <- factor(df[[line]])
@@ -255,7 +249,9 @@ phyloseq_boxplot_abundance <- function (ps,
     p <- p + xlab(x) + theme(legend.position = "none")
   return(p)
   }
-    p <- p + xlab(NULL) + theme(legend.position = "none")
+    p <- p + xlab(NULL) + theme(legend.position = "none") +
+      scale_colour_manual(values = colors) + 
+      scale_fill_manual(values = colors) 
     return(p)
 
     detach("package:microbiome", unload = TRUE)
