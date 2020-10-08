@@ -243,7 +243,7 @@ phyloseq_boxplot_abundance <- function (ps,
   }
   
   if (log10) {
-    p <- p + scale_y_log10() + ylab(paste0(ylab, " -log10")) + theme(legend.position = "none")
+    p <- p + scale_y_log10() + ylab(paste0(ylab)) + theme(legend.position = "none")
   }
   if (is.null(colors)) {
     p <- p + xlab(x) + theme(legend.position = "none")
