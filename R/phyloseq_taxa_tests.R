@@ -24,7 +24,7 @@ phyloseq_run_DESeq2_pair_plots <- function(ps_temp,
                                 gm_mean = FALSE)
 {
   require(tidyverse)
-  
+  ps_temp %>%
   speedyseq::tax_glom(taxrank = taxrank) -> ps_temp
   
   taxa_names(ps_temp) <-  tax_table(ps_temp)[,taxrank]
