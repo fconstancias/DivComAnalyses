@@ -12,7 +12,7 @@
 #'
 #'
 
-phyloseq_run_DESeq2_pair_plots <- function(ps_temp,
+phyloseq_run_DESeq2_pair_plots <- function(ps,
                                 taxrank = "Strain",
                                 sumfilter = 10,
                                 prevfilter = 0.33,
@@ -21,10 +21,12 @@ phyloseq_run_DESeq2_pair_plots <- function(ps_temp,
                                 contrast = c("diet", "high ALA", "low ALA"),
                                 level_facet = "Class",
                                 Group2 = NULL,
-                                gm_mean = FALSE)
+                                gm_mean = FALSE,
+                                Group_group = Group,
+                                boxplot_colors = NULL)
 {
-  require(tidyverse)
-  ps_temp %>%
+  require(tidyverse);require(DESeq2)
+  ps %>%
   speedyseq::tax_glom(taxrank = taxrank) -> ps_temp
   
   taxa_names(ps_temp) <-  tax_table(ps_temp)[,taxrank]
@@ -130,7 +132,7 @@ phyloseq_run_DESeq2_pair_plots <- function(ps_temp,
     as.list(taxa_names(ps_tmp)),
     FUN = phyloseq_boxplot_abundance,
     ps = ps_tmp,
-    x= Group, color = NULL, line=NULL, violin = FALSE, show.points = TRUE, colors = NULL) -> boxplots
+    x= Group, color = Group_group, line=NULL, violin = FALSE, show.points = TRUE, colors = boxplot_colors) -> boxplots
   
   names(boxplots) <- taxa_names(ps_tmp)
   
@@ -140,6 +142,8 @@ phyloseq_run_DESeq2_pair_plots <- function(ps_temp,
               "results"=resuls_complete)
   
   return(out)
+  detach("package:DESeq2", unload = TRUE)
+  
 }
 
 
