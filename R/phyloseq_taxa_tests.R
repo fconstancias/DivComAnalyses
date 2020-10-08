@@ -17,10 +17,11 @@
 #'
 #'phyloseq_boxplot_abundance(ps = ps2)
 #'
-phyloseq_boxplot_abundance <- function (ps = GlobalPatterns, 
-                                        x = "SampleType", 
-                                        y = "unknown Dolichospermum (Genus) 279599", 
-                                        color = "SampleType", # NULL
+phyloseq_boxplot_abundance <- function (ps, 
+                                        x, 
+                                        y, 
+                                        level = "Strain",
+                                        color = NULL, # NULL
                                         line = NULL, 
                                         violin = FALSE, 
                                         na.rm = FALSE, 
@@ -32,7 +33,7 @@ phyloseq_boxplot_abundance <- function (ps = GlobalPatterns,
 {
   change <- xvar <- yvar <- linevar <- colorvar <- NULL
   pseq <- ps
-  taxa_names(pseq) <- tax_table(pseq)[,"Strain"]
+  taxa_names(pseq) <- tax_table(pseq)[,level]
 
   otu <- microbiome::abundances(pseq)
   df <- microbiome::meta(pseq)
@@ -54,7 +55,7 @@ phyloseq_boxplot_abundance <- function (ps = GlobalPatterns,
     return(ggplot())
   }
   df$xvar <- factor(df$xvar)
-  p <- ggplot(df, aes(x = xvar, y = yvar)) + theme_linedraw() + ylab(y) 
+  p <- ggplot(df, aes(x = xvar, y = yvar)) +theme_classic() + ylab(y) 
   if (show.points) {
     p <- p + geom_jitter(size = size, 
                          alpha = alpha,
