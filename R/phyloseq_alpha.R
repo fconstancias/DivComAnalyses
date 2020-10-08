@@ -102,10 +102,10 @@ plot_alphas <- function(alphas,
                       "value",
                       colour = colour_group,
                       fill = fill_group)) +
-    geom_boxplot(outlier.colour = NA, alpha=0.2) +
+    geom_boxplot(outlier.colour = NA, alpha=0.7) +
     # ggbeeswarm::geom_beeswarm(size=1, alpha=0.2,
     #                           position=position_jitterdodge(dodge.width=0.9)) +
-    geom_jitter(size=1, position = position_jitterdodge(dodge.width=0.6),
+    geom_jitter(size=1, position = position_jitterdodge(dodge.width=1),
                 aes_string(shape = shape_group)) +
     # geom_point(size=2,position=position_jitterdodge(dodge.width=0.9)) +
     ylab("Diversity index")  + xlab(NULL) + theme_light() -> p
