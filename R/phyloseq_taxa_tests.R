@@ -133,11 +133,12 @@ phyloseq_run_DESeq2 <- function(ps_temp,
   
   names(boxplots) <- taxa_names(ps_tmp)
   
+  out <- list("boxplots"=boxplots,
+              "volcano_plot"=volcano_plot,
+              "heatmap" =heatmap,
+              "results"=resuls_complete)
   
-  return(out <- list("boxplots"=boxplots,
-                     "volcano_plot"=volcano_plot,
-                     "heatmap" =heatmap,
-                     "results"=resuls_complete))
+  return(out)
 }
 
 
