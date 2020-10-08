@@ -11,7 +11,8 @@
 #'
 #'
 #'
-phyloseq_run_DESeq2 <- function(ps_temp,
+
+phyloseq_run_DESeq2_pair_plots <- function(ps_temp,
                                 taxrank = "Strain",
                                 sumfilter = 10,
                                 prevfilter = 0.33,
