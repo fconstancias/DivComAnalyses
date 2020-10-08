@@ -132,7 +132,7 @@ phyloseq_run_DESeq2_pair_plots <- function(ps,
     as.list(taxa_names(ps_tmp)),
     FUN = phyloseq_boxplot_abundance,
     ps = ps_tmp,
-    x= Group, color = Group_group, line=NULL, violin = FALSE, show.points = TRUE, colors = boxplot_colors) -> boxplots
+    x= Group, color = Group_group, level = taxrank, line=NULL, violin = FALSE, show.points = TRUE, colors = boxplot_colors) -> boxplots
   
   names(boxplots) <- taxa_names(ps_tmp)
   
