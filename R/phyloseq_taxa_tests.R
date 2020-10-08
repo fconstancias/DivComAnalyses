@@ -317,10 +317,10 @@ df %>%
                     fill = Group, 
                     label = "sample")) +
   # facet_grid(as.formula(paste("~","diet")), drop=T,scale="free",space="free_x") +
-  geom_boxplot(outlier.colour = NA,alpha=0.2,
+  geom_boxplot(outlier.colour = NA,alpha=0.8,
                position = position_dodge(width=0.7)) +
   # geom_violin(alpha = 0.1) +
-  geom_jitter(size=2, alpha=0.8, position=position_jitterdodge(1)) +
+  geom_jitter(size=2, alpha=1, position=position_jitterdodge(1)) +
   ylab(paste0(paste0(a_name, "/", b_name) , " ratio"))  + xlab(NULL)  +
   theme(axis.text.x = element_blank()) +
   theme_classic() -> p
