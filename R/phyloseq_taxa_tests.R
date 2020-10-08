@@ -245,14 +245,16 @@ phyloseq_boxplot_abundance <- function (ps,
   if (log10) {
     p <- p + scale_y_log10() + ylab(paste0(ylab, " -log10")) + theme(legend.position = "none")
   }
-  if (is.null(color)) {
+  if (is.null(colors)) {
     p <- p + xlab(x) + theme(legend.position = "none")
   return(p)
-  }
+  }else {
     p <- p + xlab(NULL) + theme(legend.position = "none") +
       scale_colour_manual(values = colors) + 
       scale_fill_manual(values = colors) 
     return(p)
+  }
+
 
     detach("package:microbiome", unload = TRUE)
 }
