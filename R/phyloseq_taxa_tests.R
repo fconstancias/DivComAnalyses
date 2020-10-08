@@ -28,9 +28,11 @@ phyloseq_boxplot_abundance <- function (ps,
                                         show.points = TRUE,
                                         size = 2,
                                         alpha = 1,
-                                        log10 = TRUE) 
+                                        log10 = TRUE,
+                                        colors = NULL) 
   
 {
+  colors = colors
   change <- xvar <- yvar <- linevar <- colorvar <- NULL
   pseq <- ps
   taxa_names(pseq) <- tax_table(pseq)[,level]
@@ -55,23 +57,29 @@ phyloseq_boxplot_abundance <- function (ps,
     return(ggplot())
   }
   df$xvar <- factor(df$xvar)
-  p <- ggplot(df, aes(x = xvar, y = yvar)) +theme_classic() + ylab(y) 
+  p <- ggplot(df, aes(x = xvar, y = yvar)) + theme_classic() + ylab(y) 
   if (show.points) {
     p <- p + geom_jitter(size = size, 
                          alpha = alpha,
                          aes_string(colour = color,
-                                    fill = color))
+                                    fill = color)) +
+      scale_colour_manual(values = colors) + 
+      scale_fill_manual(values = colors) 
   }
   if (!violin) {
     p <- p + geom_boxplot(outlier.size = 0,
                           outlier.shape = "",
                           aes_string(color = color,
                                      fill = color),
-                          alpha = 0.8)
+                          alpha = 0.8) +
+      scale_colour_manual(values = colors) + 
+      scale_fill_manual(values = colors) 
   }else {
     p <- p + geom_violin(fill = NA,
                          aes_string(color = color,
-                                    fill = color))
+                                    fill = color)) + 
+      scale_colour_manual(values = colors) + 
+      scale_fill_manual(values = colors) 
   }
   if (!is.null(line)) {
     df$linevar <- factor(df[[line]])
