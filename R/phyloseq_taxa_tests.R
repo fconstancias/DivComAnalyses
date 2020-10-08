@@ -10,6 +10,106 @@
 #' @examples
 #'
 #'
+#'library(phyloseq);library(tidyverse)
+#'data(GlobalPatterns)
+#'GlobalPatterns %>% phyloseq_get_strains() -> ps2
+#'ps2 %>% phyloseq_boxplot_abundance(color = NULL)
+#'
+#'phyloseq_boxplot_abundance(ps = ps2)
+#'
+phyloseq_boxplot_abundance <- function (ps = GlobalPatterns, 
+                                        x = "SampleType", 
+                                        y = "unknown Dolichospermum (Genus) 279599", 
+                                        color = "SampleType", # NULL
+                                        line = NULL, 
+                                        violin = FALSE, 
+                                        na.rm = FALSE, 
+                                        show.points = TRUE,
+                                        size = 2,
+                                        alpha = 1,
+                                        log10 = TRUE) 
+  
+{
+  change <- xvar <- yvar <- linevar <- colorvar <- NULL
+  pseq <- ps
+  taxa_names(pseq) <- tax_table(pseq)[,"Strain"]
+
+  otu <- microbiome::abundances(pseq)
+  df <- microbiome::meta(pseq)
+  df$xvar <- df[[x]]
+  if (!is.factor(df[[x]])) {
+    df$xvar <- factor(as.character(df$xvar))
+  }
+  if (y %in% taxa_names(pseq)) {
+    df$yvar <- as.vector(unlist(otu[y, ]))
+  }else {
+    df$yvar <- as.vector(unlist(sample_data(pseq)[, y]))
+  }
+  if (na.rm) {
+    df <- subset(df, !is.na(xvar))
+    df <- subset(df, !is.na(yvar))
+  }
+  if (nrow(df) == 0) {
+    warning("No sufficient data for plotting available. \n            Returning an empty plot.")
+    return(ggplot())
+  }
+  df$xvar <- factor(df$xvar)
+  p <- ggplot(df, aes(x = xvar, y = yvar)) + theme_linedraw() + ylab(y) 
+  if (show.points) {
+    p <- p + geom_jitter(size = size, 
+                         alpha = alpha,
+                         aes_string(colour = color,
+                                    fill = color))
+  }
+  if (!violin) {
+    p <- p + geom_boxplot(outlier.size = 0,
+                          outlier.shape = "",
+                          aes_string(color = color,
+                                     fill = color),
+                          alpha = 0.8)
+  }else {
+    p <- p + geom_violin(fill = NA,
+                         aes_string(color = color,
+                                    fill = color))
+  }
+  if (!is.null(line)) {
+    df$linevar <- factor(df[[line]])
+    df2 <- suppressWarnings(df %>% arrange(linevar, xvar) %>% 
+                              group_by(linevar) %>% summarise(change = diff(yvar)))
+    df$change <- df2$change[match(df$linevar, df2$linevar)]
+    df$change <- sign(df$change)
+    p <- p + geom_line(data = df, aes(group = linevar, color = change), 
+                       size = 1) + scale_colour_gradient2(low = "blue", 
+                                                          mid = "black", high = "red", midpoint = 0, na.value = "grey50", 
+                                                          guide = "none")
+  }
+  
+  if (log10) {
+    p <- p + scale_y_log10() + ylab(paste0(y, " - log10")) 
+  }
+  if (is.null(color)) {
+    p <- p + xlab(x) 
+  return(p)
+  }
+    p <- p + xlab(NULL) 
+    return(p)
+
+
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
 #'library(phyloseq)
 #'data(GlobalPatterns)
 #'phyloseq_A_B_ratio()
