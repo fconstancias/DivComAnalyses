@@ -136,7 +136,7 @@ phyloseq_run_DESeq2 <- function(ps_temp,
   
   return(out <- list("boxplots"=boxplots,
                      "volcano_plot"=volcano_plot,
-                     "heatmap" =heatmap
+                     "heatmap" =heatmap,
                      "results"=resuls_complete))
 }
 
