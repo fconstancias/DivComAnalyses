@@ -10,6 +10,149 @@
 #' @examples
 #'
 #'
+#'
+phyloseq_run_DESeq2 <- function(ps_temp,
+                                taxrank = "Strain",
+                                sumfilter = 10,
+                                prevfilter = 0.33,
+                                Group = "diet",
+                                fittype = "parametric",
+                                contrast = c("diet", "high ALA", "low ALA"),
+                                level_facet = "Class",
+                                Group2 = NULL,
+                                gm_mean = FALSE)
+{
+  require(tidyverse)
+  
+  speedyseq::tax_glom(taxrank = taxrank) -> ps_temp
+  
+  taxa_names(ps_temp) <-  tax_table(ps_temp)[,taxrank]
+  
+  ps_temp %>%
+    filter_taxa(function(x) sum(x > sumfilter) > prevfilter*nsamples(ps_temp), TRUE) %>% # keep only ASV with more then 10 reads in more tha 50% of the samples. These are not golden numbers but DESEq can be biaised by ASV abundant in just afew samples. This filtering step is to avoid those biases.
+    phyloseq_to_deseq2(as.formula(paste0("~ ", paste(Group, Group2, sep = " ", collapse = " + ")))) -> cds # convert 
+  
+  
+  if(gm_mean)
+  {
+    gm_mean = function(x, na.rm = TRUE) {
+      exp(sum(log(x[x > 0]), na.rm = na.rm)/length(x))
+    }
+    geoMeans = apply(counts(cds), 1, gm_mean)
+    cds = estimateSizeFactors(cds, geoMeans = geoMeans)
+  }
+  
+  # run DESeq function
+  cds %>%
+    DESeq(fitType = fittype) -> dds
+  
+  dds %>%
+    results(contrast = contrast,
+            tidy = TRUE) %>% 
+    dplyr::rename('ASV' = row) %>%
+    left_join(tax_table(ps_temp) %>% data.frame() %>% rownames_to_column('ASV'),
+              by = "ASV",
+              suffix = c("", ".y")) -> results
+  
+  results %>%
+    filter(padj < 0.05) %>%
+    pull(ASV) -> da_otus
+  
+  results %>%
+    mutate(abs_log2FoldChange = abs(log2FoldChange)) %>% # create new column abs_log2FoldChange absolute values of log2FoldChange column.
+    mutate(SIGN  = ifelse(padj <=0.05 & abs_log2FoldChange > 0 , "SIGN", "NS")) %>% # create new column SIGN for each ASV SIGN is added if padj is <=0.05  and abs_log2FoldChange >1.
+    mutate(sign = ifelse(log2FoldChange <0, "neg", "pos")) %>% # create new column sign column to specify if  log2FoldChange is positive or negative.
+    drop_na(SIGN, # remove NA values for SIGN, log2FoldChange and padj columns.
+            log2FoldChange,
+            padj) -> resuls_complete
+  
+  
+  phyloseq::prune_taxa(da_otus,
+                       ps_temp ) %>%
+    microbiome::transform("Z") %>%
+    plot_heatmap(taxa.label = taxrank,
+                 taxa.order = resuls_complete %>% arrange(sign) %>% pull(ASV)      ## ordered according to fold-change
+    ) +
+    facet_grid(as.formula(paste0(level_facet," ~ ",Group)), scales = "free", space = "free") +
+    # scale_fill_gradientn(colours = c("cyan", "black", "red"),
+    #                        values = scales::rescale(c(-10, -5, -2, -1, -0.5, -0.05, 0, 0.05, 0.5, 1, 2, 5, 10))) + theme_classic() +
+    scale_fill_gradient2(name = "Z-score", low = "#d73027" , mid = "#ffffbf", high = "#1a9850",
+                         na.value = "transparent", #trans = scales::log_trans(2),
+                         midpoint = 0) + 
+    theme_classic() + theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 8)) -> heatmap
+  
+  resuls_complete %>%
+    ggplot(aes(x = log2FoldChange, y = -log10(padj))) + # tell ggplot that we are going to plot -log10(padj) as a function of log2FoldChange
+    geom_point(aes(shape = SIGN, # points are foing to be ploted, shape is coded by SIGN column (SIGN or NS)
+                   size = SIGN, # size is coded by SIGN column (SIGN or NS)
+                   fill = get(level_facet), # filling colour and line color is coded by Class info of the ASV
+                   colour = get(level_facet),
+                   alpha = baseMean)) + # alpha = transparency reflects baseMean i.e., mean value of ASV among samples.
+    scale_shape_manual(values = c(4, 21)) + # We force the shape of the points to be 4 and 21.see : <http://www.sthda.com/sthda/RDoc/images/points-symbols.png>
+    scale_alpha_continuous(name = "baseMean",
+                           limits = c(0,1000),
+                           trans = "sqrt",
+                           range = c(0.6, 0.8)) + #  transparency values from 06 to 0.8
+    scale_colour_viridis_d(alpha = 0.7,
+                           begin = 0,
+                           end = 1,
+                           direction = 1) +
+    scale_fill_viridis_d() +
+    scale_size_manual(values=c(0.2, 2)) + # We force the size of the points: 0.2 for NS and 2 for SIGN
+    # geom_text_repel( # We use ggrepel to display Strain column for significant ASVs
+    #   data = resuls_complete %>%
+    #     drop_na(SIGN, log2FoldChange ,padj) %>%
+    #     subset(padj <= 0.001 & abs_log2FoldChange > 4),
+    #   aes(label = Genus),
+    #   size = 2,
+    #   force = 4,
+    # ) +
+    geom_hline( # adding horizontal line:
+      yintercept = -log10(0.05),
+      col = "red",
+      linetype = "dotted",
+      size = 0.5
+    ) + geom_vline( # adding vertical lines:
+      xintercept = c(-2, 2),
+      col = "red",
+      linetype = "dotted",
+      size = 0.5) -> volcano_plot
+  
+  
+  prune_taxa(da_otus,
+             ps_temp %>% transform_sample_counts(function(x) x/sum(x) * 100)) -> ps_tmp #%>%
+  # subset_taxa(Family != "unknown")-> ps_tmp
+  
+  taxa_names(ps_tmp) <- tax_table(ps_tmp)[, taxrank]
+  
+  lapply(
+    as.list(taxa_names(ps_tmp)),
+    FUN = phyloseq_boxplot_abundance,
+    ps = ps_tmp,
+    x= Group, color = NULL, line=NULL, violin = FALSE, show.points = TRUE, colors = NULL) -> boxplots
+  
+  names(boxplots) <- taxa_names(ps_tmp)
+  
+  
+  return(out <- list("boxplots"=boxplots,
+                     "volcano_plot"=volcano_plot,
+                     "heatmap" =heatmap
+                     "results"=resuls_complete))
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
 #'library(phyloseq);library(tidyverse)
 #'data(GlobalPatterns)
 #'GlobalPatterns %>% phyloseq_get_strains() -> ps2
@@ -100,7 +243,7 @@ phyloseq_boxplot_abundance <- function (ps,
   }
   
   if (log10) {
-    p <- p + scale_y_log10() + ylab(paste0(ylab, " - log10")) 
+    p <- p + scale_y_log10() + ylab(paste0(ylab, " -log10")) 
   }
   if (is.null(color)) {
     p <- p + xlab(x) 
