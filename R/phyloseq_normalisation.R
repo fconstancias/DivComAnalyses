@@ -629,12 +629,11 @@ phyloseq_density_normalize <-  function(physeq = physeq,
 #' #' @examples
 #' #'
 #' #'
-#' phyloseq_remove_contaminants <- function(physeq,
-#' )
+#' phyloseq_remove_contaminants <- function(physeq, sample_type, NTC_label, batch = "PCR_plate", batch.combine = "minimum", normalize = TRUE, threshold = 0.1, facet_plot = NULL, taxa_plot="Family")
+#' 
 #' {
-#'
-#' }
-#' # get ASV id found in the Nuclease_free_H2O = NTC samples
+#' # Remove ASV as long as they occur once in the NTC samples                
+#' ## get ASV id found in the Nuclease_free_H2O = NTC samples
 #' physeq %>%
 #'   subset_samples(origin %in% c("Nuclease_free_H2O")) %>%
 #'   filter_taxa(function(x) sum(x) > 0, TRUE) %>%
@@ -643,27 +642,27 @@ phyloseq_density_normalize <-  function(physeq = physeq,
 #' physeq %>%
 #'   transform_sample_counts(function(x) x/sum(x) *100)  -> physeq_tmp
 #'
+#' ## export p1 wich is a diagnostic plot                            
 #' prune_taxa(ASV_NTC, physeq_tmp) %>%
-#'   plot_bar(fill="Family") +
-#'   facet_grid(~ origin ,scales = "free_x", space = "free") +
+#'   plot_bar(fill= taxa_plot) +
+#'   facet_grid(~ facet_plot ,scales = "free_x", space = "free") +
 #'   theme(plot.title = element_text(hjust = 0.5)) +
 #'   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 3)) -> p1
 #'
 #'
+#' # Use the decontam appraoch # https://benjjneb.github.io/decontam/vignettes/decontam_intro.html
 #'
 #' sample_data(physeq)$is.neg <- sample_data(physeq)$origin == "Nuclease_free_H2O"
 #'
 #' contamdf.prev <- decontam::isContaminant(physeq,
 #'                                          method = "prevalence",
 #'                                          neg = "is.neg",
-#'                                          batch = "PCR_plate",
-#'                                          batch.combine = "minimum",
-#'                                          normalize = T,
-#'                                          threshold = 0.1,
+#'                                          batch = batch,
+#'                                          batch.combine = batch.combine,
+#'                                          normalize = normalize,
+#'                                          threshold = threshold,
 #'                                          detailed = T)
 #'
-#' # ASV identified as contaminants?
-#' table(contamdf.prev$contaminant)
 #'
 #'
 #' # Make phyloseq object of presence-absence in negative controls and true samples
@@ -688,16 +687,22 @@ phyloseq_density_normalize <-  function(physeq = physeq,
 #'              rownames(), physeq %>%
 #'              transform_sample_counts(function(x) x/sum(x) * 100) ) %>%
 #'   plot_bar(fill="Strain") +
-#'   facet_grid(Phylum ~ origin ,scales = "free_x", space = "free") +
+#'   facet_grid(as.formula(paste0(taxa_plot, "~ ", facet_plot)),scales = "free_x", space = "free") +
 #'   theme(plot.title = element_text(hjust = 0.5)) +
-#'   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 1))
-#'
-#'
+#'   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 1)) -> p2
 #'
 #' physeq_save <- physeq
 #'
 #' physeq %>%
 #'   prune_taxa(taxa =! contamdf.prev$contaminant) %>%
-#'   subset_taxa(! Class == "unknown") %>%
-#'   # subset_samples(! origin %in% c("GDC-MOCK", "Nuclease_free_H2O")) %>%
+#'   #subset_taxa(! Class == "unknown") %>%
+#'   #subset_samples(! origin %in% c("GDC-MOCK", "Nuclease_free_H2O")) %>%
 #'   filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> physeq # more than 0 in at least two samples (more than 1) # here we should check based on prevalence plot
+#'
+#' # export all outputs: p1, p2, phyloseq-object filterd with p1, with p2
+#' out <- list("plot_ASV" = p1,
+#'             "plot_decontam" = p2,
+#'              "phyloseq_ASV" = ,
+#'              "phyloseq_decontam" = )
+#' return(out)                
+#'}
