@@ -45,7 +45,7 @@ phyloseq_check_lib_size <- function(physeq, data_color, data_facet, nreads_displ
     ggrepel::geom_text_repel(
       data = df %>% filter(LibrarySize < nreads_display)  #sample_type == "NC" | sample_type ==  "MOCK")
     ) 
-  if(get(data_facet)!=NULL){
+  if(is.null(data_facet)==FALSE){
     p <- p+ facet_wrap(~ get(data_facet) , ncol = 1)
   }
   
