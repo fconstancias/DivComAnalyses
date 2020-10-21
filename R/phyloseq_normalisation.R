@@ -44,7 +44,11 @@ phyloseq_check_lib_size <- function(physeq, data_color, data_facet, nreads_displ
     geom_point(size=0.5) +
     ggrepel::geom_text_repel(
       data = df %>% filter(LibrarySize < nreads_display)  #sample_type == "NC" | sample_type ==  "MOCK")
-    ) + facet_wrap(~ get(data_facet) , ncol = 1)
+    ) 
+  if(get(data_facet)!=NULL){
+    p <- p+ facet_wrap(~ get(data_facet) , ncol = 1)
+  }
+  
 
   p + coord_cartesian(xlim=c(0,first_n)) +
     geom_hline(yintercept = nreads_display, color="red" , size = 0.5) -> p
