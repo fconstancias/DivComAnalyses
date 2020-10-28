@@ -414,18 +414,20 @@ phyloseq_get_strains <- function(physeq)
   # require(fantaxtic)
   physeq_tmp = physeq
 
-  physeq %>%
-    tax_table() %>%
+  as(tax_table(physeq), "matrix") %>%
     as.data.frame() %>%
-    rownames_to_column(var = "ASV") %>%
+    rownames_to_column('ASV') -> tmp1
+  
+  tmp1 %>%
     mutate_at(vars(everything()), na_if, "unknown") %>%
     column_to_rownames("ASV") %>%
     as.matrix() -> tax_table(physeq_tmp)
 
   physeq_tmp %>%
     get_strains(label = "unknown",
-              species = TRUE) %>%
-    tax_table() %>%
+              species = TRUE) -> tmp2
+  
+  as(tax_table(tmp), "matrix") %>%
     as.data.frame() %>%
     rownames_to_column("ASV") %>%
     mutate_if(is.factor, as.character) %>%
@@ -434,9 +436,7 @@ phyloseq_get_strains <- function(physeq)
     column_to_rownames("ASV") %>%
     select(-Strain, Strain) -> tax_tbl_tmp
 
-  full_join(physeq %>% tax_table() %>%
-              as.data.frame() %>%
-              rownames_to_column("ASV"),
+  full_join(tmp1,
             tax_tbl_tmp %>%
               select(Strain) %>%
               rownames_to_column("ASV")) %>%
