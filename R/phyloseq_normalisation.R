@@ -402,34 +402,34 @@ phyloseq_filter_samples <- function(physeq, thrs)
 #' @examples
 #'
 #'library(phyloseq)
-#'data("enterotype")
+#'data("GlobalPatterns")
 #'
-#'phyloseq_check_lib_size(enterotype,"SeqTech","Project", 1000, 10) -> out
+#'phyloseq_get_strains(GlobalPatterns) -> out
 #'
 #'
 
 phyloseq_get_strains <- function(physeq)
 {
 
-  # require(fantaxtic)
+  require(tidyverse)
   physeq_tmp = physeq
 
   as(tax_table(physeq), "matrix") %>%
     as.data.frame() %>%
-    rownames_to_column('ASV') -> tmp1
+    rownames_to_column(var = "ASV") %>%
+    mutate_at(vars(everything()), na_if, "unknown") -> tmp1
   
   tmp1 %>%
-    mutate_at(vars(everything()), na_if, "unknown") %>%
-    column_to_rownames("ASV") %>%
+   column_to_rownames("ASV")  %>%
     as.matrix() -> tax_table(physeq_tmp)
 
   physeq_tmp %>%
     get_strains(label = "unknown",
               species = TRUE) -> tmp2
   
-  as(tax_table(tmp), "matrix") %>%
+  as(tax_table(tmp2), "matrix") %>%
     as.data.frame() %>%
-    rownames_to_column("ASV") %>%
+    rownames_to_column(var = "ASV") %>%
     mutate_if(is.factor, as.character) %>%
     unite(Strain, Species, ASV,
           sep = " ", remove = FALSE, na.rm = TRUE) %>%
