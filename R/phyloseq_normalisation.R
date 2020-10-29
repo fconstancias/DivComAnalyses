@@ -402,16 +402,16 @@ phyloseq_filter_samples <- function(physeq, thrs)
 #' @examples
 #'
 #'library(phyloseq)
-#'data("enterotype")
+#'data("GlobalPatterns")
 #'
-#'phyloseq_check_lib_size(enterotype,"SeqTech","Project", 1000, 10) -> out
+#'phyloseq_get_strains(GlobalPatterns) -> out
 #'
 #'
 
 phyloseq_get_strains <- function(physeq)
 {
 
-  # require(fantaxtic)
+  require(phyloseq); require(tidyverse)
   physeq_tmp = physeq
 
   physeq %>%
@@ -496,6 +496,47 @@ get_strains <- function(physeq_obj, label = "Unannotated", other_label = NULL,
   return(physeq_obj)
 }
 
+phyloseq_get_strains_fast <- function(physeq)
+{
+  
+  require(phyloseq)
+  physeq_tmp = physeq
+  
+as(tax_table(physeq), "matrix") %>%
+    data.frame() %>%
+    rownames_to_column('ASV') %>% 
+    mutate_at(vars(everything()), na_if, "unknown") -> tmp1
+
+
+tmp1 %>%
+  column_to_rownames("ASV") %>%
+  as.matrix() -> tax_table(physeq_tmp)
+
+  physeq_tmp %>%
+    get_strains(label = "unknown",
+                species = TRUE) -> tmp2
+  
+  as(tax_table(tmp2), "matrix") %>%
+    data.frame() %>%
+    rownames_to_column('ASV')  %>%
+    mutate_if(is.factor, as.character) %>%
+    unite(Strain, Species, ASV,
+          sep = " ", remove = FALSE, na.rm = TRUE) %>%
+    column_to_rownames("ASV") %>%
+    select(-Strain, Strain) -> tax_tbl_tmp
+  
+  full_join(tmp1,
+            tax_tbl_tmp %>%
+              select(Strain) %>%
+              rownames_to_column("ASV")) %>%
+    column_to_rownames("ASV") %>%
+    # replace(is.na(.), "unknown") %>%
+    as.matrix() -> tax_table(physeq)
+  
+  return(physeq)
+}
+
+
 #' @title ...
 #' @param .
 #' @param ..
@@ -536,8 +577,8 @@ phyloseq_remove_chloro_mitho <- function(physeq)
 #'
 #'library(phyloseq)
 #'data("GlobalPatterns")
-#'sample_data(GlobalPatterns)$norm = sample(5000000:1000000, size=nsamples(GlobalPatterns), replace=TRUE)
-#'phyloseq_density_normalize(GlobalPatterns, "norm") -> out
+#'sample_data(GlobalPatterns)$toto = sample(5000000:1000000, size=nsamples(GlobalPatterns), replace=TRUE)
+#'phyloseq_density_normalize(GlobalPatterns, "toto") -> out
 #'HTSSIP::OTU_qPCR_trans(GlobalPatterns, GlobalPatterns %>% sample_data() %>% data.frame() , "X.SampleID", value_idx = "norm") -> out2
 #'otu_table(GlobalPatterns)["540305","TRRsed3"] #2305
 #'sample_data(GlobalPatterns)["TRRsed3",] #2664122
@@ -546,26 +587,25 @@ phyloseq_remove_chloro_mitho <- function(physeq)
 #'otu_table(out)["540305","TRRsed3"] #
 #'otu_table(out2)["540305","TRRsed3"] #
 
-
 phyloseq_density_normalize <-  function(physeq = physeq,
-                                        qPCR = physeq %>% sample_data() %>% data.frame() %>% rownames_to_column("tmp"),
-                                        sample_idx = "tmp",
-                                        value_idx = "ReadNorm")
-
-
+                                        value_idx = "norm")
+  
+  
 {
   require(tidyverse)
   require(phyloseq)
-  require(HTSSIP)
-
-  stopifnot(class(qPCR) == "data.frame" | class(qPCR) == "matrix")
+  
   # stopifnot(!is.null(qPCR$Sample))
   df_OTU_col = colnames(phyloseq::otu_table(physeq))
-  df_OTU = HTSSIP::phyloseq2df(physeq, phyloseq::otu_table)
+  df_OTU = phyloseq2df(physeq, phyloseq::otu_table)
   df_OTU_rn = rownames(df_OTU)
-  df_OTU = as.data.frame(apply(df_OTU, 2, HTSSIP::as.Num))
+  df_OTU = as.data.frame(apply(df_OTU, 2, as.Num))
   rownames(df_OTU) = df_OTU_rn
   df_OTU = tss(df_OTU)
+  
+  sample_idx="tmp"
+  physeq %>% sample_data() %>% data.frame() %>% rownames_to_column(sample_idx) -> qPCR
+  
   rownames(qPCR) = make.names(qPCR[, sample_idx])
   qPCR = qPCR[colnames(df_OTU), ]
   qPCR_vals = qPCR[, value_idx]
@@ -585,6 +625,71 @@ phyloseq_density_normalize <-  function(physeq = physeq,
                                phyloseq::tax_table(tax, errorIfNULL = FALSE), phyloseq::sample_data(sam,
                                                                                                     errorIfNULL = FALSE))
   return(physeq2)
+}
+
+
+# phyloseq_density_normalize_2 <-  function(physeq = physeq,
+#                                         qPCR = physeq %>% sample_data() %>% data.frame() %>% rownames_to_column("tmp"),
+#                                         sample_idx = "tmp",
+#                                         value_idx = "ReadNorm")
+# 
+# 
+# {
+#   require(tidyverse)
+#   require(phyloseq)
+#   require(HTSSIP)
+# 
+#   stopifnot(class(qPCR) == "data.frame" | class(qPCR) == "matrix")
+#   # stopifnot(!is.null(qPCR$Sample))
+#   df_OTU_col = colnames(phyloseq::otu_table(physeq))
+#   df_OTU = HTSSIP::phyloseq2df(physeq, phyloseq::otu_table)
+#   df_OTU_rn = rownames(df_OTU)
+#   df_OTU = as.data.frame(apply(df_OTU, 2, HTSSIP::as.Num))
+#   rownames(df_OTU) = df_OTU_rn
+#   df_OTU = tss(df_OTU)
+#   rownames(qPCR) = make.names(qPCR[, sample_idx])
+#   qPCR = qPCR[colnames(df_OTU), ]
+#   qPCR_vals = qPCR[, value_idx]
+#   if (length(qPCR_vals) != ncol(df_OTU)) {
+#     stop("length qPCR_vals (", length(qPCR_vals), ") != ncol df_OTU (",
+#          ncol(df_OTU), ")")
+#   }
+#   df_OTU = sweep(df_OTU %>% as.data.frame, 2, qPCR_vals, "*")
+#   df_OTU = apply(df_OTU, 2, function(x) round(x, 0))
+#   colnames(df_OTU) = df_OTU_col
+#   df_OTU[is.na(df_OTU)] = 0
+#   tree = phyloseq::phy_tree(physeq, errorIfNULL = FALSE)
+#   tax = phyloseq::tax_table(physeq, errorIfNULL = FALSE)
+#   sam = phyloseq::sample_data(physeq, errorIfNULL = FALSE)
+#   physeq2 = phyloseq::phyloseq(phyloseq::otu_table(df_OTU,
+#                                                    taxa_are_rows = TRUE), phyloseq::phy_tree(tree, errorIfNULL = FALSE),
+#                                phyloseq::tax_table(tax, errorIfNULL = FALSE), phyloseq::sample_data(sam,
+#                                                                                                     errorIfNULL = FALSE))
+#   return(physeq2)
+# }
+
+
+phyloseq2df <- function (physeq, table_func) 
+{
+  physeq.md = table_func(physeq)
+  physeq.md = suppressWarnings(as.data.frame(as.matrix(physeq.md)))
+  physeq.md = as.matrix(data.frame(lapply(physeq.md, as.character)))
+  physeq.md = as.data.frame(apply(physeq.md, 2, trimws))
+  rownames(physeq.md) = rownames(table_func(physeq))
+  return(physeq.md)
+}
+
+as.Num <- function (x) 
+{
+  as.numeric(as.character(x))
+}
+
+tss <- function (x, MARGIN = 2, na.rm = FALSE) 
+{
+  k = min(x, na.rm = na.rm)
+  tmp = pmax(k, apply(x, MARGIN, sum, na.rm = na.rm))
+  x = sweep(x, MARGIN, tmp, "/")
+  return(x)
 }
 
 # https://bioconductor.org/packages/release/data/experiment/vignettes/curatedMetagenomicData/inst/doc/curatedMetagenomicData.html
