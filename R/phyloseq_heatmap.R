@@ -25,24 +25,24 @@ phyloseq_ampvis_heatmap <- function(physeq,transform, group_by, facet_by, tax_ag
   require(ampvis2)
   require(phyloseq)
   
-  devtools::source_gist("8d0ca4206a66be7ff6d76fc4ab8e66c6") # to source phyloseq_to_ampvis2()
+  #devtools::source_gist("8d0ca4206a66be7ff6d76fc4ab8e66c6") # to source phyloseq_to_ampvis2()
   
   
   # if ('SampleID' !%in% (physeq %>% sample_data() %>% colnames()))
   # {
-    physeq %>%
-      sample_data() %>%
-      data.frame() %>%
-      rownames_to_column('temp') %>%
-      mutate("SampleID" = temp) %>%
-      dplyr::select(SampleID, everything()) %>%
-      column_to_rownames("temp") %>%
-      sample_data() -> df
-    
-    physeq@sam_data = NULL
-    
-    physeq <- merge_phyloseq(physeq,
-                             df)
+  physeq %>%
+    sample_data() %>%
+    data.frame() %>%
+    rownames_to_column('temp') %>%
+    mutate("SampleID" = temp) %>%
+    dplyr::select(SampleID, everything()) %>%
+    column_to_rownames("temp") %>%
+    sample_data() -> df
+  
+  physeq@sam_data = NULL
+  
+  physeq <- merge_phyloseq(physeq,
+                           df)
   # }else 
   # {
   #   physeq %>%
@@ -51,25 +51,25 @@ phyloseq_ampvis_heatmap <- function(physeq,transform, group_by, facet_by, tax_ag
   #     as.data.frame() %>%
   #     rownames_to_column('SampleID') -> df
   # }
-    tax_table(physeq) <- tax_table(physeq)[,c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Strain")]
-    colnames(tax_table(physeq)) <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
-    if (transform == "percent")
-    {
-  physeq %>%
-    transform_sample_counts(function(x) x/sum(x) * 100) %>%
-    filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> physeq
-    }else{
-      physeq %>%
-        filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> physeq
-    }
-  
-    if ('Strain' %in% (physeq %>% tax_table() %>% colnames()))
-    {
   tax_table(physeq) <- tax_table(physeq)[,c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Strain")]
-  colnames(tax_table(physeq)) = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
-    }else{
-      
-    }
+  colnames(tax_table(physeq)) <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
+  if (transform == "percent")
+  {
+    physeq %>%
+      transform_sample_counts(function(x) x/sum(x) * 100) %>%
+      filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> physeq
+  }else{
+    physeq %>%
+      filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> physeq
+  }
+  
+  if ('Strain' %in% (physeq %>% tax_table() %>% colnames()))
+  {
+    tax_table(physeq) <- tax_table(physeq)[,c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Strain")]
+    colnames(tax_table(physeq)) = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
+  }else{
+    
+  }
   physeq %>%
     phyloseq_to_ampvis2() %>% 
     amp_heatmap(group_by = group_by,#treatment
@@ -88,11 +88,93 @@ phyloseq_ampvis_heatmap <- function(physeq,transform, group_by, facet_by, tax_ag
                 plot_legendbreaks = c(1, 10, 20)
     ) -> p 
   
-
-    p + theme_classic() + 
-      theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 6)) + 
-      theme(axis.text.y = element_text(angle = 0,  size = 8)) -> p
-    
+  
+  p + theme_classic() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 6)) + 
+    theme(axis.text.y = element_text(angle = 0,  size = 8)) -> p
+  
   return(p)
   
+}
+
+phyloseq_to_ampvis2 <- function(physeq) {
+  #check object for class
+  if(!any(class(physeq) %in% "phyloseq"))
+    stop("physeq object must be of class \"phyloseq\"", call. = FALSE)
+  
+  #ampvis2 requires taxonomy and abundance table, phyloseq checks for the latter
+  if(is.null(physeq@tax_table))
+    stop("No taxonomy found in the phyloseq object and is required for ampvis2", call. = FALSE)
+  
+  #OTUs must be in rows, not columns
+  if(phyloseq::taxa_are_rows(physeq))
+    abund <- as.data.frame(phyloseq::otu_table(physeq)@.Data)
+  else
+    abund <- as.data.frame(t(phyloseq::otu_table(physeq)@.Data))
+  
+  #tax_table is assumed to have OTUs in rows too
+  tax <- phyloseq::tax_table(physeq)@.Data
+  
+  #merge by rownames (OTUs)
+  otutable <- merge(
+    abund,
+    tax,
+    by = 0,
+    all.x = TRUE,
+    all.y = FALSE,
+    sort = FALSE
+  )
+  colnames(otutable)[1] <- "OTU"
+  
+  #extract sample_data (metadata)
+  if(!is.null(physeq@sam_data)) {
+    metadata <- data.frame(
+      phyloseq::sample_data(physeq),
+      row.names = phyloseq::sample_names(physeq), 
+      stringsAsFactors = FALSE, 
+      check.names = FALSE
+    )
+    
+    #check if any columns match exactly with rownames
+    #if none matched assume row names are sample identifiers
+    samplesCol <- unlist(lapply(metadata, function(x) {
+      identical(x, rownames(metadata))}))
+    
+    if(any(samplesCol)) {
+      #error if a column matched and it's not the first
+      if(!samplesCol[[1]])
+        stop("Sample ID's must be in the first column in the sample metadata, please reorder", call. = FALSE)
+    } else {
+      #assume rownames are sample identifiers, merge at the end with name "SampleID"
+      if(any(colnames(metadata) %in% "SampleID"))
+        stop("A column in the sample metadata is already named \"SampleID\" but does not seem to contain sample ID's", call. = FALSE)
+      metadata$SampleID <- rownames(metadata)
+      
+      #reorder columns so SampleID is the first
+      metadata <- metadata[, c(which(colnames(metadata) %in% "SampleID"), 1:(ncol(metadata)-1L)), drop = FALSE]
+    }
+  } else
+    metadata <- NULL
+  
+  #extract phylogenetic tree, assumed to be of class "phylo"
+  if(!is.null(physeq@phy_tree)) {
+    tree <- phyloseq::phy_tree(physeq)
+  } else
+    tree <- NULL
+  
+  #extract OTU DNA sequences, assumed to be of class "XStringSet"
+  if(!is.null(physeq@refseq)) {
+    #convert XStringSet to DNAbin using a temporary file (easiest)
+    fastaTempFile <- tempfile(pattern = "ampvis2_", fileext = ".fa")
+    Biostrings::writeXStringSet(physeq@refseq, filepath = fastaTempFile)
+  } else
+    fastaTempFile <- NULL
+  
+  #load as normally with amp_load
+  ampvis2::amp_load(
+    otutable = otutable,
+    metadata = metadata,
+    tree = tree,
+    fasta = fastaTempFile
+  )
 }
