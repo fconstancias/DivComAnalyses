@@ -592,9 +592,7 @@ phyloseq_correlate_taxa <- function(ps_tmp,
   {
     ps_tmp %>%
       tax_glom(taxrank = tax_glom) -> ps_tmp
-    
-    # taxa_names(ps_tmp) <- tax_table(ps_tmp)[,tax_glom]
-  }
+    }
   
   ps_tmp %>%
     transform_sample_counts(function(x) x/sum(x) * 100) -> tmp2
@@ -625,7 +623,23 @@ phyloseq_correlate_taxa <- function(ps_tmp,
       scale_fill_gradient2(low = "#2C7BB6", high = "#D7191C", mid = "white",
                            midpoint = 0, limit = c(-1,1), space = "Lab") -> p
   }
-  return(list("plot" = p ,
+  
+  if(tax_glom!=FALSE)
+  {
+    as(tax_table(ps_tmp), "matrix") %>%
+      data.frame() -> tmp
+    
+    p$data %>%
+      dplyr::left_join(tmp %>% rownames_to_column("ASV"),
+                       by = c("Taxa" = "ASV")) %>%
+      dplyr::select(-Taxa) %>%
+      dplyr::rename(Taxa := !!tax_glom) %>%
+      phyloseq_plot_taxa_env_correlation() +
+      scale_fill_gradient2(low = "#2C7BB6", high = "#D7191C", mid = "white",
+                           midpoint = 0, limit = c(-1,1), space = "Lab") -> p
+  }
+  
+  return(list("plot" = p,
               "table" = env.taxa.cor))
 }
 
@@ -753,36 +767,36 @@ p.adjust.cor <- function(df,adjustment=1,padjust.method="BH"){
 
 
 
-phyloseq_correlate_taxa_old <- function(ps_tmp,
-                                        grouping_column,
-                                        adjustment= 3,
-                                        cor_variables,
-                                        method)
-{
-  ps_tmp %>%
-    tax_table() %>%
-    data.frame() -> tmp
-
-  ps_tmp %>%
-    transform_sample_counts(function(x) x/sum(x) * 100) %>%
-    microbiome::transform("log10") %>%
-    phyloseq_taxa_env_correlation(grouping_column= grouping_column, method= method, pvalue.threshold=0.05,
-                                  padjust.method="fdr", adjustment=3, num.taxa=20, select.variables = cor_variables) -> env.taxa.cor
-
-  # plot
-  p <- phyloseq_plot_taxa_env_correlation(env.taxa.cor)
-
-  p$data %>%
-    dplyr::left_join(tmp %>% rownames_to_column("ASV"),
-                     by = c("Taxa" = "ASV")) %>%
-    dplyr::select(-Taxa) %>%
-    dplyr::rename(Taxa = Strain) %>%
-    phyloseq_plot_taxa_env_correlation() +
-    scale_fill_gradient2(low = "#2C7BB6", high = "#D7191C", mid = "white",
-                         midpoint = 0, limit = c(-1,1), space = "Lab") -> plot
-
-  return(list("plot" = plot ,
-              "table" = env.taxa.cor))
-}
-
-
+# phyloseq_correlate_taxa_old <- function(ps_tmp,
+#                                         grouping_column,
+#                                         adjustment= 3,
+#                                         cor_variables,
+#                                         method)
+# {
+#   ps_tmp %>%
+#     tax_table() %>%
+#     data.frame() -> tmp
+# 
+#   ps_tmp %>%
+#     transform_sample_counts(function(x) x/sum(x) * 100) %>%
+#     microbiome::transform("log10") %>%
+#     phyloseq_taxa_env_correlation(grouping_column= grouping_column, method= method, pvalue.threshold=0.05,
+#                                   padjust.method="fdr", adjustment=3, num.taxa=20, select.variables = cor_variables) -> env.taxa.cor
+# 
+#   # plot
+#   p <- phyloseq_plot_taxa_env_correlation(env.taxa.cor)
+# 
+#   p$data %>%
+#     dplyr::left_join(tmp %>% rownames_to_column("ASV"),
+#                      by = c("Taxa" = "ASV")) %>%
+#     dplyr::select(-Taxa) %>%
+#     dplyr::rename(Taxa = Strain) %>%
+#     phyloseq_plot_taxa_env_correlation() +
+#     scale_fill_gradient2(low = "#2C7BB6", high = "#D7191C", mid = "white",
+#                          midpoint = 0, limit = c(-1,1), space = "Lab") -> plot
+# 
+#   return(list("plot" = plot ,
+#               "table" = env.taxa.cor))
+# }
+# 
+# 
