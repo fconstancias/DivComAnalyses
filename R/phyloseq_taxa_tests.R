@@ -584,18 +584,16 @@ phyloseq_correlate_taxa <- function(ps_tmp,
                                     grouping_column,
                                     adjustment= 3,
                                     cor_variables,
-                                    method = "pearson")
+                                    method = "spearman")
 {
   require(tidyverse)
+  
   if(tax_glom!=FALSE)
   {
     ps_tmp %>%
       tax_glom(taxrank = tax_glom) -> ps_tmp
     
   }
-  
-  as(tax_table(ps_tmp), "matrix") %>%
-    data.frame() -> tmp
   
   ps_tmp %>%
     transform_sample_counts(function(x) x/sum(x) * 100) -> tmp2
@@ -614,11 +612,10 @@ phyloseq_correlate_taxa <- function(ps_tmp,
   
   if(tax_glom==FALSE)
   {
-    ps_tmp %>%
-      tax_glom(taxrank = tax_glom) -> ps_tmp
+  as(tax_table(ps_tmp), "matrix") %>%
+      data.frame() -> tmp
     
-    
-    p$data %>%
+  p$data %>%
       dplyr::left_join(tmp %>% rownames_to_column("ASV"),
                        by = c("Taxa" = "ASV")) %>%
       dplyr::select(-Taxa) %>%
