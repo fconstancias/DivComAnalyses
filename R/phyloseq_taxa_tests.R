@@ -749,7 +749,7 @@ phyloseq_correlate_taxa <- function(ps_tmp,
                                     cor_variables,
                                     method = "pearson")
 {
-  
+  require(tidyverse)
   if(tax_glom!=FALSE)
   {
     ps_tmp %>%
