@@ -578,7 +578,7 @@ phyloseq_run_ALDEx2 <- function(tmp = tmp,
 #' phyloseq_correlate_taxa(log10 = TRUE, tax_glom = "Genus", grouping_column = "Gender", cor_variables = "Age")
 #'
 
-phyloseq_correlate_taxa_full <- function(ps_tmp,
+phyloseq_correlate_taxa <- function(ps_tmp,
                                     log10 = TRUE,
                                     tax_glom = FALSE,
                                     grouping_column,
@@ -753,7 +753,7 @@ p.adjust.cor <- function(df,adjustment=1,padjust.method="BH"){
 
 
 
-phyloseq_correlate_taxa <- function(ps_tmp,
+phyloseq_correlate_taxa_old <- function(ps_tmp,
                                         grouping_column,
                                         adjustment= 3,
                                         cor_variables,
