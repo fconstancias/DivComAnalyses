@@ -573,10 +573,81 @@ phyloseq_run_ALDEx2 <- function(tmp = tmp,
 #'
 #'library(phyloseq)
 #'data("enterotype")
+#'enterotype %>%
+#' subset_samples(!is.na(Age)) %>%
+#' phyloseq_correlate_taxa(log10 = TRUE, tax_glom = "Genus", grouping_column = "Gender", cor_variables = "Age")
 #'
-#'
-#'
-#'
+
+phyloseq_correlate_taxa <- function(ps_tmp,
+                                    log10 = TRUE,
+                                    tax_glom = FALSE,
+                                    grouping_column,
+                                    adjustment= 3,
+                                    cor_variables,
+                                    method = "pearson")
+{
+  require(tidyverse)
+  if(tax_glom!=FALSE)
+  {
+    ps_tmp %>%
+      tax_glom(taxrank = tax_glom) -> ps_tmp
+    
+  }
+  
+  as(tax_table(ps_tmp), "matrix") %>%
+    data.frame() -> tmp
+  
+  ps_tmp %>%
+    transform_sample_counts(function(x) x/sum(x) * 100) -> tmp2
+  
+  if(log10==TRUE)
+  {
+    tmp2 %>%
+      microbiome::transform("log10") -> tmp2
+  }
+  tmp2 %>%
+    phyloseq_taxa_env_correlation(grouping_column= grouping_column, method= method, pvalue.threshold=0.05,
+                                  padjust.method="fdr", adjustment=3, num.taxa=20, select.variables = cor_variables) -> env.taxa.cor
+  
+  # plot
+  p <- phyloseq_plot_taxa_env_correlation(env.taxa.cor)
+  
+  if(tax_glom==FALSE)
+  {
+    ps_tmp %>%
+      tax_glom(taxrank = tax_glom) -> ps_tmp
+    
+    
+    p$data %>%
+      dplyr::left_join(tmp %>% rownames_to_column("ASV"),
+                       by = c("Taxa" = "ASV")) %>%
+      dplyr::select(-Taxa) %>%
+      dplyr::rename(Taxa = Strain) %>%
+      phyloseq_plot_taxa_env_correlation() +
+      scale_fill_gradient2(low = "#2C7BB6", high = "#D7191C", mid = "white",
+                           midpoint = 0, limit = c(-1,1), space = "Lab") -> p
+  }
+  return(list("plot" = p ,
+              "table" = env.taxa.cor))
+}
+
+
+phyloseq_plot_taxa_env_correlation <- function(df) 
+{
+  p <- ggplot2::ggplot(aes(x = Type, y = Taxa, fill = Correlation), 
+                       data = df)
+  p <- p + ggplot2::geom_tile() + scale_fill_gradient2(low = "#2C7BB6", 
+                                                       mid = "white", high = "#D7191C")
+  p <- p + ggplot2::theme(axis.text.x = element_text(angle = 90, 
+                                                     hjust = 1, vjust = 0.5))
+  p <- p + ggplot2::geom_text(aes(label = Significance), color = "black", 
+                              size = 3) + labs(y = NULL, x = NULL)
+  p <- p + ggplot2::facet_grid(. ~ Env, drop = TRUE, scale = "free", 
+                               space = "free_x")
+  p <- p + ggplot2::xlab("Groups")
+  p <- p + ggplot2::theme(strip.background = element_rect(fill = "white"))
+  return(p)
+}
 
 
 phyloseq_taxa_env_correlation <- function (physeq, grouping_column, method = "pearson", pvalue.threshold = 0.05, 
@@ -682,112 +753,7 @@ p.adjust.cor <- function(df,adjustment=1,padjust.method="BH"){
   return(df)
 }
 
-#' @title ...
-#' @param .
-#' @param ..
-#' @author Florentin Constancias
-#' @note . correlates ASV/Taxa with metadata
-#' @note .
-#' @note .
-#' @return .
-#' @export
-#' @examples
-#'
-#'library(phyloseq)
-#'data("enterotype")
-#'
-#'
-#'
-#'
 
-phyloseq_plot_taxa_env_correlation <- function(df) 
-{
-  p <- ggplot2::ggplot(aes(x = Type, y = Taxa, fill = Correlation), 
-                       data = df)
-  p <- p + ggplot2::geom_tile() + scale_fill_gradient2(low = "#2C7BB6", 
-                                                       mid = "white", high = "#D7191C")
-  p <- p + ggplot2::theme(axis.text.x = element_text(angle = 90, 
-                                                     hjust = 1, vjust = 0.5))
-  p <- p + ggplot2::geom_text(aes(label = Significance), color = "black", 
-                              size = 3) + labs(y = NULL, x = NULL)
-  p <- p + ggplot2::facet_grid(. ~ Env, drop = TRUE, scale = "free", 
-                               space = "free_x")
-  p <- p + ggplot2::xlab("Groups")
-  p <- p + ggplot2::theme(strip.background = element_rect(fill = "white"))
-  return(p)
-}
-
-
-#' @title ...
-#' @param .
-#' @param ..
-#' @author Florentin Constancias
-#' @note . correlates ASV/Taxa with metadata
-#' @note .
-#' @note .
-#' @return .
-#' @export
-#' @examples
-#'
-#'library(phyloseq)
-#'data("enterotype")
-#'enterotype %>%
-#' subset_samples(!is.na(Age)) %>%
-#' phyloseq_correlate_taxa_full(log10 = TRUE, tax_glom = "Genus", grouping_column = "Gender", cor_variables = "Age")
-#'
-
-phyloseq_correlate_taxa <- function(ps_tmp,
-                                    log10 = TRUE,
-                                    tax_glom = FALSE,
-                                    grouping_column,
-                                    adjustment= 3,
-                                    cor_variables,
-                                    method = "pearson")
-{
-  require(tidyverse)
-  if(tax_glom!=FALSE)
-  {
-    ps_tmp %>%
-      tax_glom(taxrank = tax_glom) -> ps_tmp
-    
-  }
-  
-  as(tax_table(ps_tmp), "matrix") %>%
-    data.frame() -> tmp
-  
-  ps_tmp %>%
-    transform_sample_counts(function(x) x/sum(x) * 100) -> tmp2
-  
-  if(log10==TRUE)
-  {
-    tmp2 %>%
-      microbiome::transform("log10") -> tmp2
-  }
-  tmp2 %>%
-    phyloseq_taxa_env_correlation(grouping_column= grouping_column, method= method, pvalue.threshold=0.05,
-                                  padjust.method="fdr", adjustment=3, num.taxa=20, select.variables = cor_variables) -> env.taxa.cor
-  
-  # plot
-  p <- phyloseq_plot_taxa_env_correlation(env.taxa.cor)
-  
-  if(tax_glom==FALSE)
-  {
-    ps_tmp %>%
-      tax_glom(taxrank = tax_glom) -> ps_tmp
-    
-    
-    p$data %>%
-      dplyr::left_join(tmp %>% rownames_to_column("ASV"),
-                       by = c("Taxa" = "ASV")) %>%
-      dplyr::select(-Taxa) %>%
-      dplyr::rename(Taxa = Strain) %>%
-      phyloseq_plot_taxa_env_correlation() +
-      scale_fill_gradient2(low = "#2C7BB6", high = "#D7191C", mid = "white",
-                           midpoint = 0, limit = c(-1,1), space = "Lab") -> p
-  }
-  return(list("plot" = p ,
-              "table" = env.taxa.cor))
-}
 
 # phyloseq_correlate_taxa_old <- function(ps_tmp,
 #                                         grouping_column,
