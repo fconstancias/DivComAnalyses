@@ -13,21 +13,21 @@
 #'
 
 phyloseq_run_DESeq2_pair_plots <- function(ps,
-                                taxrank = "Strain",
-                                sumfilter = 10,
-                                prevfilter = 0.33,
-                                Group = "diet",
-                                fittype = "parametric",
-                                contrast = c("diet", "high ALA", "low ALA"),
-                                level_facet = "Class",
-                                Group2 = NULL,
-                                gm_mean = FALSE,
-                                Group_group = Group,
-                                boxplot_colors = NULL)
+                                           taxrank = "Strain",
+                                           sumfilter = 10,
+                                           prevfilter = 0.33,
+                                           Group = "diet",
+                                           fittype = "parametric",
+                                           contrast = c("diet", "high ALA", "low ALA"),
+                                           level_facet = "Class",
+                                           Group2 = NULL,
+                                           gm_mean = FALSE,
+                                           Group_group = Group,
+                                           boxplot_colors = NULL)
 {
   require(tidyverse);require(DESeq2)
   ps %>%
-  speedyseq::tax_glom(taxrank = taxrank) -> ps_temp
+    speedyseq::tax_glom(taxrank = taxrank) -> ps_temp
   
   taxa_names(ps_temp) <-  tax_table(ps_temp)[,taxrank]
   
@@ -179,14 +179,14 @@ phyloseq_boxplot_abundance <- function (ps,
                                         alpha = 1,
                                         log10 = TRUE,
                                         colors = NULL) 
-  
+
 {
   require(tidyverse); require(microbiome)
   colors = colors
   change <- xvar <- yvar <- linevar <- colorvar <- NULL
   pseq <- ps
   taxa_names(pseq) <- tax_table(pseq)[,level]
-
+  
   otu <- microbiome::abundances(pseq)
   df <- microbiome::meta(pseq)
   df$xvar <- df[[x]]
@@ -210,7 +210,7 @@ phyloseq_boxplot_abundance <- function (ps,
   
   y %>%
     stringr::str_replace("unknown", "un.") %>%
-  stringr::str_trunc(35,  side ="center") -> ylab
+    stringr::str_trunc(35,  side ="center") -> ylab
   
   p <- ggplot(df, aes(x = xvar, y = yvar)) + theme_classic() + ylab(ylab) 
   if (show.points) {
@@ -247,16 +247,16 @@ phyloseq_boxplot_abundance <- function (ps,
   }
   if (is.null(colors)) {
     p <- p + xlab(x) + theme(legend.position = "none")
-  return(p)
+    return(p)
   }else {
     p <- p + xlab(NULL) + theme(legend.position = "none") +
       scale_colour_manual(values = colors) + 
       scale_fill_manual(values = colors) 
     return(p)
   }
-
-
-    detach("package:microbiome", unload = TRUE)
+  
+  
+  detach("package:microbiome", unload = TRUE)
 }
 
 
@@ -279,72 +279,72 @@ phyloseq_boxplot_abundance <- function (ps,
 
 
 phyloseq_A_B_ratio <- function(ps = GlobalPatterns,
-                                      level = "Phylum",
-                                      a_name = "Bacteroidetes",
-                                      b_name = "Firmicutes",
-                                      Group = "SampleType",
-                                      sampleID = FALSE)
+                               level = "Phylum",
+                               a_name = "Bacteroidetes",
+                               b_name = "Firmicutes",
+                               Group = "SampleType",
+                               sampleID = FALSE)
 {
-require(microbiome)
-require(tidyverse)
-require(ggpubr)
-
-microbiome::transform(microbiome::aggregate_taxa(ps, level = level), "compositional") -> tmp
-a <- microbiome::abundances(tmp)[a_name, ]
-b <- microbiome::abundances(tmp)[b_name, ]
-
-name <- paste0(a_name, "_", b_name) 
-
-a/b %>%
-  data.frame() %>%
-  dplyr::rename(!!name :=  ".") -> tmp
-
-tmp %>%
-  tibble::rownames_to_column('sample') %>%
-  dplyr::full_join(
-    ps %>%
-      sample_data() %>%
-      data.frame() %>%
-      rownames_to_column('sample'),
-    by = c("sample" = "sample")
-  ) -> df
-
-
-df %>%
-  ggplot(aes_string(x=Group,
-                    y=name,
-                    colour=Group, 
-                    fill = Group, 
-                    label = "sample")) +
-  # facet_grid(as.formula(paste("~","diet")), drop=T,scale="free",space="free_x") +
-  geom_boxplot(outlier.colour = NA,alpha=0.8,
-               position = position_dodge(width=0.7)) +
-  # geom_violin(alpha = 0.1) +
-  geom_jitter(size=2, alpha=1, position=position_jitterdodge(1)) +
-  ylab(paste0(paste0(a_name, "/", b_name) , " ratio"))  + xlab(NULL)  +
-  theme(axis.text.x = element_blank()) +
-  theme_classic() -> p
-
-if(sampleID == TRUE)
-{
-  p +
-  ggrepel::geom_text_repel(position = position_jitterdodge(1),
-                           size = 2,
-                           # color = 'black',
-                           segment.color = 'grey50'# ,    min.segment.length = 0
-  ) -> p
-}
-
-ggpubr::compare_means(as.formula(paste0(name, " ~ ", Group)),
-                      # group.by = "variable",
-                      data = df,
-                      method = "wilcox.test") -> KW_tests
-
-return(out = list("plot" = p,
-                  "df" = df,
-                  "KW_tests" = KW_tests))
-
-detach("package:microbiome", unload = TRUE); detach("package:ggpubr", unload = TRUE)
+  require(microbiome)
+  require(tidyverse)
+  require(ggpubr)
+  
+  microbiome::transform(microbiome::aggregate_taxa(ps, level = level), "compositional") -> tmp
+  a <- microbiome::abundances(tmp)[a_name, ]
+  b <- microbiome::abundances(tmp)[b_name, ]
+  
+  name <- paste0(a_name, "_", b_name) 
+  
+  a/b %>%
+    data.frame() %>%
+    dplyr::rename(!!name :=  ".") -> tmp
+  
+  tmp %>%
+    tibble::rownames_to_column('sample') %>%
+    dplyr::full_join(
+      ps %>%
+        sample_data() %>%
+        data.frame() %>%
+        rownames_to_column('sample'),
+      by = c("sample" = "sample")
+    ) -> df
+  
+  
+  df %>%
+    ggplot(aes_string(x=Group,
+                      y=name,
+                      colour=Group, 
+                      fill = Group, 
+                      label = "sample")) +
+    # facet_grid(as.formula(paste("~","diet")), drop=T,scale="free",space="free_x") +
+    geom_boxplot(outlier.colour = NA,alpha=0.8,
+                 position = position_dodge(width=0.7)) +
+    # geom_violin(alpha = 0.1) +
+    geom_jitter(size=2, alpha=1, position=position_jitterdodge(1)) +
+    ylab(paste0(paste0(a_name, "/", b_name) , " ratio"))  + xlab(NULL)  +
+    theme(axis.text.x = element_blank()) +
+    theme_classic() -> p
+  
+  if(sampleID == TRUE)
+  {
+    p +
+      ggrepel::geom_text_repel(position = position_jitterdodge(1),
+                               size = 2,
+                               # color = 'black',
+                               segment.color = 'grey50'# ,    min.segment.length = 0
+      ) -> p
+  }
+  
+  ggpubr::compare_means(as.formula(paste0(name, " ~ ", Group)),
+                        # group.by = "variable",
+                        data = df,
+                        method = "wilcox.test") -> KW_tests
+  
+  return(out = list("plot" = p,
+                    "df" = df,
+                    "KW_tests" = KW_tests))
+  
+  detach("package:microbiome", unload = TRUE); detach("package:ggpubr", unload = TRUE)
 }
 
 #' @title ...
@@ -375,12 +375,12 @@ phyloseq_run_compare_means <- function(tmp = tmp,
                                        varcoef = varcoef)
 {
   out=NULL
-
+  
   out <- vector("list", length(tmp %>%
                                  get_variable(group) %>% levels()))
   names(out) <- tmp %>%
     get_variable(group) %>% levels()
-
+  
   for(tp in tmp %>%
       get_variable(group) %>%
       unique()){
@@ -391,7 +391,7 @@ phyloseq_run_compare_means <- function(tmp = tmp,
       filter_taxa(function(x) sum(x > 0) > (prev*length(x)), TRUE) %>%
       filter_taxa(function(x) sd(x)/mean(x) > varcoef, TRUE) %>%
       psmelt() -> tmp2
-
+    
     ggpubr::compare_means(formula = as.formula(paste0("Abundance ~ ", paste0(comp))),
                           group.by = c("Species"),
                           data = tmp2,
@@ -401,7 +401,7 @@ phyloseq_run_compare_means <- function(tmp = tmp,
       arrange(p.adj) %>%
       mutate(signif = ifelse(p.adj <= 0.05, 'SIGN', 'NS')) %>%
       mutate(Site = tp) -> results
-
+    
     out[[tp]] <- results
   }
   return(out)
@@ -443,7 +443,7 @@ phyloseq_run_Deseq <- function(tmp = tmp,
                                  levels()))
   names(out) <- tmp %>%
     get_variable(group) %>% levels()
-
+  
   for(tp in tmp %>%
       get_variable(group) %>%
       unique()){
@@ -454,20 +454,20 @@ phyloseq_run_Deseq <- function(tmp = tmp,
       filter_taxa(function(x) sum(x > 0) > (prev*length(x)), TRUE) %>%
       filter_taxa(function(x) sd(x)/mean(x) > varcoef, TRUE) %>%
       phyloseq_to_deseq2(as.formula(paste0("~  ", paste0(comp)))) -> cds # convert
-
+    
     # calculate geometric means prior to estimate size factors
     gm_mean = function(x, na.rm=TRUE){
       exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
     }
     geoMeans = apply(counts(cds), 1, gm_mean)
     cds = estimateSizeFactors(cds, geoMeans = geoMeans)
-
+    
     # run DESeq function
     dds <- DESeq(cds,
                  fitType = "local") #local
-
-
-
+    
+    
+    
     results <- results(dds,
                        contrast = c(comp, A, vsB),
                        tidy = TRUE) %>%
@@ -476,11 +476,11 @@ phyloseq_run_Deseq <- function(tmp = tmp,
       arrange(p.adj) %>%
       mutate(signif = ifelse(p.adj <= 0.05, 'SIGN', 'NS')) %>%
       mutate(Site = tp)
-
+    
     out[[tp]] <- results
-
+    
   }
-
+  
   return(out)
 }
 
@@ -519,30 +519,30 @@ phyloseq_run_ALDEx2 <- function(tmp = tmp,
                                  levels()))
   names(out) <- tmp %>%
     get_variable(group) %>% levels()
-
+  
   print(out)
-
+  
   for(tp in tmp %>%
       get_variable(group) %>%
       unique()){
-
+    
     print(tp)
-
+    
     prune_samples(get_variable(tmp, group) == tp,
                   tmp) %>%
       # transform_sample_counts(function(x) x/sum(x) * 100) %>%
       filter_taxa(function(x) sum(x > 0) > (prev*length(x)), TRUE) %>%
       filter_taxa(function(x) sd(x)/mean(x) > varcoef, TRUE) -> cds
-
-
+    
+    
     ALDEx2::aldex.clr(data.frame(phyloseq::otu_table(cds)), phyloseq::sample_data(cds) %>% data.frame() %>% pull(comp),
                       mc.samples = mc,
                       denom = denom,
                       verbose = F, useMC = TRUE) -> x
-
+    
     x %>%
       ALDEx2::aldex.kw(useMC = TRUE) -> aldex2_da
-
+    
     aldex2_da %>%
       rownames_to_column(var = "Species") %>%
       #filter(glm.eBH < 0.05) %>%
@@ -552,12 +552,12 @@ phyloseq_run_ALDEx2 <- function(tmp = tmp,
                   rownames_to_column('OTU'),
                 by = "Species",
                 suffix = c("", ".y")) -> aldex2_tax
-
+    
     out[[tp]] <- aldex2_tax
-
+    
   }
   return(out)
-
+  
 }
 
 #' @title ...
@@ -580,8 +580,9 @@ phyloseq_run_ALDEx2 <- function(tmp = tmp,
 
 
 phyloseq_taxa_env_correlation <- function (physeq, grouping_column, method = "pearson", pvalue.threshold = 0.05, 
-          padjust.method = "fdr", adjustment = 3, num.taxa = 50, select.variables = NULL) 
+                                           padjust.method = "fdr", adjustment = 3, num.taxa = 50, select.variables = NULL) 
 {
+  require(tidyverse)
   method <- match.arg(method, c("pearson", "kendall", "spearman"), 
                       several.ok = F)
   if (taxa_are_rows(physeq)) {
@@ -617,34 +618,34 @@ phyloseq_taxa_env_correlation <- function (physeq, grouping_column, method = "pe
   df <- df[complete.cases(df), ]
   return(df)
 }
-                  
+
 tables.correlate<-function(table1, table2, groups=NULL, method){
   df<-NULL
   for(i in colnames(table1)){
     for(j in colnames(table2)){
-
+      
       if(!is.null(groups)){
         for(k in unique(groups)){
           a<-table1[groups==k,i,drop=F]
           b<-table2[groups==k,j,drop=F]
           tmp<-c(i,j,cor(a[complete.cases(b),],b[complete.cases(b),],use="everything",method=method),cor.test(a[complete.cases(b),],b[complete.cases(b),],method=method)$p.value,k)
-
+          
           if(is.null(df)){df<-tmp} else{df<-rbind(df,tmp)}
-         }
+        }
       }
       else{
-
+        
         a<-table1[,i,drop=F]
         b<-table2[,j,drop=F]
         tmp<-c(i,j,cor(a[complete.cases(b),],b[complete.cases(b),],use="everything",method=method),cor.test(a[complete.cases(b),],b[complete.cases(b),],method=method)$p.value)
-
+        
         if(is.null(df)){df<-tmp} else{df<-rbind(df,tmp)}
-
-        }
-
+        
       }
+      
     }
-
+  }
+  
   df<-data.frame(row.names=NULL,df)
   return(df)
 }
@@ -730,31 +731,88 @@ phyloseq_plot_taxa_env_correlation <- function(df)
 #'
 #'library(phyloseq)
 #'data("enterotype")
-#'
+#'enterotype %>%
+#' subset_samples(!is.na(Age)) %>%
+#' phyloseq_correlate_taxa_full(log10 = TRUE, tax_glom = "Genus", grouping_column = "Gender", cor_variables = "Age")
 #'
 #'
 #'
 #' #"spearman"
 #'
+
+
 phyloseq_correlate_taxa <- function(ps_tmp,
+                                    log10 = TRUE,
+                                    tax_glom = FALSE,
                                     grouping_column,
                                     adjustment= 3,
                                     cor_variables,
-                                    method)
+                                    method = "pearson")
+{
+  
+  if(tax_glom!=FALSE)
+  {
+    ps_tmp %>%
+      tax_glom(taxrank = tax_glom) -> ps_tmp
+    
+  }
+  
+  as(tax_table(ps_tmp), "matrix") %>%
+    data.frame() -> tmp
+  
+  ps_tmp %>%
+    transform_sample_counts(function(x) x/sum(x) * 100) -> tmp2
+  
+  if(log10==TRUE)
+  {
+    tmp2 %>%
+      microbiome::transform("log10") -> tmp2
+  }
+  tmp2 %>%
+    phyloseq_taxa_env_correlation(grouping_column= grouping_column, method= method, pvalue.threshold=0.05,
+                                  padjust.method="fdr", adjustment=3, num.taxa=20, select.variables = cor_variables) -> env.taxa.cor
+  
+  # plot
+  p <- phyloseq_plot_taxa_env_correlation(env.taxa.cor)
+  
+  if(tax_glom==FALSE)
+  {
+    ps_tmp %>%
+      tax_glom(taxrank = tax_glom) -> ps_tmp
+    
+    
+    p$data %>%
+      dplyr::left_join(tmp %>% rownames_to_column("ASV"),
+                       by = c("Taxa" = "ASV")) %>%
+      dplyr::select(-Taxa) %>%
+      dplyr::rename(Taxa = Strain) %>%
+      phyloseq_plot_taxa_env_correlation() +
+      scale_fill_gradient2(low = "#2C7BB6", high = "#D7191C", mid = "white",
+                           midpoint = 0, limit = c(-1,1), space = "Lab") -> p
+  }
+  return(list("plot" = p ,
+              "table" = env.taxa.cor))
+}
+
+phyloseq_correlate_taxa_old <- function(ps_tmp,
+                                        grouping_column,
+                                        adjustment= 3,
+                                        cor_variables,
+                                        method)
 {
   ps_tmp %>%
     tax_table() %>%
     data.frame() -> tmp
-
+  
   ps_tmp %>%
     transform_sample_counts(function(x) x/sum(x) * 100) %>%
     microbiome::transform("log10") %>%
     phyloseq_taxa_env_correlation(grouping_column= grouping_column, method= method, pvalue.threshold=0.05,
-                                        padjust.method="fdr", adjustment=3, num.taxa=20, select.variables = cor_variables) -> env.taxa.cor
-
+                                  padjust.method="fdr", adjustment=3, num.taxa=20, select.variables = cor_variables) -> env.taxa.cor
+  
   # plot
   p <- phyloseq_plot_taxa_env_correlation(env.taxa.cor)
-
+  
   p$data %>%
     dplyr::left_join(tmp %>% rownames_to_column("ASV"),
                      by = c("Taxa" = "ASV")) %>%
@@ -763,7 +821,9 @@ phyloseq_correlate_taxa <- function(ps_tmp,
     phyloseq_plot_taxa_env_correlation() +
     scale_fill_gradient2(low = "#2C7BB6", high = "#D7191C", mid = "white",
                          midpoint = 0, limit = c(-1,1), space = "Lab") -> plot
-
+  
   return(list("plot" = plot ,
               "table" = env.taxa.cor))
 }
+
+
