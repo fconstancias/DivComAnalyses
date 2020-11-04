@@ -499,7 +499,7 @@ get_strains <- function(physeq_obj, label = "Unannotated", other_label = NULL,
 phyloseq_get_strains_fast <- function(physeq)
 {
   
-  require(phyloseq)
+  require(phyloseq);require(tidyverse)
   physeq_tmp = physeq
   
 as(tax_table(physeq), "matrix") %>%
