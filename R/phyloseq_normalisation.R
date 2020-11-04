@@ -432,7 +432,7 @@ phyloseq_get_strains <- function(physeq)
     unite(Strain, Species, ASV,
           sep = " ", remove = FALSE, na.rm = TRUE) %>%
     column_to_rownames("ASV") %>%
-    select(-Strain, Strain) -> tax_tbl_tmp
+    dplyr::select(-Strain, Strain) -> tax_tbl_tmp
 
   full_join(physeq %>% tax_table() %>%
               as.data.frame() %>%
@@ -523,7 +523,7 @@ tmp1 %>%
     unite(Strain, Species, ASV,
           sep = " ", remove = FALSE, na.rm = TRUE) %>%
     column_to_rownames("ASV") %>%
-    select(-Strain, Strain) -> tax_tbl_tmp
+    dplyr::select(-Strain, Strain) -> tax_tbl_tmp
   
   full_join(tmp1,
             tax_tbl_tmp %>%
