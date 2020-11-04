@@ -527,7 +527,7 @@ tmp1 %>%
   
   full_join(tmp1,
             tax_tbl_tmp %>%
-              select(Strain) %>%
+              dplyr::select(Strain) %>%
               rownames_to_column("ASV")) %>%
     column_to_rownames("ASV") %>%
     # replace(is.na(.), "unknown") %>%
