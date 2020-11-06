@@ -959,7 +959,7 @@ phyloseq_remove_contaminants <- function(physeq,
               "physeq_decontam_physeq_NTC_ASV_deconed" = physeq_decontaminated,
               "decontam_out" = left_join(contamdf.prev %>%
                                            rownames_to_column('ASV'),
-                                         df.pa)
+                                         df.pa))
   return(out)
   
   # to add:
