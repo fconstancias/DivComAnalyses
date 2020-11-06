@@ -247,7 +247,7 @@ ggrare <- function(physeq, step = 10, label = NULL, color = NULL, plot = TRUE, p
   ## - plot:  Logical, should the graphic be plotted.
   ## - parallel: should rarefaction be parallelized (using parallel framework)
   ## - se:    Default TRUE. Logical. Should standard errors be computed.
-  require(vegan)
+  # require(vegan)
   x <- as(otu_table(physeq), "matrix")
   if (taxa_are_rows(physeq)) { x <- t(x) }
   
@@ -262,7 +262,7 @@ ggrare <- function(physeq, step = 10, label = NULL, color = NULL, plot = TRUE, p
     if (n[length(n)] != tot[i]) {
       n <- c(n, tot[i])
     }
-    y <- rarefy(x[i, ,drop = FALSE], n, se = se)
+    y <- vegan::rarefy(x[i, ,drop = FALSE], n, se = se)
     if (nrow(y) != 1) {
       rownames(y) <- c(".S", ".se")
       return(data.frame(t(y), Size = n, Sample = rownames(x)[i]))
