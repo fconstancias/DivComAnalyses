@@ -842,7 +842,7 @@ phyloseq_remove_contaminants <- function(physeq = physeq,
                                          batch = "Run", 
                                          batch.combine = "minimum", 
                                          normalize = TRUE, 
-                                         threshold = 0.1, 
+                                         threshold = 0.1, #0.1
                                          method = "prevalence",
                                          taxa_plot = "Strain")
   
