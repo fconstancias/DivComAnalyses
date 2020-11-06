@@ -925,6 +925,7 @@ phyloseq_remove_contaminants <- function(physeq = physeq,
         mutate_at(vars(everything()), na_if, "unknown")
     )
   
+  # this dots/colors should make an easy visualisation of contaminants TRUE/ FALSE: filled dots vs transpartent dot with countour (color) only.
   df.pa %>%
   ggplot(aes(x = pa.neg, 
              y = pa.pos, 
@@ -962,8 +963,11 @@ phyloseq_remove_contaminants <- function(physeq = physeq,
                                          df.pa))
   return(out)
   
-  # to add:
+  # to investigate/add - in that order:
+  # https://github.com/PratheepaJ/BARBI
   # https://github.com/donaldtmcknight/microDecon
+
+  # to check later
   # https://github.com/MBARI-BOG/BOG-Banzai-Dada2-Pipeline/blob/e40953dcb4980792d0320d6d1f4c815bfaa7484c/Pipeline_scripts/decon_std_outputs_v1.0.R
   # https://github.com/Mettetron/3Species/blob/c36ed383fa0d81aeeec76b8a04bba3c8b588f7c5/DADA2_filterAndNorm.R
   # https://github.com/zjgold/gruinard_decon/blob/3b1b2d076f9e74ed9c9c298f17f409621e62f44f/decontamination_utilities.R
