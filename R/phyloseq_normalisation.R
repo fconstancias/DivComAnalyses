@@ -835,7 +835,7 @@ tss <- function (x, MARGIN = 2, na.rm = FALSE)
 #' #'
 #' #'
 #' 
-phyloseq_remove_contaminants <- function(physeq, 
+phyloseq_remove_contaminants <- function(physeq = physeq, 
                                          Strain = TRUE,
                                          sample_type = "Location",
                                          NTC_label = "Blank", 
