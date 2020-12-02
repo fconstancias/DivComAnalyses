@@ -583,6 +583,7 @@ phyloseq_correlate_taxa <- function(ps_tmp,
                                     tax_glom = FALSE,
                                     grouping_column,
                                     adjustment= 3,
+                                    num_taxa = 20,
                                     cor_variables,
                                     method = "spearman")
 {
@@ -604,7 +605,7 @@ phyloseq_correlate_taxa <- function(ps_tmp,
   }
   tmp2 %>%
     phyloseq_taxa_env_correlation(grouping_column= grouping_column, method= method, pvalue.threshold=0.05,
-                                  padjust.method="fdr", adjustment=3, num.taxa=20, select.variables = cor_variables) -> env.taxa.cor
+                                  padjust.method="fdr", adjustment=adjustment, num.taxa= num_taxa, select.variables = cor_variables) -> env.taxa.cor
   
   # plot
   p <- phyloseq_plot_taxa_env_correlation(env.taxa.cor)
