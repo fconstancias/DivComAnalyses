@@ -16,7 +16,8 @@
 #'
 #'
 
-phyloseq_check_lib_size <- function(physeq, data_color, data_facet, nreads_display, first_n)
+phyloseq_check_lib_size <- function(physeq, 
+                                    data_color, data_facet, nreads_display = 5000, first_n = 20)
 {
   require(tidyverse)
   require(speedyseq)
