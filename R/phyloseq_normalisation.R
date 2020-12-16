@@ -16,8 +16,7 @@
 #'
 #'
 
-phyloseq_check_lib_size <- function(physeq, 
-                                    data_color, data_facet, nreads_display = 5000, first_n = 20)
+phyloseq_check_lib_size <- function(physeq, data_color, data_facet, nreads_display, first_n)
 {
   require(tidyverse)
   require(speedyseq)
@@ -655,7 +654,7 @@ tmp1 %>%
 phyloseq_remove_chloro_mitho <- function(physeq)
 {
   physeq %>%
-    subset_taxa(Order != "Chloroplast" &
+    subset_taxa(Order != "Chloroplast" |
                   Family != "Mitochondria") %>%
     filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> your_phyloseq_clean
   return(your_phyloseq_clean)
@@ -685,7 +684,7 @@ phyloseq_remove_chloro_mitho <- function(physeq)
 #'otu_table(out2)["540305","TRRsed3"] #
 
 phyloseq_density_normalize <-  function(physeq = physeq,
-                                        value_idx = "norm")
+                                        value_idx = "norm",remove.na=TRUE,set.na.0=FALSE)
   
   
 {
@@ -693,6 +692,13 @@ phyloseq_density_normalize <-  function(physeq = physeq,
   require(phyloseq)
   
   # stopifnot(!is.null(qPCR$Sample))
+  
+  
+  #if we want to remove the samples for which we have no qPCR data to avoid future NAs in the phyloseq object
+  if(remove.na==TRUE){
+    physeq %>% subset_samples(!is.na(get(value_idx))) -> physeq
+  }
+  
   df_OTU_col = colnames(phyloseq::otu_table(physeq))
   df_OTU = phyloseq2df(physeq, phyloseq::otu_table)
   df_OTU_rn = rownames(df_OTU)
@@ -713,7 +719,12 @@ phyloseq_density_normalize <-  function(physeq = physeq,
   df_OTU = sweep(df_OTU %>% as.data.frame, 2, qPCR_vals, "*")
   df_OTU = apply(df_OTU, 2, function(x) round(x, 0))
   colnames(df_OTU) = df_OTU_col
+  
+  #if we want to replace NAs with 0 
+  if(set.na.0==TRUE){
   df_OTU[is.na(df_OTU)] = 0
+  }
+  
   tree = phyloseq::phy_tree(physeq, errorIfNULL = FALSE)
   tax = phyloseq::tax_table(physeq, errorIfNULL = FALSE)
   sam = phyloseq::sample_data(physeq, errorIfNULL = FALSE)
@@ -850,6 +861,10 @@ phyloseq_remove_contaminants <- function(physeq = physeq,
 {
 
   # prepare object  
+  
+  #adding the strain level annotation to the asvs (ie. instead of ASV1,ASV2..,etc, we now have strain level annotation as taxa_names())
+  
+  
   if("Strain" %in% rank_names(physeq)  && Strain == TRUE)
   {
     taxa_names(physeq)  <- tax_table(physeq)[,"Strain"]
@@ -857,6 +872,7 @@ phyloseq_remove_contaminants <- function(physeq = physeq,
 
   }
   
+#defining an operator 'not in'
 '%!in%' <- function(x,y)!('%in%'(x,y))
   
   if("Strain" %!in% rank_names(physeq)  && Strain == TRUE)
@@ -872,13 +888,13 @@ phyloseq_remove_contaminants <- function(physeq = physeq,
 
   prune_samples(get_variable(physeq, sample_type) == NTC_label,
                        physeq)  %>%
-    filter_taxa(function(x) sum(x) > 0, TRUE) %>%
+    filter_taxa(function(x) sum(x) > 0, prune=TRUE) %>%
     taxa_names() -> ASV_NTC
   
   physeq %>%
     transform_sample_counts(function(x) x/sum(x) *100)  -> physeq_tmp
   
-  ## export p1 wich is a diagnostic plot
+  ## export p1 which is a diagnostic plot
   prune_taxa(ASV_NTC, physeq_tmp) %>%
     plot_bar(fill= taxa_plot) +
     facet_grid(~ get(sample_type) ,scales = "free_x", space = "free") +
@@ -926,7 +942,6 @@ phyloseq_remove_contaminants <- function(physeq = physeq,
         mutate_at(vars(everything()), na_if, "unknown")
     )
   
-  # this dots/colors should make an easy visualisation of contaminants TRUE/ FALSE: filled dots vs transpartent dot with countour (color) only.
   df.pa %>%
   ggplot(aes(x = pa.neg, 
              y = pa.pos, 
@@ -964,11 +979,17 @@ phyloseq_remove_contaminants <- function(physeq = physeq,
                                          df.pa))
   return(out)
   
-  # to investigate/add - in that order:
-  # https://github.com/PratheepaJ/BARBI
+  
+  # Strategy 3 use the microDecon package
   # https://github.com/donaldtmcknight/microDecon
-
-  # to check later
+  
+  require(microDecon)
+  
+  
+  
+  
+  # to add:
+  
   # https://github.com/MBARI-BOG/BOG-Banzai-Dada2-Pipeline/blob/e40953dcb4980792d0320d6d1f4c815bfaa7484c/Pipeline_scripts/decon_std_outputs_v1.0.R
   # https://github.com/Mettetron/3Species/blob/c36ed383fa0d81aeeec76b8a04bba3c8b588f7c5/DADA2_filterAndNorm.R
   # https://github.com/zjgold/gruinard_decon/blob/3b1b2d076f9e74ed9c9c298f17f409621e62f44f/decontamination_utilities.R
