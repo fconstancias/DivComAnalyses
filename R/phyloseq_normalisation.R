@@ -654,7 +654,7 @@ tmp1 %>%
 phyloseq_remove_chloro_mitho <- function(physeq)
 {
   physeq %>%
-    subset_taxa(Order != "Chloroplast" |
+    subset_taxa(Order != "Chloroplast" &
                   Family != "Mitochondria") %>%
     filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> your_phyloseq_clean
   return(your_phyloseq_clean)
