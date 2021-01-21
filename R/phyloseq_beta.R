@@ -894,10 +894,12 @@ detach("package:plyr", unload=TRUE);detach("package:ggvegan", unload=TRUE)
 #' @note .
 #' @return .
 #' @export
-#' @examples
-#'
+#' @examples require(phyloseq);require(tidyverse); require(vegan);sample_data(enterotype)
+#' @examples enterotype %>% phyloseq::distance(method = "bray") -> bc
+#' @examples enterotype %>% phyloseq_plot_dbrda(dm = bc, grouping_column = "SeqTech", env.variables = c("Age", "Gender")) -> dbrda
+#' @examples 
 
-phyloseq_plot_dbrda <- function(physeq, dm, grouping_column, pvalueCutoff = 0.01, norm_method = NULL, 
+phyloseq_plot_dbrda <- function(physeq, dm, grouping_column, pvalueCutoff = 0.5, norm_method = "center_scale", 
                               env.variables = NULL, num.env.variables = NULL, exclude.variables = NULL, 
                               draw_species = F, nperm = 999) 
 {
@@ -906,7 +908,12 @@ phyloseq_plot_dbrda <- function(physeq, dm, grouping_column, pvalueCutoff = 0.01
   complete.cases(meta_table) -> cc
   as.matrix(dm)[cc,cc] -> dm
   meta_table[cc,] -> meta_table
-  abund_table.adonis <- adonis(formula = as.formula(paste("dm", paste("."), sep=" ~ ")),
+  if (norm_method == "center_scale")
+  {
+    meta_table %>%
+      mutate_if(is.numeric, scale) -> meta_table
+  }
+  abund_table.adonis <- vegan::adonis(formula = as.formula(paste("dm", paste("."), sep=" ~ ")),
                                permutations = nperm,
                                data = meta_table[,c(env.variables)])
   bestEnvVariables <- rownames(abund_table.adonis$aov.tab)[abund_table.adonis$aov.tab$"Pr(>F)" <= 
@@ -931,7 +938,7 @@ phyloseq_plot_dbrda <- function(physeq, dm, grouping_column, pvalueCutoff = 0.01
     bestEnvVariables <- bestEnvVariables[!(bestEnvVariables %in% 
                                              exclude.variables)]
   }
-  eval(parse(text = paste("sol <- capscale(dm ~ ", do.call(paste, 
+  eval(parse(text = paste("sol <- vegan::capscale(dm ~ ", do.call(paste, 
                                                            c(as.list(bestEnvVariables), sep = " + ")), ",data=meta_table)", 
                           sep = "")))
   scrs <- vegan::scores(sol, display = c("sp", "wa", "lc", 
