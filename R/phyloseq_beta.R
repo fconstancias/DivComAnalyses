@@ -899,7 +899,7 @@ detach("package:plyr", unload=TRUE);detach("package:ggvegan", unload=TRUE)
 
 phyloseq_plot_dbrda <- function(physeq, dm, grouping_column, pvalueCutoff = 0.01, norm_method = NULL, 
                               env.variables = NULL, num.env.variables = NULL, exclude.variables = NULL, 
-                              draw_species = F) 
+                              draw_species = F, nperm = 999) 
 {
   abund_table <- otu_table(physeq)
   meta_table <- data.frame(sample_data(physeq))[,c(env.variables,grouping_column)]
@@ -907,7 +907,7 @@ phyloseq_plot_dbrda <- function(physeq, dm, grouping_column, pvalueCutoff = 0.01
   as.matrix(dm)[cc,cc] -> dm
   meta_table[cc,] -> meta_table
   abund_table.adonis <- adonis(formula = as.formula(paste("dm", paste("."), sep=" ~ ")),
-                               permutations = 999,
+                               permutations = nperm,
                                data = meta_table[,c(env.variables)])
   bestEnvVariables <- rownames(abund_table.adonis$aov.tab)[abund_table.adonis$aov.tab$"Pr(>F)" <= 
                                                              pvalueCutoff]
