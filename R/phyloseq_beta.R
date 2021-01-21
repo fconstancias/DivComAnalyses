@@ -906,7 +906,7 @@ phyloseq_plot_dbrda <- function(physeq, dm, grouping_column, pvalueCutoff = 0.01
   complete.cases(meta_table) -> cc
   as.matrix(dm)[cc,cc] -> dm
   meta_table[cc,] -> meta_table
-  abund_table.adonis <- adonis(formula = as.formula(paste("dm", paste(.), sep=" ~ ")),
+  abund_table.adonis <- adonis(formula = as.formula(paste("dm", paste("."), sep=" ~ ")),
                                permutations = 999,
                                data = meta_table[,c(env.variables)])
   bestEnvVariables <- rownames(abund_table.adonis$aov.tab)[abund_table.adonis$aov.tab$"Pr(>F)" <= 
