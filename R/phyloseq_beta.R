@@ -898,7 +898,7 @@ detach("package:plyr", unload=TRUE);detach("package:ggvegan", unload=TRUE)
 #' @examples enterotype %>% phyloseq::distance(method = "bray") -> bc
 #' @examples sample_data(enterotype)$Var <- sample(1:40, nsamples(enterotype), replace=T)
 #' @examples sample_data(enterotype)$Size <- rnorm(nsamples(enterotype), mean=176, sd=10)
-#' @examples enterotype %>% phyloseq_plot_dbrda(dm = bc, grouping_column = "SeqTech", env.variables = c("Age", "Gender", "Size", "Var"), sep = "*") -> dbrda
+#' @examples enterotype %>% phyloseq_plot_dbrda(dm = bc, grouping_column = "Project", env.variables = c("Age", "Gender", "Size", "Var"), sep = "*") -> dbrda
 #' @examples 
 
 phyloseq_plot_dbrda <- function(physeq, dm, grouping_column, pvalueCutoff = 0.5, norm_method = "center_scale", 
