@@ -896,12 +896,14 @@ detach("package:plyr", unload=TRUE);detach("package:ggvegan", unload=TRUE)
 #' @export
 #' @examples require(phyloseq);require(tidyverse); require(vegan);sample_data(enterotype)
 #' @examples enterotype %>% phyloseq::distance(method = "bray") -> bc
-#' @examples enterotype %>% phyloseq_plot_dbrda(dm = bc, grouping_column = "SeqTech", env.variables = c("Age", "Gender")) -> dbrda
+#' @examples sample_data(enterotype)$Var <- sample(1:40, nsamples(enterotype), replace=T)
+#' @examples sample_data(enterotype)$Size <- rnorm(nsamples(enterotype), mean=176, sd=10)
+#' @examples enterotype %>% phyloseq_plot_dbrda(dm = bc, grouping_column = "SeqTech", env.variables = c("Age", "Gender", "Size", "Var"), sep = "*") -> dbrda
 #' @examples 
 
 phyloseq_plot_dbrda <- function(physeq, dm, grouping_column, pvalueCutoff = 0.5, norm_method = "center_scale", 
                               env.variables = NULL, num.env.variables = NULL, exclude.variables = NULL, 
-                              draw_species = F, nperm = 999) 
+                              draw_species = F, nperm = 999, sep = "+") 
 {
   abund_table <- otu_table(physeq)
   meta_table <- data.frame(sample_data(physeq))[,c(env.variables,grouping_column)]
@@ -913,7 +915,7 @@ phyloseq_plot_dbrda <- function(physeq, dm, grouping_column, pvalueCutoff = 0.5,
     meta_table %>%
       mutate_if(is.numeric, scale) -> meta_table
   }
-  abund_table.adonis <- vegan::adonis(formula = as.formula(paste("dm", paste("."), sep=" ~ ")),
+  abund_table.adonis <- vegan::adonis(formula = as.formula(paste("dm"," ~ ", paste(env.variables, collapse  = sep))),
                                permutations = nperm,
                                data = meta_table[,c(env.variables)])
   bestEnvVariables <- rownames(abund_table.adonis$aov.tab)[abund_table.adonis$aov.tab$"Pr(>F)" <= 
@@ -964,6 +966,8 @@ phyloseq_plot_dbrda <- function(physeq, dm, grouping_column, pvalueCutoff = 0.5,
       scale_shape_manual("", values = 2)
   }
   p <- p + theme_bw() + xlab("CCA1") + ylab("CCA2")
-  return(list(plot= p,
-              capscale = sol))
+  
+  return(list("plot"= p,
+              "capscale" = sol,
+              "adonis" = abund_table.adonis))
 }
