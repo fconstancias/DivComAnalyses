@@ -34,7 +34,7 @@ metaphlan_2phyloseq <- function(merged_metaphlan,
                                 id = "#SampleID",
                                 tax_label = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"),
                                 tax_sep = "\\|"){
-  
+  # TODO: mode for lefser with all taxa
   ## ------------------------------------------------------------------------
   require(tidyverse); require(speedyseq)
   cat(paste0('\n##',"You are using tidyverse version ", packageVersion('tidyverse'),'\n\n'))
@@ -85,6 +85,8 @@ metaphlan_2phyloseq <- function(merged_metaphlan,
   return(physeq) 
 }
 
+## ------------------------------------------------------------------------------------------------------------------------------------------------
+
 #' @title ...
 #' @param .
 #' @param ..
@@ -130,6 +132,8 @@ humann_2df <- function(humann_renamed = here::here("data/processed/humann/DNA/ge
   return(df)
 }
 
+## ------------------------------------------------------------------------------------------------------------------------------------------------
+
 #' @title ...
 #' @param .
 #' @param ..
@@ -160,7 +164,7 @@ clean_humann_df <- function(humann_df){
   return(df)
 }
 
-
+## ------------------------------------------------------------------------------------------------------------------------------------------------
 
 #' @title ...
 #' @param .
@@ -212,8 +216,8 @@ humann_DNA_RNA_2phyloseq <- function(DNA_humann_2df,
       Genus = Genus_DNA, 
       Species = Species_DNA) -> DNA_RNA
   
-  cat(paste0('##',"DNA table: ",ncol(DNA %>% dplyr::select_if(is.numeric)),' samples and ',nrow(DNA),' features'))
-  cat(paste0('##',"RNA table: ",ncol(RNA %>% dplyr::select_if(is.numeric)),' samples and ',nrow(RNA),' features'))
+  cat(paste0('##',"DNA table: ",ncol(DNA %>% dplyr::select_if(is.numeric)),' samples and ',nrow(DNA),' features \n'))
+  cat(paste0('##',"RNA table: ",ncol(RNA %>% dplyr::select_if(is.numeric)),' samples and ',nrow(RNA),' features \n'))
   cat(paste0('##',"Merged table: ",ncol(DNA_RNA %>% dplyr::select_if(is.numeric)),' samples and ',nrow(DNA_RNA),' features \n'))
   
   DNA_RNA %>%
@@ -270,6 +274,7 @@ humann_DNA_RNA_2phyloseq <- function(DNA_humann_2df,
   return(physeq)
 }
 
+## ------------------------------------------------------------------------------------------------------------------------------------------------
 
 #' @title ...
 #' @param .
@@ -324,6 +329,8 @@ humann_2phyloseq <- function(humann_2df)
   return(physeq)
 }
 
+## ------------------------------------------------------------------------------------------------------------------------------------------------
+
 #' @title ...
 #' @param .
 #' @param ..
@@ -343,8 +350,6 @@ humann_2phyloseq <- function(humann_2df)
 #' @examples
 #'here::here("data/processed/humann/DNA/genefamilies_joined_tables_uniref90_ko_renamed_kegg-orthology.tsv") %>% humann_2df() %>% clean_humann_df() %>% humann_2phyloseq() -> tmp
 #'tmp %>% phyloseq_get_humann_strat_un_output(output = "unstratified" ,transform = "clr",  export_long_df = TRUE, remove_unmapped_unintegrated = TRUE) -> ps
-
-
 
 phyloseq_get_humann_strat_un_output <- function(physeq,
                                                 output = "stratified", # stratified / unstratified
@@ -392,6 +397,7 @@ phyloseq_get_humann_strat_un_output <- function(physeq,
     return(physeq)
   }
 }
+## ------------------------------------------------------------------------------------------------------------------------------------------------
 
 #' @title ...
 #' @param .
@@ -404,34 +410,36 @@ phyloseq_get_humann_strat_un_output <- function(physeq,
 #' @export
 #' @examples
 #' 
-#' here::here("data/processed/humann/DNA/genefamilies_joined_tables_uniref90_ko_renamed_kegg-orthology.tsv") %>% humann_2df() %>% clean_humann_df() %>% humann_2phyloseq() %>% phyloseq_get_humann_strat_un_output(output = "unstratified" ,transform = "clr",  export_long_df = TRUE, remove_unmapped_unintegrated = TRUE) -> ps
+#' here::here("data/processed/humann/DNA/genefamilies_joined_tables_uniref90_ko_renamed_kegg-orthology.tsv") %>% humann_2df() %>% clean_humann_df() %>% humann_2phyloseq() %>% phyloseq_get_humann_strat_un_output(output = "unstratified" ,transform = "clr",  export_long_df = FALSE, remove_unmapped_unintegrated = TRUE) -> physeq
 #' 
-#' sample_names(ps$physeq) <- str_replace(sample_names(ps$physeq), "_DNA_cat_Abundance-RPKs", "")
+#' sample_names(physeq) <- str_replace(sample_names(physeq), "_DNA_cat_Abundance-RPKs", "")
 #' 
-#' physeq_add_metadata(ps$physeq, here::here("data/metadata_all_DNA_RNA.xlsx") %>%  readxl::read_xlsx() %>% filter(Type == "DNA"), sample_column = "Sample") -> test
+#' physeq_add_metadata(physeq, here::here("data/metadata_all_DNA_RNA.xlsx") %>%  readxl::read_xlsx() %>% filter(Type == "DNA"), sample_column = "Sample") -> test
+#'
 
 physeq_add_metadata <- function(physeq,
                                 metadata,
                                 sample_column = "Sample"){
   
   ## ------------------------------------------------------------------------
-  require(tidyverse); require(phyloseq)
+  require(tidyverse); require(speedyseq)
   cat(paste0('\n##',"You are using tidyverse version ", packageVersion('tidyverse'),'\n\n'))
-  cat(paste0('\n##',"You are using phyloseq version ", packageVersion('phyloseq'),'\n\n'))
+  cat(paste0('\n##',"You are using speedyseq version ", packageVersion('speedyseq'),'\n\n'))
   
   cat('################################\n\n')
   ## ------------------------------------------------------------------------  
   
   phyloseq::merge_phyloseq(physeq,
                            metadata %>%
-                             column_to_rownames( sample_column ) %>% 
-                             phyloseq::sample_data()) -> physeq
+                             dplyr::mutate(tmp = get(sample_column)) %>% 
+                             column_to_rownames('tmp') %>% 
+                             speedyseq::sample_data()) -> physeq
   
   ## ------------------------------------------------------------------------  
   return(physeq)
 }
 
-
+## ------------------------------------------------------------------------------------------------------------------------------------------------
 
 #' @title ...
 #' @param .
@@ -451,99 +459,415 @@ physeq_add_metadata <- function(physeq,
 #' @export
 #' @examples
 #' 
-#' here::here("data/processed/humann/DNA/genefamilies_joined_tables_uniref90_ko_renamed_kegg-orthology.tsv") %>% humann_2df() %>% clean_humann_df() %>% humann_2phyloseq() %>% phyloseq_get_humann_strat_un_output(output = "stratified" ,transform = "compositional",  export_long_df = FALSE, remove_unmapped_unintegrated = TRUE) -> ps
-#'
-#' sample_names(ps) <- str_replace(sample_names(ps), "_DNA_cat_Abundance-RPKs", "")
-#' 
-#' physeq_add_metadata(ps, here::here("data/metadata_all_DNA_RNA.xlsx") %>%  readxl::read_xlsx() %>% filter(Type == "DNA"), sample_column = "Sample") -> physeq
-#' 
+
 here::here("data/processed/humann/DNA/pathabundance_cpm_joined_tables.tsv") %>% humann_2df(type = '# Pathway') -> DNA; here::here("data/processed/humann/RNA/pathabundance_cpm_joined_tables.tsv") %>% humann_2df(type = '# Pathway') -> RNA
 humann_DNA_RNA_2phyloseq(DNA,RNA) -> physeq
 sample_names(physeq) <- str_replace(sample_names(physeq), "_DNA_cat_Abundance-CPM_DNA", "_DNA"); sample_names(physeq) <- str_replace(sample_names(physeq), "_cat_Abundance-CPM_RNA", "_RNA")
-physeq_add_metadata(physeq, here::here("data/metadata_all_DNA_RNA.xlsx") %>%  readxl::read_xlsx(), sample_column = "Sample_ID") -> physeq
+
+physeq_add_metadata(physeq, 
+                    here::here("data/metadata_all_DNA_RNA.xlsx") %>% readxl::read_xlsx() %>% dplyr::rename(Sample_ID2 = Sample),
+                    sample_column = "Sample_ID") %>%
+  humann2_species_contribution(meta_data_var = c("Subject", "Sample_ID2" ,"Type", "Oral_Site", "Health_status")) -> df
 
 
 humann2_species_contribution <- function(physeq,
-                                         meta_data_var = c("Subject", "Type", "Oral_Site", "Health_status"),
-                                         filter_cut = 0,
-                                         type = "RNA_DNA")
+                                         meta_data_var,
+                                         DNA_RNA_meta = "Type",
+                                         filter_cut = 0)
 {
-  
-  
-}
-
-physeq %>%
-  subset_taxa(!(grepl("^UN", Feature))) %>% # to make sure we are working with stratefied data
-  subset_taxa(!is.na(organism)) %>% # to make sure we are working with stratefied data
-  speedyseq::psmelt() %>%
-  dplyr::select(-organism) %>%
-  dplyr::select(OTU, Feature, 
-                Genus, Species, meta_data_var,
-                Abundance) -> long_strat
-
-long_strat %>%
-  dplyr::filter(Abundance > filter_cut) %>%
-  tidyr::pivot_wider(names_from  = Type,
-                     values_from = Abundance,
-                     values_fill = list(Abundance = 0)) -> tmp
-
-if (type == "RNA_DNA"){
-  tmp %>%
-    dplyr::mutate(RNA_DNA = RNA/DNA)  -> strat_DNA_RNA
+  physeq %>%
+    subset_taxa(!(grepl("^UN", Feature))) %>% # to make sure we are working with stratefied data
+    subset_taxa(!is.na(organism)) %>% # to make sure we are working with stratefied data
+    speedyseq::psmelt() %>%
+    dplyr::select(-organism) %>%
+    dplyr::rename(id = OTU) %>%
+    dplyr::select(id, Feature, 
+                  Genus, Species, meta_data_var,
+                  Abundance) %>%
+    dplyr::filter(Abundance > filter_cut) %>%
+    tidyr::pivot_wider(names_from  = DNA_RNA_meta,
+                       values_from = Abundance,
+                       values_fill = list(Abundance = 0)) %>%
+    dplyr::mutate(RNA_DNA = RNA/DNA) -> strat_DNA_RNA
   
   return(strat_DNA_RNA)
 }
 
-return(tmp)
+
+## ------------------------------------------------------------------------------------------------------------------------------------------------
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#' 
+#' 
+#' 
+here::here("data/processed/humann/DNA/pathabundance_cpm_joined_tables.tsv") %>% humann_2df(type = '# Pathway') -> DNA; here::here("data/processed/humann/RNA/pathabundance_cpm_joined_tables.tsv") %>% humann_2df(type = '# Pathway') -> RNA
+humann_DNA_RNA_2phyloseq(DNA,RNA) -> physeq
+sample_names(physeq) <- str_replace(sample_names(physeq), "_DNA_cat_Abundance-CPM_DNA", "_DNA"); sample_names(physeq) <- str_replace(sample_names(physeq), "_cat_Abundance-CPM_RNA", "_RNA")
+physeq_add_metadata(physeq, 
+                    here::here("data/metadata_all_DNA_RNA.xlsx") %>% readxl::read_xlsx() %>% dplyr::rename(Sample_ID2 = Sample),
+                    sample_column = "Sample_ID") %>%
+  humann2_species_contribution(meta_data_var = c("Subject", "Sample_ID2" ,"Type", "Oral_Site", "Health_status")) -> df
+df %>%
+  humann2_RNA_DNA_plot(facet_formula = "Oral_Site ~ Health_status",
+                       filter_feature = c("PWY-6737: starch degradation V", 
+                                          "PWY-7111: pyruvate fermentation to isobutanol (engineered)"),
+                       filter_species = c("Streptococcus_oralis", )) -> p
+
+humann2_RNA_DNA_plot <- function(df,
+                                 rm_un_sp = TRUE,
+                                 filter_feature = FALSE, 
+                                 filter_genus = FALSE,
+                                 filter_species = FALSE, 
+                                 only_pos = TRUE, # dplyr::filter(DNA  > 0 , RNA > 0)
+                                 facet_formula = FALSE){ 
+  
+  require(tidyverse); require(ggConvexHull)
+  
+  if(rm_un_sp == TRUE){
+    df %>%
+      dplyr::filter(Species != "unclassified") -> df
+  }
+  if(filter_feature != FALSE){
+    df %>%
+      dplyr::filter(Feature %in% filter_feature) -> df
+  }
+  
+  if(filter_genus != FALSE){
+    df %>%
+      dplyr::filter(Genus %in% filter_genus) -> df
+  }
+  
+  if(filter_species != FALSE){
+    df %>%
+      dplyr::filter(Species %in% filter_genus) -> df
+  }
+  
+  if(only_pos == TRUE){
+    df %>%
+      dplyr::filter(DNA  > 0 , RNA > 0) -> df
+  }
+  
+  df %>%
+    ggplot(aes(x = log10(DNA), y = log10(RNA),
+               fill = Feature, color = Feature)) +
+    geom_point(alpha = 0.8, show.legend = FALSE, size = 1)  +
+    ggConvexHull::geom_convexhull(aes(group = Feature), alpha = 0.1,
+                                  size = 0.08, linetype = "dotted",
+                                  show.legend = TRUE) +
+    geom_abline(slope=1, linetype = "dashed", size = 0.08, intercept=0) +
+    theme_light() +
+    # coord_equal() +
+    # ggrepel::geom_text_repel(cex = 1.5,
+    #                          force = 2,
+    #                          aes(label=Feature),
+    #                          show.legend = FALSE,
+    #                          segment.size = 0.05, segment.alpha = 0.5,
+    #                          direction = "both",
+    #                          # nudge_x = 1,
+    #                          nudge_y = 0,
+    #                          toto %>%
+    #                            filter(Subject == "K8")) +
+  # guides(fill=guide_legend(ncol= 1)) +
+  theme(legend.key.size = unit(0.2,"cm")) -> p
+  
+  if(facet_formula != FALSE){
+    p + facet_grid(as.formula(facet_formula), drop=TRUE,
+                   scale="fixed",space="free_x") -> p
+  }
+  
+  out <- list("legend" = p %>% ggpubr::get_legend() %>% ggpubr::as_ggplot(),
+              "plot" = p + theme(legend.position = "none"))
+  
+  return(out)
 }
-# 
-#   strat_DNA_RNA %>%
-#     filter(Feature %in% "HISDEG-PWY: L-histidine degradation I")
-#   filter(Species %in% c("Streptococcus_parasanguinis")) %>%
-#   filter(DNA  > 0 , RNA > 0) -> toto
-# 
-# ggpubr::compare_means(RNA_DNA ~ Health_status,
-#                       group.by = c("Oral_Site","Gene"),
-#                       data = toto,
-#                       method = "wilcox.test",
-#                       p.adjust.method = "fdr") %>%
-#   filter(p.adj < 0.05) %>%
-#   select(Gene, group1, group2, p.adj) -> RNA_DAN_signif
-# 
-# RNA_DAN_signif %>% pull(Gene) %>% unique() %>% as.vector() -> RNA_DAN_signif_gn
-# 
-# RNA_DAN_signif %>%
-#   DT::datatable()
-# 
-# 
-# 
-# toto %>%
-#   filter(Gene %in% RNA_DAN_signif_gn) %>%
-#   ggplot(aes(x = log10(DNA), y = log10(RNA),
-#              fill = Gene, color = Gene)) + 
-#   geom_point(alpha = 0.8, show.legend = FALSE, size = 1)  +
-#   facet_grid(Oral_Site ~ Health_status, drop=TRUE,
-#              scale="fixed",space="free_x") +
-#   ggConvexHull::geom_convexhull(aes(group = Gene), alpha = 0.1,
-#                                 size = 0.08, linetype = "dotted",
-#                                 show.legend = FALSE) +
-#   # geom_polygon(aes(group = Species), alpha= 0.11,
-#   #              size = 0.08, linetype = "dotted",
-#   #              show.legend = FALSE, rule = "winding") +
-#   geom_abline(slope=1, linetype = "dashed", size = 0.08, intercept=0) +
-#   theme_light() +
-#   # coord_equal() +
-#   ggrepel::geom_text_repel(cex = 1.5,
-#                            force = 2,
-#                            aes(label=Gene),
-#                            show.legend = FALSE,
-#                            segment.size = 0.05, segment.alpha = 0.5,
-#                            direction = "both",
-#                            # nudge_x = 1,
-#                            nudge_y = 0,
-#                            toto %>%
-#                              filter(Subject == "K8")) +
-#   guides(fill=guide_legend(ncol= 1)) +
-#   theme(legend.key.size = unit(0.2,"cm")) -> p
-# 
-# p
+
+## ------------------------------------------------------------------------------------------------------------------------------------------------
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#' 
+#' 
+#' 
+
+here::here("data/processed/humann/DNA/pathabundance_cpm_joined_tables.tsv") %>% humann_2df(type = '# Pathway') -> DNA; here::here("data/processed/humann/RNA/pathabundance_cpm_joined_tables.tsv") %>% humann_2df(type = '# Pathway') -> RNA
+humann_DNA_RNA_2phyloseq(DNA,RNA) -> physeq
+sample_names(physeq) <- str_replace(sample_names(physeq), "_DNA_cat_Abundance-CPM_DNA", "_DNA"); sample_names(physeq) <- str_replace(sample_names(physeq), "_cat_Abundance-CPM_RNA", "_RNA")
+physeq_add_metadata(physeq, 
+                    here::here("data/metadata_all_DNA_RNA.xlsx") %>% readxl::read_xlsx() %>% dplyr::rename(Sample_ID2 = Sample),
+                    sample_column = "Sample_ID") %>%
+  humann2_species_contribution(meta_data_var = c("Subject", "Sample_ID2" ,"Type", "Oral_Site", "Health_status")) %>%
+  humann2_RNA_DNA_ratio_plot(x_plot = "Oral_Site",
+                             y_plot = "log10(RNA_DNA)",
+                             color = "Oral_Site",
+                             fill = "Oral_Site",
+                             filter_feature = c("PWY-6737: starch degradation V",                                                                                                           "PWY-7111: pyruvate fermentation to isobutanol (engineered)"),
+                             filter_genus = c("Rothia"),
+                             facet_formula = ". ~ Health_status") -> plot
+
+
+humann2_RNA_DNA_ratio_plot <- function(df,
+                                       rm_un_sp = TRUE,
+                                       x_plot,
+                                       y_plot,
+                                       color,
+                                       fill,
+                                       shape = NULL,
+                                       filter_feature = FALSE,
+                                       filter_genus = FALSE,
+                                       filter_species = FALSE,
+                                       only_pos = TRUE, # dplyr::filter(DNA  > 0 , RNA > 0)
+                                       facet_formula = FALSE){ #  ". ~ Health_status"
+  
+  require(tidyverse); require(ggConvexHull)
+  
+  if(rm_un_sp == TRUE){
+    df %>%
+      dplyr::filter(Species != "unclassified") -> df
+  }
+  
+  if(filter_feature != FALSE){
+    df %>%
+      dplyr::filter(Feature %in% filter_feature) -> df
+  }
+  
+  if(filter_genus != FALSE){
+    df %>%
+      dplyr::filter(Genus %in% filter_genus) -> df
+  }
+  
+  if(filter_species != FALSE){
+    df %>%
+      dplyr::filter(Species %in% filter_genus) -> df
+  }
+  
+  if(only_pos == TRUE){
+    df %>%
+      dplyr::filter(DNA  > 0 , RNA > 0) -> df
+  }
+  
+  df %>%
+    ggplot(aes_string(x = x_plot, y = y_plot, color = color, fill = fill, shape = shape)) + 
+    geom_boxplot(outlier.colour = NA, alpha = 0.2,
+                 position = position_dodge(width=0.7)) +
+    # geom_jitter(size=1, alpha=0.2) +
+    ggbeeswarm::geom_beeswarm(size=1, alpha=0.2) +
+    # geom_violin(size=1, alpha=0.2) +
+    geom_hline(yintercept = 0,
+               col = "red",
+               linetype = "dotted",
+               size = 0.5) +
+    theme_light() +
+    guides(fill=guide_legend(ncol=1)) +
+    theme(axis.title.x = element_blank()) +
+    # ylab(paste0("Relative Abundance (Top ",n," (RNA)) \n")) + #scale_y_continuous(trans='sqrt') + 
+    # theme(legend.text = element_text(size= 6)) + 
+    # theme(axis.text.x = element_text(size = 4)) +
+    theme(legend.key.size = unit(0.2,"cm")) -> p
+  
+  if(facet_formula != FALSE){
+    p + facet_grid(as.formula(facet_formula), drop=TRUE,
+                   scale="fixed",space="free_x") -> p
+  }
+  
+  out <- list("legend" = p %>% ggpubr::get_legend() %>% ggpubr::as_ggplot(),
+              "plot" = p + theme(legend.position = "none"))
+  
+  return(out)
+}
+
+## ------------------------------------------------------------------------------------------------------------------------------------------------
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note Let’s stay focus and go back to the long format for DNA, RNA. 
+#' @note Now we are going to average per Species DNA, RNA. 
+#' @note So for each Species information for all patways will be condensed. 
+#' @note “The activity of each species is first averaged within and then across participants for DNA and RNA samples, respectively”
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#' 
+#' 
+#' 
+
+here::here("data/processed/humann/DNA/pathabundance_cpm_joined_tables.tsv") %>% humann_2df(type = '# Pathway') -> DNA; here::here("data/processed/humann/RNA/pathabundance_cpm_joined_tables.tsv") %>% humann_2df(type = '# Pathway') -> RNA
+humann_DNA_RNA_2phyloseq(DNA,RNA) -> physeq
+sample_names(physeq) <- str_replace(sample_names(physeq), "_DNA_cat_Abundance-CPM_DNA", "_DNA"); sample_names(physeq) <- str_replace(sample_names(physeq), "_cat_Abundance-CPM_RNA", "_RNA")
+physeq_add_metadata(physeq, 
+                    here::here("data/metadata_all_DNA_RNA.xlsx") %>% readxl::read_xlsx() %>% dplyr::rename(Sample_ID2 = Sample),
+                    sample_column = "Sample_ID") %>%
+  humann2_species_contribution(meta_data_var = c("Subject", "Sample_ID2" ,"Type", "Oral_Site", "Health_status")) -> df
+
+all_long_strat %>%
+  select(Full, Gene,Genus, Species, Subject, Abundance, Type, Oral_Site, Health_status) %>%
+  rename(cpm = Abundance) %>%
+  filter(cpm > 0) %>%
+  group_by(Species, Genus, Oral_Site, Health_status, Subject, Type) %>%
+  summarize(count = n(), 
+            Mean = mean(cpm, na.rm = T),
+            Sum = sum(cpm>0, na.rm = T)) %>%
+  ungroup() %>%
+  select(-count, -Sum) %>%
+  group_by(Species, Genus, Oral_Site, Health_status, Subject, Type) %>%
+  pivot_wider(names_from  = Type,
+              values_from = Mean,
+              values_fill = list(mean = 0)) %>%
+  mutate(RNA_DNA = RNA/DNA) %>%
+  ungroup() -> species_DNA_RNA
+
+all_long_strat %>%
+  select(Full, Gene,Genus, Species, Subject, Abundance, Type, Oral_Site, Health_status) %>%
+  rename(cpm = Abundance) %>%
+  filter(cpm > 0) %>%
+  group_by(Species, Genus, Oral_Site, Health_status, Subject, Type) %>%
+  summarize(count = n(), 
+            Mean = mean(cpm, na.rm = T),
+            Sum = sum(cpm>0, na.rm = T)) %>%
+  ungroup() %>%
+  select(-count, -Sum) %>%
+  group_by(Species, Genus, Oral_Site, Health_status, Subject, Type) %>%
+  pivot_wider(names_from  = Type,
+              values_from = Mean,
+              values_fill = list(mean = 0)) %>%
+  mutate(RNA_DNA = RNA/DNA) %>%
+  ungroup() -> species_DNA_RNA
+
+## ------------------------------------------------------------------------------------------------------------------------------------------------
+
+# contributional_diversity
+humann2 <- contributional_diversity()
+
+## ------------------------------------------------------------------------------------------------------------------------------------------------
+
+# also correlation
+all_long_strat_DNA_RNA %>%
+  # head(1000) %>%
+  group_by(Species, Gene) %>%
+  summarize(Cor_species = cor(DNA,RNA, method = "spearman"),
+            Mn_DNA = mean(DNA),
+            Mn_RNA = mean(RNA),
+            Sm_DNA = sum(DNA),
+            Sm_RNA = sum(DNA)) %>% 
+  select(Species, Gene, Cor_species) -> Species_PW_corDNA_RNA
+
+all_long_strat_DNA_RNA %>%
+  # head(1000) %>%
+  group_by(Subject, Gene) %>%
+  summarize(Cor_subject = cor(DNA,RNA, method = "spearman"),
+            Mn_DNA = mean(DNA),
+            Mn_RNA = mean(RNA),
+            Sm_DNA = sum(DNA),
+            Sm_RNA = sum(DNA)) %>% 
+  select(Subject, Gene, Cor_subject) -> Subject_PW_corDNA_RNA
+
+all_long_strat_DNA_RNA %>%
+  # tail(10000) %>%
+  group_by(Gene, Oral_Site, Health_status) %>%
+  summarize(Cor = cor(DNA,RNA, method = "spearman"),
+            Mn_DNA = mean(DNA),
+            Mn_RNA = mean(RNA),
+            Sm_DNA = sum(DNA),
+            Sm_RNA = sum(DNA)) %>%
+  select(Gene, Oral_Site, Health_status) -> Gene_Site_health_corDNA_RNA
+
+
+full_join(Gene_Site_health_corDNA_RNA,
+          Subject_PW_corDNA_RNA) %>%
+  full_join(Species_PW_corDNA_RNA) -> pw_all_corr
+
+pw_all_corr %>%
+  arrange(Cor_subject)
+
+## ------------------------------------------------------------------------------------------------------------------------------------------------
+
+# boxplot per species average per patway transcriptional activity (figure c preprint)
+species_PWY_DNA_RNA %>%
+  dplyr::filter(Species %in% c("Actinobaculum_sp_oral_taxon_183",
+                               "Actinomyces_graevenitzii",
+                               "Actinomyces_massiliensis",
+                               "Actinomyces_naeslundii",
+                               "Actinomyces_oris",
+                               "Actinomyces_sp_ICM47",
+                               "Actinomyces_sp_oral_taxon_448",
+                               "Corynebacterium_matruchotii",
+                               "Fusobacterium_nucleatum",
+                               "Gemella_sanguinis",
+                               "Neisseria_flavescens",
+                               "Parvimonas_micra",
+                               "Prevotella_histicola",
+                               "Prevotella_melaninogenica",
+                               "Prevotella_nigrescens",
+                               "Prevotella_oris",
+                               "Rothia_dentocariosa",
+                               "Rothia_mucilaginosa",
+                               "Streptococcus_infantis",
+                               "Streptococcus_oralis",
+                               "Streptococcus_parasanguinis",
+                               "Streptococcus_salivarius",
+                               "Streptococcus_sanguinis",
+                               "Tannerella_forsythia",
+                               "Veillonella_atypica",
+                               "Veillonella_dispar",
+                               "Veillonella_parvula")) %>%
+  mutate(RNA_DNA = RNA/DNA) -> tmp
+
+tmp %>%
+  ggplot(aes(x = reorder(Species, -log10(RNA_DNA), FUN=median, na.rm = TRUE), y = log10(RNA_DNA), color = Genus, fill = Genus)) + 
+  geom_boxplot(outlier.colour = NA, alpha = 0.2,
+               position = position_dodge(width=0.7)) +
+  # geom_jitter(size=1, alpha=0.2) +
+  ggbeeswarm::geom_beeswarm(size=1, aes(alpha = abs(Cor_species))) +
+  # geom_violin(size=1, alpha=0.2) +
+  geom_hline(yintercept = 0,
+             col = "red",
+             linetype = "dotted",
+             size = 0.5) +
+  theme_light() +
+  guides(fill=guide_legend(ncol=1)) +
+  theme(axis.title.x = element_blank()) +
+  # theme(axis.text.x=element_text(angle=75,hjust=0,vjust=0)) +
+  # ylab(paste0("Relative Abundance (Top ",n," (RNA)) \n")) + #scale_y_continuous(trans='sqrt') + 
+  theme(legend.text = element_text(size= 6)) + 
+  theme(axis.text.x = element_text(size = 4)) +
+  # scale_y_log10() +
+  theme(legend.key.size = unit(0.2,"cm")) + coord_cartesian(ylim = c(-1 ,1 )) -> p
+
+p  +  ggpubr::rotate_x_text(75) + xlab(NULL) + 
+  ggrepel::geom_text_repel(cex = 1.5,
+                           force = 1.5,
+                           aes(label=PW),
+                           fill = "black",
+                           color = "black",
+                           show.legend = FALSE,
+                           segment.size = 0.05, segment.alpha = 0.5,
+                           direction = "both",
+                           # nudge_x = 1,
+                           nudge_y = 0,
+                           tmp %>%
+                             separate(Gene,
+                                      sep = ": ",
+                                      into = "PW",
+                                      remove = FALSE) %>%
+                             dplyr::filter(abs(log10(RNA_DNA)) > 0.6))
+
+## ------------------------------------------------------------------------------------------------------------------------------------------------
