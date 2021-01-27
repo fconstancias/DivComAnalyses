@@ -180,7 +180,8 @@ clean_humann_df <- function(humann_df){
 #'humann_DNA_RNA_2phyloseq(DNA_humann_2df,RNA_humann_2df) -> ps
 
 humann_DNA_RNA_2phyloseq <- function(DNA_humann_2df,
-                                     RNA_humann_2df)
+                                     RNA_humann_2df,
+                                     visualize = FALSE)
 {
   ## ------------------------------------------------------------------------
   require(tidyverse); require(speedyseq)
@@ -206,10 +207,10 @@ humann_DNA_RNA_2phyloseq <- function(DNA_humann_2df,
     dplyr::mutate_if(is.numeric, ~ replace(., is.na(.), 0)) %>% # **tight here, we need to combine the column from DNA and RNA since not all DNA features are in RNA. sth like mutate if**
     dplyr::mutate(Species_DNA = if_else(is.na(Species_DNA), "unclassified", Species_DNA)) %>%
     dplyr::rename(#id = id_DNA,
-                  Feature = Feature_DNA, 
-                  organism = organism_DNA, 
-                  Genus = Genus_DNA, 
-                  Species = Species_DNA) -> DNA_RNA
+      Feature = Feature_DNA, 
+      organism = organism_DNA, 
+      Genus = Genus_DNA, 
+      Species = Species_DNA) -> DNA_RNA
   
   cat(paste0('##',"DNA table: ",ncol(DNA %>% dplyr::select_if(is.numeric)),' samples and ',nrow(DNA),' features'))
   cat(paste0('##',"RNA table: ",ncol(RNA %>% dplyr::select_if(is.numeric)),' samples and ',nrow(RNA),' features'))
@@ -245,8 +246,8 @@ humann_DNA_RNA_2phyloseq <- function(DNA_humann_2df,
   
   
   cat(paste0('##',"Created phyloseq object ",nsamples(physeq),' samples and ', ntaxa(physeq),' features'))
-
-
+  
+  
   if (visualize == TRUE){
     
     # ggVennDiagram::ggVennDiagram(list("RNA" = RNA$id,
@@ -262,7 +263,7 @@ humann_DNA_RNA_2phyloseq <- function(DNA_humann_2df,
   }else{
     return(physeq)
   }
-
+  
   
   ## ------------------------------------------------------------------------
   
@@ -463,10 +464,10 @@ physeq_add_metadata(physeq, here::here("data/metadata_all_DNA_RNA.xlsx") %>%  re
 
 
 humann2_species_contribution <- function(physeq,
-                                         meta_data_var = c("Sample", "Subject", "Type", "Oral_Site", "Health_status"),
+                                         meta_data_var = c("Subject", "Type", "Oral_Site", "Health_status"),
                                          filter_cut = 0,
                                          type = "RNA_DNA")
-  {
+{
   
   
 }
@@ -476,69 +477,73 @@ physeq %>%
   subset_taxa(!is.na(organism)) %>% # to make sure we are working with stratefied data
   speedyseq::psmelt() %>%
   dplyr::select(-organism) %>%
-  dplyr::select(id, Feature, 
+  dplyr::select(OTU, Feature, 
                 Genus, Species, meta_data_var,
                 Abundance) -> long_strat
 
-  long_strat %>%
-    dplyr::filter(Abundance > filter_cut) %>%
-    tidyr::pivot_wider(names_from  = Type,
-                       values_from = Abundance,
-                       values_fill = list(Abundance = 0)) -> tmp
-  
+long_strat %>%
+  dplyr::filter(Abundance > filter_cut) %>%
+  tidyr::pivot_wider(names_from  = Type,
+                     values_from = Abundance,
+                     values_fill = list(Abundance = 0)) -> tmp
+
 if (type == "RNA_DNA"){
   tmp %>%
     dplyr::mutate(RNA_DNA = RNA/DNA)  -> strat_DNA_RNA
+  
+  return(strat_DNA_RNA)
 }
 
-
-  strat_DNA_RNA %>%
-    filter(Feature %in% "HISDEG-PWY: L-histidine degradation I")
-  filter(Species %in% c("Streptococcus_parasanguinis")) %>%
-  filter(DNA  > 0 , RNA > 0) -> toto
-
-ggpubr::compare_means(RNA_DNA ~ Health_status,
-                      group.by = c("Oral_Site","Gene"),
-                      data = toto,
-                      method = "wilcox.test",
-                      p.adjust.method = "fdr") %>%
-  filter(p.adj < 0.05) %>%
-  select(Gene, group1, group2, p.adj) -> RNA_DAN_signif
-
-RNA_DAN_signif %>% pull(Gene) %>% unique() %>% as.vector() -> RNA_DAN_signif_gn
-
-RNA_DAN_signif %>%
-  DT::datatable()
-
-
-
-toto %>%
-  filter(Gene %in% RNA_DAN_signif_gn) %>%
-  ggplot(aes(x = log10(DNA), y = log10(RNA),
-             fill = Gene, color = Gene)) + 
-  geom_point(alpha = 0.8, show.legend = FALSE, size = 1)  +
-  facet_grid(Oral_Site ~ Health_status, drop=TRUE,
-             scale="fixed",space="free_x") +
-  ggConvexHull::geom_convexhull(aes(group = Gene), alpha = 0.1,
-                                size = 0.08, linetype = "dotted",
-                                show.legend = FALSE) +
-  # geom_polygon(aes(group = Species), alpha= 0.11,
-  #              size = 0.08, linetype = "dotted",
-  #              show.legend = FALSE, rule = "winding") +
-  geom_abline(slope=1, linetype = "dashed", size = 0.08, intercept=0) +
-  theme_light() +
-  # coord_equal() +
-  ggrepel::geom_text_repel(cex = 1.5,
-                           force = 2,
-                           aes(label=Gene),
-                           show.legend = FALSE,
-                           segment.size = 0.05, segment.alpha = 0.5,
-                           direction = "both",
-                           # nudge_x = 1,
-                           nudge_y = 0,
-                           toto %>%
-                             filter(Subject == "K8")) +
-  guides(fill=guide_legend(ncol= 1)) +
-  theme(legend.key.size = unit(0.2,"cm")) -> p
-
-p
+return(tmp)
+}
+# 
+#   strat_DNA_RNA %>%
+#     filter(Feature %in% "HISDEG-PWY: L-histidine degradation I")
+#   filter(Species %in% c("Streptococcus_parasanguinis")) %>%
+#   filter(DNA  > 0 , RNA > 0) -> toto
+# 
+# ggpubr::compare_means(RNA_DNA ~ Health_status,
+#                       group.by = c("Oral_Site","Gene"),
+#                       data = toto,
+#                       method = "wilcox.test",
+#                       p.adjust.method = "fdr") %>%
+#   filter(p.adj < 0.05) %>%
+#   select(Gene, group1, group2, p.adj) -> RNA_DAN_signif
+# 
+# RNA_DAN_signif %>% pull(Gene) %>% unique() %>% as.vector() -> RNA_DAN_signif_gn
+# 
+# RNA_DAN_signif %>%
+#   DT::datatable()
+# 
+# 
+# 
+# toto %>%
+#   filter(Gene %in% RNA_DAN_signif_gn) %>%
+#   ggplot(aes(x = log10(DNA), y = log10(RNA),
+#              fill = Gene, color = Gene)) + 
+#   geom_point(alpha = 0.8, show.legend = FALSE, size = 1)  +
+#   facet_grid(Oral_Site ~ Health_status, drop=TRUE,
+#              scale="fixed",space="free_x") +
+#   ggConvexHull::geom_convexhull(aes(group = Gene), alpha = 0.1,
+#                                 size = 0.08, linetype = "dotted",
+#                                 show.legend = FALSE) +
+#   # geom_polygon(aes(group = Species), alpha= 0.11,
+#   #              size = 0.08, linetype = "dotted",
+#   #              show.legend = FALSE, rule = "winding") +
+#   geom_abline(slope=1, linetype = "dashed", size = 0.08, intercept=0) +
+#   theme_light() +
+#   # coord_equal() +
+#   ggrepel::geom_text_repel(cex = 1.5,
+#                            force = 2,
+#                            aes(label=Gene),
+#                            show.legend = FALSE,
+#                            segment.size = 0.05, segment.alpha = 0.5,
+#                            direction = "both",
+#                            # nudge_x = 1,
+#                            nudge_y = 0,
+#                            toto %>%
+#                              filter(Subject == "K8")) +
+#   guides(fill=guide_legend(ncol= 1)) +
+#   theme(legend.key.size = unit(0.2,"cm")) -> p
+# 
+# p
