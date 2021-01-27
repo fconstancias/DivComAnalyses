@@ -96,7 +96,7 @@ metaphlan_2phyloseq <- function(merged_metaphlan,
 #' @export
 #' @examples
 #'
-#' here::here("data/processed/humann/DNA/genefamilies_joined_tables_uniref90_ko_renamed_kegg-orthology.tsv") %>% humann_2df(clean_names = TRUE) -> dff
+#' here::here("data/processed/humann/DNA/genefamilies_joined_tables_uniref90_ko_renamed_kegg-orthology.tsv")
 #' 
 #'
 #'
@@ -104,8 +104,7 @@ metaphlan_2phyloseq <- function(merged_metaphlan,
 
 humann_2df <- function(humann_renamed = here::here("data/processed/humann/DNA/genefamilies_joined_tables_uniref90_ko_renamed_kegg-orthology.tsv"),
                        type = '# Gene Family',#`# Gene Family` | `# Pathway`)
-                       n_rows = Inf,
-                       clean_names = FALSE) # for testing purpose
+                       n_rows = Inf) # for testing purpose
 {
   
   ## ------------------------------------------------------------------------
@@ -116,24 +115,18 @@ humann_2df <- function(humann_renamed = here::here("data/processed/humann/DNA/ge
   ## ------------------------------------------------------------------------
   humann_renamed %>% 
     readr::read_tsv(col_names = TRUE, n_max = n_rows) %>%
-    dplyr::rename(Gene = !!type) %>%
-    dplyr::mutate(Full = Gene) %>%
-    dplyr::select(Full, everything(.)) %>%
-    tidyr::separate(Gene, c("Gene", "organism"), sep = "\\|", fill = "right") %>%
+    dplyr::rename(Feature = !!type) %>%
+    dplyr::mutate(id = Feature) %>%
+    dplyr::select(id, everything(.)) %>%
+    tidyr::separate(Feature, c("Feature", "organism"), sep = "\\|", fill = "right") %>%
     tidyr::separate(organism, c("Genus", "Species"), sep = "\\.", fill = "right", remove = FALSE) %>%
     dplyr::mutate(organism = str_replace(organism, ".s__", "_")) %>% 
     dplyr::mutate(organism = str_replace(organism, "g__|", "")) %>% 
     dplyr::mutate(Genus = str_replace(Genus, "g__", "")) %>% 
     dplyr::mutate(Species = str_replace(Species, "s__", "")) -> df
   
-  if (clean_names == TRUE){
-    df %>%
-      dplyr::mutate(Gene = str_replace(Gene, "biosynthesis", "bios.")) %>%
-      dplyr::mutate(Gene = str_replace(Gene, "degradation", "deg.")) %>%
-      dplyr::mutate(Gene = str_replace(Gene, "superpathway", "spw")) %>%
-      dplyr::mutate(Gene = gsub("\\s*\\([^\\)]+\\)","",as.character(Gene))) -> df
-  }
-
+  ## ------------------------------------------------------------------------
+  
   return(df)
 }
 
@@ -148,14 +141,43 @@ humann_2df <- function(humann_renamed = here::here("data/processed/humann/DNA/ge
 #' @export
 #' @examples
 #'
+#' here::here("data/processed/humann/DNA/genefamilies_joined_tables_uniref90_ko_renamed_kegg-orthology.tsv") %>% humann_2df() %>% clean_humann_df() -> dff
+#' 
 #'
-#'here::here("data/processed/humann/DNA/pathabundance_cpm_joined_tables.tsv") %>%
-#'  humann_2df(type = '# Pathway') -> DNA
-#'here::here("data/processed/humann/RNA/pathabundance_cpm_joined_tables.tsv") %>%
-#'  humann_2df(type = '# Pathway') -> RNA
 #'
-#'humann_DNA_RNA_2phyloseq(DNA,
-#'                         RNA) -> ps
+#'
+
+clean_humann_df <- function(humann_df){
+  ## ------------------------------------------------------------------------
+  
+humann_df %>%
+    dplyr::mutate(Feature = str_replace(Feature, "biosynthesis", "bios.")) %>%
+    dplyr::mutate(Feature = str_replace(Feature, "degradation", "deg.")) %>%
+    dplyr::mutate(Feature = str_replace(Feature, "superpathway", "spw")) %>%
+    dplyr::mutate(Feature = gsub("\\s*\\([^\\)]+\\)","",as.character(Feature))) -> df
+  ## ------------------------------------------------------------------------
+  
+  return(df)
+}
+
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
+#'here::here("data/processed/humann/DNA/pathabundance_cpm_joined_tables.tsv") %>% humann_2df(type = '# Pathway') -> DNA
+#'here::here("data/processed/humann/RNA/pathabundance_cpm_joined_tables.tsv") %>% humann_2df(type = '# Pathway') -> RNA
+#'
+#'humann_DNA_RNA_2phyloseq(DNA,RNA) -> ps
 
 humann_DNA_RNA_2phyloseq <- function(DNA_humann_2df,
                                      RNA_humann_2df)
@@ -174,19 +196,19 @@ humann_DNA_RNA_2phyloseq <- function(DNA_humann_2df,
   
   dplyr::left_join(DNA,
                    RNA, 
-                   by= c("Full_DNA"="Full_RNA"), 
+                   by= c("id_DNA"="id_RNA"), 
                    suffix = c("_DNA", "_RNA"), 
                    keep = FALSE) %>% #-> DNA_RNA
     dplyr::mutate_if(is.numeric, ~ replace(., is.na(.), 0)) %>%
     dplyr::mutate(Species_DNA = if_else(is.na(Species_DNA), "unclassified", Species_DNA)) -> DNA_RNA
   
   DNA_RNA %>%
-    select(c("Full_DNA", "Gene_DNA","organism_DNA", "Genus_DNA", "Species_DNA")) %>%
+    select(c("id_DNA", "Feature_DNA","organism_DNA", "Genus_DNA", "Species_DNA")) %>%
     # separate(col=Description_DNA,
     #      into=c("Description","EC_number"),
     #      sep = "_EC_", remove = TRUE) %>%
-    dplyr::rename(Full = Full_DNA,
-                  Gene = Gene_DNA, 
+    dplyr::rename(id = id_DNA,
+                  Feature = Feature_DNA, 
                   organism = organism_DNA, 
                   Genus = Genus_DNA, 
                   Species = Species_DNA) -> tax
@@ -201,6 +223,7 @@ humann_DNA_RNA_2phyloseq <- function(DNA_humann_2df,
   merge_phyloseq(otu_table(count %>% as.matrix(), 
                            taxa_are_rows = TRUE),
                  tax_table(tax %>% as.matrix())) -> physeq
+  ## ------------------------------------------------------------------------
   
   return(physeq)
 }
@@ -218,12 +241,8 @@ humann_DNA_RNA_2phyloseq <- function(DNA_humann_2df,
 #' @examples
 #'
 #'
-#'here::here("data/processed/humann/DNA/pathabundance_cpm_joined_tables.tsv") %>%
-#'  humann_2df(type = '# Pathway')  %>%
-#'  humann_2phyloseq() -> ps
+#'here::here("data/processed/humann/DNA/genefamilies_joined_tables_uniref90_ko_renamed_kegg-orthology.tsv") %>% humann_2df() %>% clean_humann_df() %>% humann_2phyloseq() -> ps
 #'
-
-
 
 humann_2phyloseq <- function(humann_2df)
 {
@@ -247,6 +266,7 @@ humann_2phyloseq <- function(humann_2df)
   merge_phyloseq(otu_table(count %>% as.matrix(), 
                            taxa_are_rows = TRUE),
                  tax_table(tax %>% as.matrix())) -> physeq
+  ## ------------------------------------------------------------------------
   
   return(physeq)
 }
@@ -276,6 +296,8 @@ phyloseq_get_humann_strat_un_output <- function(physeq,
                                                 remove_unmapped_unintegrated = FALSE, 
                                                 transform = "compositional",# from microbiome:: 'compositional' (ie relative abundance), 'Z', 'log10', 'log10p', 'hellinger', 'identity', 'clr', or any method from the vegan::decostand function.
                                                 export_long_df = TRUE)
+  ## ------------------------------------------------------------------------
+
 {
   if (remove_unmapped_unintegrated == TRUE){
     physeq %>%
@@ -294,6 +316,8 @@ phyloseq_get_humann_strat_un_output <- function(physeq,
     physeq %>%
       microbiome::transform(transform) -> physeq
   }
+  
+  ## ------------------------------------------------------------------------
   
   return(physeq)
   
