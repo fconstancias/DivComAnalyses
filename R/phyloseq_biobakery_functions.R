@@ -288,20 +288,21 @@ humann_2phyloseq <- function(humann_2df)
 #' @return .
 #' @export
 #' @examples
-#'
+#'here::here("data/processed/humann/DNA/genefamilies_joined_tables_uniref90_ko_renamed_kegg-orthology.tsv") %>% humann_2df() %>% clean_humann_df() %>% humann_2phyloseq() -> tmp
+#'tmp %>% phyloseq_get_humann_strat_un_output(output = "unstratified" ,transform = "clr",  export_long_df = TRUE, remove_unmapped_unintegrated = TRUE) -> ps
+
 
 
 phyloseq_get_humann_strat_un_output <- function(physeq,
                                                 output = "stratified", # stratified / unstratified
                                                 remove_unmapped_unintegrated = FALSE, 
                                                 transform = "compositional",# from microbiome:: 'compositional' (ie relative abundance), 'Z', 'log10', 'log10p', 'hellinger', 'identity', 'clr', or any method from the vegan::decostand function.
-                                                export_long_df = TRUE)
+                                                export_long_df = TRUE){
   ## ------------------------------------------------------------------------
 
-{
   if (remove_unmapped_unintegrated == TRUE){
     physeq %>%
-      subset_taxa(!(grepl("^UN", Gene))) -> physeq
+      subset_taxa(!(grepl("^UN", Feature))) -> physeq
   }
   if (output == "stratified"){
     physeq %>%
@@ -322,9 +323,11 @@ phyloseq_get_humann_strat_un_output <- function(physeq,
   return(physeq)
   
   if (export_long_df == TRUE){
+    
+    physeq %>% 
+      speedyseq::psmelt() -> df
     out <- list("physeq" = physeq,
-                "df" = physeq %>% 
-                  speedyseq::psmelt())
+                "df" = df)
     return(out)
     
   }
