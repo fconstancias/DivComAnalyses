@@ -333,3 +333,8 @@ phyloseq_get_humann_strat_un_output <- function(physeq,
   }
 }
 
+# todo: add metadata to physeq
+# read count normalise
+# RNA/DNA ratio.
+# contributional diversity
+# fix axis label stringr to remove some text
