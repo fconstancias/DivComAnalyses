@@ -19,7 +19,7 @@
 #'
 #'
 #'
-phyloseq_ampvis_heatmap <- function(physeq,transform, group_by, facet_by, tax_aggregate, tax_add, ntax)
+phyloseq_ampvis_heatmap <- function(physeq,transform = 'compositional', group_by, facet_by, tax_aggregate, tax_add, ntax)
 {
   require(tidyverse)
   require(ampvis2)
@@ -53,14 +53,13 @@ phyloseq_ampvis_heatmap <- function(physeq,transform, group_by, facet_by, tax_ag
   # }
   tax_table(physeq) <- tax_table(physeq)[,c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Strain")]
   colnames(tax_table(physeq)) <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
-  if (transform == "percent")
+  if (transform != FALSE)
   {
     physeq %>%
-      transform_sample_counts(function(x) x/sum(x) * 100) %>%
-      filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> physeq
-  }else{
-    physeq %>%
-      filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> physeq
+      microbiome::transform(transform = transform) -> physeq
+    # }else{
+    #   physeq %>%
+    #     filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> physeq
   }
   
   if ('Strain' %in% (physeq %>% tax_table() %>% colnames()))
