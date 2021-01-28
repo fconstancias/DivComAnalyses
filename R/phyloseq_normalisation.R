@@ -696,7 +696,8 @@ phyloseq_density_normalize <-  function(physeq = physeq,
   
   #if we want to remove the samples for which we have no qPCR data to avoid future NAs in the phyloseq object
   if(remove.na==TRUE){
-    physeq %>% subset_samples(!is.na(get(value_idx))) -> physeq
+
+    prune_samples(!is.na(physeq %>% get_variable(value_idx)),physeq) -> physeq
   }
   
   df_OTU_col = colnames(phyloseq::otu_table(physeq))
