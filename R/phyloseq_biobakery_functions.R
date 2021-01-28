@@ -37,12 +37,9 @@ metaphlan_2phyloseq <- function(merged_metaphlan,
   # TODO: mode for lefser with all taxa
   ## ------------------------------------------------------------------------
   require(tidyverse); require(speedyseq)
-  cat(paste0('\n##',"You are using tidyverse version ", packageVersion('tidyverse'),'\n\n'))
-  cat(paste0('\n##',"You are using speedyseq version ", packageVersion('speedyseq'),'\n\n'))
+
   `%!in%` = Negate(`%in%`)
-  
-  cat('################################\n\n')
-  ## ------------------------------------------------------------------------
+    ## ------------------------------------------------------------------------
   merged_metaphlan %>% 
     read_tsv(col_names = TRUE,
              skip = skip_col) %>%
@@ -107,9 +104,7 @@ clean_phyloseq_sample_names <- function(physeq,
   
   ## ------------------------------------------------------------------------
   require(tidyverse); require(phyloseq)
-  cat(paste0('\n##',"You are using tidyverse version ", packageVersion('tidyverse'),'\n\n'))
-  cat(paste0('\n##',"You are using phyloseq version ", packageVersion('phyloseq'),'\n\n'))
-  
+
   sample_names(physeq) <- str_replace(sample_names(physeq), str_rm, str_replace)
   ## ------------------------------------------------------------------------
   return(physeq)
