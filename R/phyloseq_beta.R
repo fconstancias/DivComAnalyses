@@ -883,3 +883,91 @@ return(out <- list("plot" = p,
 detach("package:plyr", unload=TRUE);detach("package:ggvegan", unload=TRUE)
 
 }
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples require(phyloseq);require(tidyverse); require(vegan);sample_data(enterotype)
+#' @examples enterotype %>% phyloseq::distance(method = "bray") -> bc
+#' @examples sample_data(enterotype)$Var <- sample(1:40, nsamples(enterotype), replace=T)
+#' @examples sample_data(enterotype)$Size <- rnorm(nsamples(enterotype), mean=176, sd=10)
+#' @examples enterotype %>% phyloseq_plot_dbrda(dm = bc, grouping_column = "Project", env.variables = c("Age", "Gender", "Size", "Var"), sep = "*") -> dbrda
+#' @examples 
+
+phyloseq_plot_dbrda <- function(physeq, dm, grouping_column, pvalueCutoff = 0.5, norm_method = "center_scale", 
+                              env.variables = NULL, num.env.variables = NULL, exclude.variables = NULL, 
+                              draw_species = F, nperm = 999, sep = "+") 
+{
+  abund_table <- otu_table(physeq)
+  meta_table <- data.frame(sample_data(physeq))[,c(env.variables,grouping_column)]
+  complete.cases(meta_table) -> cc
+  as.matrix(dm)[cc,cc] -> dm
+  meta_table[cc,] -> meta_table
+  if (norm_method == "center_scale")
+  {
+    meta_table %>%
+      mutate_if(is.numeric, scale) -> meta_table
+  }
+  abund_table.adonis <- vegan::adonis(formula = as.formula(paste("dm"," ~ ", paste(env.variables, collapse  = sep))),
+                               permutations = nperm,
+                               data = meta_table[,c(env.variables)])
+  bestEnvVariables <- rownames(abund_table.adonis$aov.tab)[abund_table.adonis$aov.tab$"Pr(>F)" <= 
+                                                             pvalueCutoff]
+  
+  # abund_table.adonis <- vegan::adonis(dist_ps ~ ., data = meta_table)
+  
+  bestEnvVariables <- bestEnvVariables[!is.na(bestEnvVariables)]
+  if (!is.null(env.variables) && (env.variables %in% bestEnvVariables)) {
+    bestEnvVariables <- env.variables
+  }
+  if (!is.null(num.env.variables)) {
+    if (num.env.variables > length(bestEnvVariables)) {
+      stop(cat(paste("Choose a number less than", length(bestEnvVariables))))
+    }
+    else {
+      bestEnvVariables <- bestEnvVariables[1:num.env.variables]
+    }
+  }
+  if (!is.null(exclude.variables) && (exclude.variables %in% 
+                                      bestEnvVariables)) {
+    bestEnvVariables <- bestEnvVariables[!(bestEnvVariables %in% 
+                                             exclude.variables)]
+  }
+  eval(parse(text = paste("sol <- vegan::capscale(dm ~ ", do.call(paste, 
+                                                           c(as.list(bestEnvVariables), sep = " + ")), ",data=meta_table)", 
+                          sep = "")))
+  scrs <- vegan::scores(sol, display = c("sp", "wa", "lc", 
+                                         "bp", "cn"))
+  df_sites <- data.frame(scrs$sites, meta_table[, grouping_column])
+  colnames(df_sites) <- c("x", "y", "Groups")
+  p <- ggplot2::ggplot()
+  p <- p + ggplot2::geom_point(data = df_sites, aes(x, y, colour = Groups))
+  multiplier <- vegan:::ordiArrowMul(scrs$biplot)
+  df_arrows <- scrs$biplot * multiplier
+  colnames(df_arrows) <- c("x", "y")
+  df_arrows = as.data.frame(df_arrows)
+  p <- p + geom_segment(data = df_arrows, aes(x = 0, y = 0, 
+                                              xend = x, yend = y), arrow = arrow(length = unit(0.2, 
+                                                                                               "cm")), color = "#808080", alpha = 0.5)
+  p <- p + geom_text(data = as.data.frame(df_arrows * 1.1), 
+                     aes(x, y, label = rownames(df_arrows)), color = "#808080", 
+                     alpha = 0.5)
+  df_species <- as.data.frame(scrs$species)
+  colnames(df_species) <- c("x", "y")
+  if (draw_species) {
+    p <- p + geom_point(data = df_species, aes(x, y, shape = "Species")) + 
+      scale_shape_manual("", values = 2)
+  }
+  p <- p + theme_bw() + xlab("CCA1") + ylab("CCA2")
+  
+  return(list("plot"= p,
+              "capscale" = sol,
+              "adonis" = abund_table.adonis))
+}
