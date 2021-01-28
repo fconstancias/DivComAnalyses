@@ -694,22 +694,6 @@ humann2_RNA_DNA_ratio_plot <- function(df,
 
 ## ------------------------------------------------------------------------------------------------------------------------------------------------
 
-#' @title ...
-#' @param .
-#' @param ..
-#' @author Florentin Constancias
-#' @note Let’s stay focus and go back to the long format for DNA, RNA. 
-#' @note Now we are going to average per Species DNA, RNA. 
-#' @note So for each Species information for all patways will be condensed. 
-#' @note “The activity of each species is first averaged within and then across participants for DNA and RNA samples, respectively”
-#' @note .
-#' @return .
-#' @export
-#' @examples
-#' 
-#' 
-#' 
-
 here::here("data/processed/humann/DNA/pathabundance_cpm_joined_tables.tsv") %>% humann_2df(type = '# Pathway') -> DNA; here::here("data/processed/humann/RNA/pathabundance_cpm_joined_tables.tsv") %>% humann_2df(type = '# Pathway') -> RNA
 humann_DNA_RNA_2phyloseq(DNA,RNA) -> physeq
 sample_names(physeq) <- str_replace(sample_names(physeq), "_DNA_cat_Abundance-CPM_DNA", "_DNA"); sample_names(physeq) <- str_replace(sample_names(physeq), "_cat_Abundance-CPM_RNA", "_RNA")
