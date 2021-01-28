@@ -20,13 +20,13 @@ phyloseq_check_lib_size <- function(physeq, data_color, data_facet, nreads_displ
 {
   require(tidyverse)
   require(speedyseq)
-
+  
   if ('SampleID' %in% (physeq %>% sample_data() %>% colnames()))
-      {
-        physeq %>%
-          sample_data() %>%
-          as.matrix() %>%
-          as.data.frame() -> df
+  {
+    physeq %>%
+      sample_data() %>%
+      as.matrix() %>%
+      as.data.frame() -> df
   }else
   {
     physeq %>%
@@ -38,7 +38,7 @@ phyloseq_check_lib_size <- function(physeq, data_color, data_facet, nreads_displ
   df$LibrarySize <- sample_sums(physeq)
   df <- df[order(df$LibrarySize),]
   df$Index <- seq(nrow(df))
-
+  
   p <- ggplot(data=df,  #ggplot(data=subset(df,Index<400),
               aes_string(x="Index", y="LibrarySize", color = data_color , label = "SampleID")) +
     geom_point(size=0.5) +
@@ -49,15 +49,15 @@ phyloseq_check_lib_size <- function(physeq, data_color, data_facet, nreads_displ
     p <- p+ facet_wrap(~ get(data_facet) , ncol = 1)
   }
   
-
+  
   p + coord_cartesian(xlim=c(0,first_n)) +
     geom_hline(yintercept = nreads_display, color="red" , size = 0.5) -> p
-
+  
   out <- list("plot" = p,
               "df" = df)
-
+  
   return(out)
-
+  
 }
 
 
@@ -83,9 +83,9 @@ phyloseq_rarefaction_curves<- function (physeq, stepsize, color_data, facet_data
 {
   require(ampvis2)
   #devtools::source_gist("8d0ca4206a66be7ff6d76fc4ab8e66c6") # to source phyloseq_to_ampvis2()
-
+  
   tax_table(physeq) <- tax_table(physeq)[,c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")] # because amp_rarecurve() doesn't want to deal with our "Strain" level taxonomy
-
+  
   physeq %>%
     # prune_samples(samples  =  sample_sums(physeq_tmp) > 1000) %>%
     # prune_taxa(taxa =  taxa_sums(physeq_tmp) > 1) %>%
@@ -98,7 +98,7 @@ phyloseq_rarefaction_curves<- function (physeq, stepsize, color_data, facet_data
     ylab("Number of Observed ASVs") +
     theme_classic() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 8)) -> p
-
+  
   return(p)
 }
 
@@ -308,10 +308,10 @@ phyloseq_rarefied_unrarefied_richness <- function(physeq, sample_size, seed, col
   physeq %>%
     rarefy_even_depth(rngseed = seed,
                       sample.size = sample_size) -> physeq_rarefied
-
+  
   prune_samples(sample_sums(physeq)>= sample_size, physeq) -> physeq
-
-
+  
+  
   data.frame(a =  estimate_richness(physeq_rarefied, measures = "Observed")[, 1],
              b = estimate_richness(physeq, measures = "Observed")[, 1],
              sample_data(physeq)) %>%
@@ -320,7 +320,7 @@ phyloseq_rarefied_unrarefied_richness <- function(physeq, sample_size, seed, col
     geom_smooth(method="lm", level=0.95) +
     labs(x = "\nRarefied Richness", y = "UN-Rarefied Richness\n") +
     theme_minimal() -> p
-
+  
   return(p)
 }
 
@@ -352,7 +352,7 @@ phyloseq_filter_samples <- function(physeq, thrs)
 {
   require(phyloseq)
   require(tidyverse)
-
+  
   if (class(physeq) == "phyloseq")
   {
     physeq %>%
@@ -370,7 +370,7 @@ phyloseq_filter_samples <- function(physeq, thrs)
     ntax <- nrow(df)
     tax <- rownames(df)
   }
-
+  
   df %>%
     rownames_to_column('ASV')%>%
     select(ASV) -> results_all
@@ -386,60 +386,60 @@ phyloseq_filter_samples <- function(physeq, thrs)
       mutate(percent = get(c)/sum(get(c))) %>%
       mutate(Accumulated_pc = cumsum(percent)) %>%
       mutate(Common_Rare = ifelse(Accumulated_pc <= thrs/100, "Common", "Rare")) -> tpm
-
+    
     tpm %>%
       mutate(new_count = ifelse(Common_Rare == "Common", get(c), 0)) %>%
       select(- percent, - Accumulated_pc, -!!c, -Common_Rare) %>%
       dplyr::rename(!!c := new_count) -> filtter_sample_common
-
+    
     tpm %>%
       mutate(new_count = ifelse(Common_Rare == "Rare", get(c), 0)) %>%
       select(- percent, - Accumulated_pc, -!!c, -Common_Rare) %>%
       dplyr::rename(!!c := new_count) -> filtter_sample_rare
-
+    
     tpm %>%
       select(- percent, - Accumulated_pc, -!!c) %>%
       dplyr::rename(!!c := Common_Rare) -> results
-
+    
     full_join(results_all,
               results) -> results_all
-
+    
     full_join(results_all_2,
               filtter_sample_common) -> results_all_2
-
+    
     full_join(results_all_3,
               filtter_sample_rare) -> results_all_3
   }
-
+  
   results_all %>%
     pivot_longer(samples) %>%
     # group_by(ASV) %>%
     filter(value == "Common") %>%
     pull(ASV) %>%
     unique() -> commons
-
+  
   # results_all %>%
   #   pivot_longer(samples) %>% group_by(ASV) %>%
   #   filter(value == "Rare") %>% distinct(ASV) %>% pull() -> rares
-
+  
   setdiff(tax,
           commons) -> rare
-
+  
   # union(commons,
   #         rare) %>% setdiff(tax)
-
+  
   # print(paste0("Results : ", length(commons)," common OTUs ", length(rare), " rare OTUs - over a total of ", ntax, " OTUs"))
-
+  
   # common defined as never rare:
-
+  
   if (class(physeq) == "phyloseq")
   {
     prune_taxa(commons,
                physeq) -> physeq_common
-
+    
     prune_taxa(rare,
                physeq) -> physeq_rare
-
+    
     merge_phyloseq(
       results_all_2 %>% column_to_rownames('ASV') %>% as.matrix() %>% otu_table(taxa_are_rows = TRUE),
       physeq %>% tax_table(),
@@ -448,7 +448,7 @@ phyloseq_filter_samples <- function(physeq, thrs)
       physeq %>% sample_data()
     ) %>%
       filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> physeq_persample_common
-
+    
     merge_phyloseq(
       results_all_3 %>% column_to_rownames('ASV') %>% as.matrix() %>% otu_table(taxa_are_rows = TRUE),
       physeq %>% tax_table(),
@@ -457,33 +457,33 @@ phyloseq_filter_samples <- function(physeq, thrs)
       physeq %>% sample_data()
     ) %>%
       filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> physeq_persample_rare
-
-
+    
+    
     out <- list("global_common" = physeq_common,
                 "global_rare" = physeq_rare,
                 "per_sample_common" = physeq_persample_common,
                 "per_sample_rare" = physeq_persample_rare)
-
+    
     return(out)
   }else
   {
     df %>%
       rownames_to_column('ASV') %>%
       filter(ASV %in% commons) -> df_common
-
+    
     df %>%
       rownames_to_column('ASV') %>%
       filter(ASV %in% rare) -> df_rare
-
+    
     out <- list("global_common" = df_common,
                 "global_rare" = df_rare,
                 "per_sample_common" = results_all_2,
                 "per_sample_rare" = results_all_3
     )
-
+    
     return(out)
   }
-
+  
 }
 
 #' @title ...
@@ -506,10 +506,10 @@ phyloseq_filter_samples <- function(physeq, thrs)
 
 phyloseq_get_strains <- function(physeq)
 {
-
+  
   require(phyloseq); require(tidyverse)
   physeq_tmp = physeq
-
+  
   physeq %>%
     tax_table() %>%
     as.data.frame() %>%
@@ -517,10 +517,10 @@ phyloseq_get_strains <- function(physeq)
     mutate_at(vars(everything()), na_if, "unknown") %>%
     column_to_rownames("ASV") %>%
     as.matrix() -> tax_table(physeq_tmp)
-
+  
   physeq_tmp %>%
     get_strains(label = "unknown",
-              species = TRUE) %>%
+                species = TRUE) %>%
     tax_table() %>%
     as.data.frame() %>%
     rownames_to_column("ASV") %>%
@@ -529,7 +529,7 @@ phyloseq_get_strains <- function(physeq)
           sep = " ", remove = FALSE, na.rm = TRUE) %>%
     column_to_rownames("ASV") %>%
     dplyr::select(-Strain, Strain) -> tax_tbl_tmp
-
+  
   full_join(physeq %>% tax_table() %>%
               as.data.frame() %>%
               rownames_to_column("ASV"),
@@ -539,12 +539,12 @@ phyloseq_get_strains <- function(physeq)
     column_to_rownames("ASV") %>%
     # replace(is.na(.), "unknown") %>%
     as.matrix() -> tax_table(physeq)
-
+  
   return(physeq)
 }
 
 get_strains <- function(physeq_obj, label = "Unannotated", other_label = NULL, 
-          species = FALSE, unique_rank = NULL, unique_sep = " ") 
+                        species = FALSE, unique_rank = NULL, unique_sep = " ") 
 {
   tax_tbl <- phyloseq::tax_table(physeq_obj)
   tax_names <- colnames(tax_tbl)
@@ -598,16 +598,16 @@ phyloseq_get_strains_fast <- function(physeq)
   require(phyloseq);require(tidyverse)
   physeq_tmp = physeq
   
-as(tax_table(physeq), "matrix") %>%
+  as(tax_table(physeq), "matrix") %>%
     data.frame() %>%
     rownames_to_column('ASV') %>% 
     mutate_at(vars(everything()), na_if, "unknown") -> tmp1
-
-
-tmp1 %>%
-  column_to_rownames("ASV") %>%
-  as.matrix() -> tax_table(physeq_tmp)
-
+  
+  
+  tmp1 %>%
+    column_to_rownames("ASV") %>%
+    as.matrix() -> tax_table(physeq_tmp)
+  
   physeq_tmp %>%
     get_strains(label = "unknown",
                 species = TRUE) -> tmp2
@@ -684,7 +684,9 @@ phyloseq_remove_chloro_mitho <- function(physeq)
 #'otu_table(out2)["540305","TRRsed3"] #
 
 phyloseq_density_normalize <-  function(physeq = physeq,
-                                        value_idx = "norm",remove.na=TRUE,set.na.0=FALSE)
+                                        value_idx = "norm",
+                                        remove.na=TRUE,
+                                        set.na.0=FALSE)
   
   
 {
@@ -722,7 +724,7 @@ phyloseq_density_normalize <-  function(physeq = physeq,
   
   #if we want to replace NAs with 0 
   if(set.na.0==TRUE){
-  df_OTU[is.na(df_OTU)] = 0
+    df_OTU[is.na(df_OTU)] = 0
   }
   
   tree = phyloseq::phy_tree(physeq, errorIfNULL = FALSE)
@@ -775,7 +777,7 @@ phyloseq_density_normalize <-  function(physeq = physeq,
 #                                                                                                     errorIfNULL = FALSE))
 #   return(physeq2)
 # }
-
+# 
 
 phyloseq2df <- function (physeq, table_func) 
 {
@@ -859,7 +861,7 @@ phyloseq_remove_contaminants <- function(physeq = physeq,
                                          taxa_plot = "Strain")
   
 {
-
+  
   # prepare object  
   
   #adding the strain level annotation to the asvs (ie. instead of ASV1,ASV2..,etc, we now have strain level annotation as taxa_names())
@@ -869,11 +871,11 @@ phyloseq_remove_contaminants <- function(physeq = physeq,
   {
     taxa_names(physeq)  <- tax_table(physeq)[,"Strain"]
     
-
+    
   }
   
-#defining an operator 'not in'
-'%!in%' <- function(x,y)!('%in%'(x,y))
+  #defining an operator 'not in'
+  '%!in%' <- function(x,y)!('%in%'(x,y))
   
   if("Strain" %!in% rank_names(physeq)  && Strain == TRUE)
   {
@@ -883,11 +885,11 @@ phyloseq_remove_contaminants <- function(physeq = physeq,
     taxa_names(physeq)  <- tax_table(physeq)[,"Strain"]
     
   }
-
+  
   # Strategy 1: Remove ASV as long as they occur once in the NTC samples
-
+  
   prune_samples(get_variable(physeq, sample_type) == NTC_label,
-                       physeq)  %>%
+                physeq)  %>%
     filter_taxa(function(x) sum(x) > 0, prune=TRUE) %>%
     taxa_names() -> ASV_NTC
   
@@ -926,10 +928,10 @@ phyloseq_remove_contaminants <- function(physeq = physeq,
   
   # follow this dirty code from the tutorial
   ps.pa.neg <- prune_samples(get_variable(physeq, sample_type) == NTC_label,
-                physeq) 
+                             physeq) 
   
   ps.pa.pos <- prune_samples(get_variable(physeq, sample_type) != NTC_label,
-                            physeq) 
+                             physeq) 
   
   df.pa <- data.frame(pa.pos = taxa_sums(ps.pa.pos),
                       pa.neg = taxa_sums(ps.pa.neg),
@@ -943,9 +945,9 @@ phyloseq_remove_contaminants <- function(physeq = physeq,
     )
   
   df.pa %>%
-  ggplot(aes(x = pa.neg, 
-             y = pa.pos, 
-             shape = contaminant)) + 
+    ggplot(aes(x = pa.neg, 
+               y = pa.pos, 
+               shape = contaminant)) + 
     geom_point(aes_string(fill = taxa_plot,
                           color = taxa_plot)) +
     # scale_y_continuous(trans = 'log2') +
