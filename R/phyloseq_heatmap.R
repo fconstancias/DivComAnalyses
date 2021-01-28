@@ -19,7 +19,13 @@
 #'
 #'
 #'
-phyloseq_ampvis_heatmap <- function(physeq,transform = 'compositional', group_by, facet_by, tax_aggregate, tax_add, ntax)
+phyloseq_ampvis_heatmap <- function(physeq,
+                                    transform = 'compositional', 
+                                    group_by, 
+                                    facet_by, 
+                                    tax_aggregate = FALSE, 
+                                    tax_add = NULL, 
+                                    ntax = 10)
 {
   require(tidyverse)
   require(ampvis2)
@@ -51,8 +57,10 @@ phyloseq_ampvis_heatmap <- function(physeq,transform = 'compositional', group_by
   #     as.data.frame() %>%
   #     rownames_to_column('SampleID') -> df
   # }
-  tax_table(physeq) <- tax_table(physeq)[,c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Strain")]
-  colnames(tax_table(physeq)) <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
+  # if(any(rank_names(physeq) == "Strain")){
+  # tax_table(physeq) <- tax_table(physeq)[,c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Strain")]
+  # colnames(tax_table(physeq)) <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
+  # }
   if (transform != FALSE)
   {
     physeq %>%
@@ -66,8 +74,6 @@ phyloseq_ampvis_heatmap <- function(physeq,transform = 'compositional', group_by
   {
     tax_table(physeq) <- tax_table(physeq)[,c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Strain")]
     colnames(tax_table(physeq)) = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
-  }else{
-    
   }
   physeq %>%
     phyloseq_to_ampvis2() %>% 
