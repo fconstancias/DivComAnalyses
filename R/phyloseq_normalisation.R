@@ -698,7 +698,8 @@ phyloseq_density_normalize <-  function(physeq = physeq,
   
   #if we want to remove the samples for which we have no qPCR data to avoid future NAs in the phyloseq object
   if(remove.na==TRUE){
-    physeq %>% subset_samples(!is.na(get(value_idx))) -> physeq
+
+    prune_samples(!is.na(physeq %>% get_variable(value_idx)),physeq) -> physeq
   }
   
   df_OTU_col = colnames(phyloseq::otu_table(physeq))
@@ -835,34 +836,46 @@ tss <- function (x, MARGIN = 2, na.rm = FALSE)
 #
 #
 # }
-#'
-#' #' @title ...
-#' #' @param .
-#' #' @param ..
-#' #' @author Florentin Constancias
-#' #' @note .
-#' #' @note .
-#' #' @note .
-#' #' @return .
-#' #' @export
-#' #' @examples
-#' #'
-#' #'
-#' 
-phyloseq_remove_contaminants <- function(physeq = physeq, 
-                                         Strain = TRUE,
-                                         sample_type = "Location",
-                                         NTC_label = "Blank", 
-                                         batch = "Run", 
-                                         batch.combine = "minimum", 
-                                         normalize = TRUE, 
-                                         threshold = 0.1, #0.1
-                                         method = "prevalence",
-                                         taxa_plot = "Strain")
+
+
+
+#' @title Decontaminate the phyloseq object by removing all the ASVs present in the negative controls
+#' @author Sneha Sundar
+#' @param physeq The phyloseq object
+#' @param sample_type The metadata column that indicates whether a sample is a negative control or not
+#' @param NTC_label The label given to the negative control samples in the \code{sample_type} column
+#' @param facet_plot The name of the column in the metadata that should be used for faceting in the diagnostic bar plot
+#' @param taxa_plot The taxa level to plot in the diagnostic bar plot
+#' @param Strain logical. TRUE gives the strain-level information of contaminant ASV rather than just the ASV IDs (like ASV01,ASV04) of contaminants. If TRUE, can also use 'Strain' in taxa_plot argument.
+#' @return 
+#' A list containing the contaminant ASVs (\code{contaminant.ASV}),
+#' the decontaminated phyloseq object (\code{physeq.decontaminated}) 
+#' and a diagnostic bar plot of the relative abundances of ASVs present 
+#' in the negative controls for all the samples (\code{diagnostic.plot})
+#' @export
+#' @examples 
+#' physeq_remove_contaminants_crude(physeq=physeq,
+#'                                  sample_type = "Experiment",
+#'                                  ,NTC_label = "NTC",
+#'                                  facet_plot = 'Reactor', 
+#'                                  taxa_plot="Strain"
+#'                                  Strain = TRUE)
+
+physeq_remove_contaminants_crude <- function(physeq, 
+                                             sample_type = 'Type', 
+                                             NTC_label,
+                                             facet_plot, 
+                                             taxa_plot,
+                                             Strain){
   
-{
   
-  # prepare object  
+  
+  
+  # Crude Approach: Remove ASV as long as they occur once in the NTC samples
+  
+  require(phyloseq)
+  require(tidyverse)
+
   
   #adding the strain level annotation to the asvs (ie. instead of ASV1,ASV2..,etc, we now have strain level annotation as taxa_names())
   
@@ -886,113 +899,445 @@ phyloseq_remove_contaminants <- function(physeq = physeq,
     
   }
   
-  # Strategy 1: Remove ASV as long as they occur once in the NTC samples
+
+  #create logical vector indicating whether sample is negative or not
+  is.neg <- sample_data(physeq)[[sample_type]]==NTC_label
   
-  prune_samples(get_variable(physeq, sample_type) == NTC_label,
-                physeq)  %>%
-    filter_taxa(function(x) sum(x) > 0, prune=TRUE) %>%
+  ##Get the ASVs that are present in the negative controls  
+  prune_samples(is.neg,physeq) %>% 
+    filter_taxa(function(x) sum(x) > 0, TRUE) %>%
     taxa_names() -> ASV_NTC
   
+  ## creating a temporary physeq object for use in plotting that is normalized to relative abundaces 
   physeq %>%
     transform_sample_counts(function(x) x/sum(x) *100)  -> physeq_tmp
   
-  ## export p1 which is a diagnostic plot
+  
+  ##Creating a diagnostic bar plot of 
+  # relative abundances of the ASVs (at the taxonomic level indicated in `taxa_plot`) 
+  # present in the negative controls for all the samples. Facet wrap according to `facet_plot`.
   prune_taxa(ASV_NTC, physeq_tmp) %>%
     plot_bar(fill= taxa_plot) +
-    facet_grid(~ get(sample_type) ,scales = "free_x", space = "free") +
+    facet_wrap(.~get(facet_plot),scales="free_x") +
     theme(plot.title = element_text(hjust = 0.5)) +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 3)) -> p1
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 3)) -> diagnostic_plot
   
-  prune_taxa(ASV_NTC, physeq) -> physeq_1
+  ASV_to_keep <- taxa_names(physeq)[!(taxa_names(physeq) %in% ASV_NTC)]
+  physeq.decontaminated <- prune_taxa(ASV_to_keep,physeq)
+  
+  out <- list("contaminant.ASV" = ASV_NTC,
+              "physeq.decontaminated" = physeq.decontaminated,
+              "diagnostic.plot" = diagnostic_plot)
+  
+  return(out)
+}
+
+
+#' @title Decontaminate the phyloseq object by using the prevalence approach in the decontam package: https://benjjneb.github.io/decontam/vignettes/decontam_intro.html
+#' @author Sneha Sundar
+#' @param physeq The phyloseq object
+#' @param sample_type The metadata column that indicates whether a sample is a negative control or not
+#' @param NTC_label The label given to the negative control samples in the \code{sample_type} column
+#' @param facet_plot The name of the column in the metadata that should be used for faceting in the diagnostic bar plot
+#' @param taxa_plot The taxa level to plot in the diagnostic bar plot
+#' @param Strain logical. TRUE gives the strain-level information of contaminant ASV rather than just the ASV IDs (like ASV01,ASV04) of contaminants. If TRUE, can also use 'Strain' in taxa_plot argument.#' @param batch The name of the metadata column indicating batch information (like sequencing run or plate number)
+#' @param batch.combine Default "minimum". For each input sequence variant (or OTU) the probabilities calculated in each batch are combined into a single probability that is compared to \code{threshold} to classify contaminants. Valid values: "minimum", "product", "fisher".
+#' @param threshold Default 0.1. The probability threshold below which (strictly less than) the null-hypothesis (not a contaminant) should be rejected in favor of the alternate hypothesis (contaminant).
+#' @param normalize Default TRUE. If TRUE, the input seqtab is normalized so that each row sums to 1 (converted to frequency). If FALSE, no normalization is performed (the data should already be frequencies or counts from equal-depth samples).
+#' @param detailed Default TRUE. If TRUE, the return value is a data.frame containing diagnostic information on the contaminant decision. If FALSE, the return value is a logical vector containing the binary contaminant classifications.
+#' @return 
+#' A list containing the contaminant ASVs (\code{contaminant.ASV}),
+#' the decontaminated phyloseq object (\code{physeq.decontaminated}) 
+#' and two diagnostic plots.\code{diagnostic.plot1} is a a scatter plot with the prevalence of ASVs using the  Negative controls on the x axis and the prevalence of ASVs using the TRUE samples
+#' on the y axis. Each point is coloured according to whether it is a contaminant or not. \code{diagnostic.plot2} is a bar plot of the relative abundances of contaminant ASVs in all samples.
+#' @export
+#' @examples 
+#' phyloseq_remove_contaminants_decontam(physeq, 
+#'                                       sample_type="Experiment", 
+#'                                       NTC_label="NTC",
+#'                                       facet_plot = 'Reactor', 
+#'                                       taxa_plot="Strain", 
+#'                                       Strain = TRUE,
+#'                                       batch = 'plate', 
+#'                                       batch.combine = "minimum", 
+#'                                      normalize = TRUE, 
+#'                                      threshold = 0.1,
+#'                                       detailed=TRUE)
+#'@note No need to normalize to frequencies before running function
+
+
+phyloseq_remove_contaminants_decontam <- function(physeq, 
+                                                  sample_type, 
+                                                  NTC_label,
+                                                  facet_plot = NULL, 
+                                                  taxa_plot,
+                                                  Strain,
+                                                  batch = NULL, 
+                                                  batch.combine = "minimum", 
+                                                  normalize = TRUE, 
+                                                  threshold = 0.1,
+                                                  detailed=TRUE){
+  
+  require(phyloseq)
+  require(tidyverse)
+  require(decontam)
   
   
-  # Strategy 2: use the decontam appraoch # https://benjjneb.github.io/decontam/vignettes/decontam_intro.html
-  sample_data(physeq) %>%
-    data.frame() -> meta
+  # decontam prevalence approach # https://benjjneb.github.io/decontam/vignettes/decontam_intro.html
   
-  sample_data(physeq)$is.neg <- meta[,sample_type] == NTC_label
   
+  #adding the strain level annotation to the asvs (ie. instead of ASV1,ASV2..,etc, we now have strain level annotation as taxa_names())
+  
+  if("Strain" %in% rank_names(physeq)  && Strain == TRUE)
+  {
+    taxa_names(physeq)  <- tax_table(physeq)[,"Strain"]
+    
+    
+  }
+  
+  #defining an operator 'not in'
+  '%!in%' <- function(x,y)!('%in%'(x,y))
+  
+  if("Strain" %!in% rank_names(physeq)  && Strain == TRUE)
+  {
+    physeq %>%
+      phyloseq_get_strains_fast() -> physeq
+    
+    taxa_names(physeq)  <- tax_table(physeq)[,"Strain"]
+    
+  }
+  
+  #Create logical vector indicating whether a sample is a negative control or not: TRUE for Negative control
+  sample_data(physeq)$is.neg <- sample_data(physeq)[[sample_type]]==NTC_label
+  
+  #decontam function
   contamdf.prev <- decontam::isContaminant(physeq,
-                                           method = method,
+                                           method = "prevalence",
                                            neg = "is.neg",
                                            batch = batch,
                                            batch.combine = batch.combine,
                                            normalize = normalize,
                                            threshold = threshold,
-                                           detailed = T)
+                                           detailed = detailed)
   
+  #get the ASVs identified as contaminants by this approach
+  ASV_decontam_prev<-rownames(contamdf.prev)[contamdf.prev$contaminant]
   
+  # Make phyloseq object of presence-absence in negative controls and true samples (otu table is now a binary matrix of 0s and 1s)
   
-  # Make phyloseq object of presence-absence in negative controls and true samples
   ps.pa <- transform_sample_counts(physeq, function(abund) 1*(abund>0))
   
-  # follow this dirty code from the tutorial
-  ps.pa.neg <- prune_samples(get_variable(physeq, sample_type) == NTC_label,
-                             physeq) 
+
+  ps.pa.neg <- prune_samples(sample_data(physeq)[[sample_type]]==NTC_label,physeq)
+  ps.pa.pos <- prune_samples(sample_data(physeq)[[sample_type]]!=NTC_label, physeq)
   
-  ps.pa.pos <- prune_samples(get_variable(physeq, sample_type) != NTC_label,
-                             physeq) 
+  # Make data.frame of prevalence in positive and negative samples
+  df.pa <- data.frame(Prevalence_true_samples = taxa_sums(ps.pa.pos),
+                      Prevalence_negative_controls = taxa_sums(ps.pa.neg),
+                      contaminant = contamdf.prev$contaminant)
   
-  df.pa <- data.frame(pa.pos = taxa_sums(ps.pa.pos),
-                      pa.neg = taxa_sums(ps.pa.neg),
-                      contaminant = contamdf.prev$contaminant) %>%
-    rownames_to_column('ASV') %>%
-    left_join(
-      as(tax_table(ps.pa.pos), "matrix") %>%
-        data.frame() %>%
-        rownames_to_column('ASV') %>% 
-        mutate_at(vars(everything()), na_if, "unknown")
-    )
+  df.pa %>% rownames_to_column("ASV") -> df.pa
   
-  df.pa %>%
-    ggplot(aes(x = pa.neg, 
-               y = pa.pos, 
-               shape = contaminant)) + 
-    geom_point(aes_string(fill = taxa_plot,
-                          color = taxa_plot)) +
+  #diagnostic plot: a scatter plot with the prevalence of ASVs using the  Negative controls on the x axis and the prevalence of ASVs using the TRUE samples
+  #on the y axis. Each point is coloured according to whether it is a contaminant or not.
+  ggplot(data=df.pa, aes(x=Prevalence_negative_controls, y=Prevalence_true_samples, color = contaminant,label=ASV)) + geom_point() +
     # scale_y_continuous(trans = 'log2') +
     # scale_x_continuous(trans = 'log2') +
     # xlim(0,1000) + ylim(0,1000) + coord_equal() +
-    xlab("Prevalence (Negative Controls)") + ylab("Prevalence (True Samples)") + theme_classic() -> p1_decontam
+    xlab("Prevalence (Negative Controls)") + ylab("Prevalence (True Samples)") -> p1.decontam
   
   
-  prune_taxa(dplyr::filter(df.pa , contaminant == TRUE) %>%
-               pull(ASV), physeq %>%
-               transform_sample_counts(function(x) x/sum(x) * 100) ) %>%
-    plot_bar(fill = taxa_plot) +
-    facet_grid(as.formula(paste0(taxa_plot, "~ .")),scales = "free_x", space = "free") +
-    theme(plot.title = element_text(hjust = 0.5)) +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 1)) -> p2_decontam
-  
+  ## creating a temporary physeq object for use in plotting that is normalized to relative abundaces 
   physeq %>%
-    prune_taxa(taxa =! contamdf.prev$contaminant) %>%
-    #subset_taxa(! Class == "unknown") %>%
-    #subset_samples(! origin %in% c("GDC-MOCK", "Nuclease_free_H2O")) %>%
-    filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> physeq_decontaminated # more than 0 in at least two samples (more than 1) # here we should check based on prevalence plot
+    transform_sample_counts(function(x) x/sum(x) *100)  -> physeq_tmp
   
-  # export all outputs: p1, p2, phyloseq-object filterd with p1, with p2
-  out <- list("plot_NTC_ASV" = p1,
-              "physeq_NTC_ASV_deconed" = physeq_1,
-              "decontam_yes_no" = p1_decontam,
-              "decontam_contam" = p2_decontam,
-              "physeq_decontam_physeq_NTC_ASV_deconed" = physeq_decontaminated,
-              "decontam_out" = left_join(contamdf.prev %>%
-                                           rownames_to_column('ASV'),
-                                         df.pa))
+  
+  prune_taxa(ASV_decontam_prev, physeq_tmp) %>%
+    #subset_samples(Experiment == "Continuous") %>% 
+    plot_bar(fill= taxa_plot) +
+    facet_wrap(.~get(facet_plot),scales="free_x") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 3)) -> p2.decontam
+  
+  ASV_to_keep <- taxa_names(physeq)[!(taxa_names(physeq) %in% ASV_decontam_prev)]
+  physeq.decontaminated <- prune_taxa(ASV_to_keep,physeq)
+  
+  out <- list("contaminant.ASV" = ASV_decontam_prev,
+              "physeq.decontaminated" = physeq.decontaminated,
+              "diagnostic.plot1" = p1.decontam,
+              "diagnostic.plot2" = p2.decontam)
+  
   return(out)
   
   
-  # Strategy 3 use the microDecon package
-  # https://github.com/donaldtmcknight/microDecon
+}
+
+
+
+#' @title Decontaminate the phyloseq object using the microdecon package (https://github.com/donaldtmcknight/microDecon )
+#' @author Sneha Sundar
+#' @param physeq The phyloseq object
+#' @param grouping_var The name of the metadata column you want to group your samples by: e.g sequencing run or plate .
+#' @param sample_type_var The metadata column that indicates whether a sample is a negative control or not 
+#' @param NTC_label The label given to the negative control samples in the \code{sample_type} column
+#' @param taxa_info Default TRUE. logical vector indicating that you want taxonomic information of the otus as well
+#' @param taxa_level What level of taxonomic information is needed ? e.g "Strain","Genus"
+#' @param facet_plot The name of the column in the metadata that should be used for faceting in the diagnostic bar plot
+#' @param taxa_plot The taxa level to plot in the diagnostic bar plot
+#' @param run_groupwise logical. If TRUE , will run the decon function separately for every group. See note for why this might be helpful. 
+#' @return p
+#' A list containing the result of the decon function (\code{result.microDecon}),
+#' and a diagnostic bar plot of the relative abundances of ASVs that are totally removed from all the groups
+#' for all the samples (\code{diagnostic.plot} and the decontaminated phyloseq object5)
+#' If \code{run_groupwise} is TRUE, it will return a list and each element of the list is the output (as defined above with the microDecon function result, the diagnostic plot and the decontaminated phyloseq object) of doing the decontamination for each group separately . 
+#' @export
+#' @examples 
+#' phyloseq_remove_contaminants_microDecon(physeq=physeq, 
+#'                                        grouping_var=plate,
+#'                                        sample_type_var=Experiment,
+#'                                        NTC_label="NTC",
+#'                                        taxa_info=TRUE,
+#'                                        taxa_level='Strain',
+#'                                        facet_plot='Reactor',
+#'                                        taxa_plot='Order')
+#' @note 
+#' For the microdecontam approach we need to provide the data to the function in a specifically formatted dataframe:
+#' rows are OTUs each column is individual sample . 
+#' First column: OTU ID  
+#' last column: taxonomic info (optional)
+#' From column 2 : negative control samples (if there is more than one negative control , they will be averaged to produce a single mean negative control)* 
+#'   
+#'   The rest of the samples should be grouped by population ID, species, or some other sensible a priori grouping criteria (i.e., treat these groups as experimental blocks). For example PCR_plate can be the grouping criterion because that is where we are anticipating batch effects to play out. 
+#' 
+#' It is a good idea to see if the negative controls are similar or heterogenous. If they are heterogenous it is a good idea to run the function separately on the different groups (provided of course you have negative controls specifically for each group). You can do this by setting argument \code{run_groupwise} to TRUE
+
+#' DON"T NORMALIZE READS BEFORE RUNNING FUNCTION
+
+#' 
+
+phyloseq_remove_contaminants_microDecon <- function(physeq,
+                                                    grouping_var,
+                                                    sample_type_var,
+                                                    NTC_label,
+                                                    taxa_info=TRUE,
+                                                    taxa_level,
+                                                    facet_plot = NULL , 
+                                                    taxa_plot,
+                                                    run_groupwise=FALSE){
   
+  require(phyloseq)
+  require(tidyverse)
   require(microDecon)
   
+  #adding the strain level annotation to the asvs (ie. instead of ASV1,ASV2..,etc, we now have strain level annotation as taxa_names())
+  
+  if("Strain" %in% rank_names(physeq)  && taxa_level == "Strain")
+  {
+    taxa_names(physeq)  <- tax_table(physeq)[,"Strain"]
+    
+    
+  }
+  
+  #defining an operator 'not in'
+  '%!in%' <- function(x,y)!('%in%'(x,y))
+  
+  if("Strain" %!in% rank_names(physeq)  && taxa_level == "Strain")
+  {
+    physeq %>%
+      phyloseq_get_strains_fast() -> physeq
+    
+    taxa_names(physeq)  <- tax_table(physeq)[,"Strain"]
+    
+  }
   
   
+  if(run_groupwise==TRUE){
+    
+    #run the decontamination separately for each group
+    
+    result.run_groupwise <- vector("list",length(unique(physeq %>% get_variable(grouping_var))))
+    
+    groups <- unique(physeq %>% get_variable(grouping_var))
+    for(i in 1:length(groups)){
+      physeq.subset<-prune_samples(sample_data(physeq)[[grouping_var]]==groups[i],physeq)
+      
+      #sample_data(physeq) as a dataframe
+      as(sample_data(physeq.subset),"matrix") %>%
+        data.frame(check.names=FALSE) %>%
+        rownames_to_column("Sample_ID") -> sample.data
+      
+      #group and arrange `sample.data`according to the grouping variable (e.g Plate or Batch number or sequencing run)
+      sample.data<-sample.data %>% group_by(.data[[grouping_var]]) %>% arrange(.data[[grouping_var]])
+      
+      #get the grouped sample ids: we will use this to format the otu table
+      grouped_sample_ids<-sample.data$Sample_ID
+      
+      #get otu table as dataframe
+      as(otu_table(physeq.subset),"matrix") %>% data.frame(check.names=FALSE) %>% rownames_to_column("OTU_ID") -> otu.df
+      
+      #checking if we need taxonomic information of the ASVs and adding them if needed
+      if(taxa_info == TRUE){
+        tax.table <- as(tax_table(physeq.subset),"matrix") %>% data.frame(check.names=FALSE ) %>% rownames_to_column('ASV')
+        taxa <- tax.table[,taxa_level]
+        otu.df<-otu.df %>% mutate(Taxa = taxa)
+      }
+      
+      #formatting the otu table in the way required by microDecon
+      otu.df<-otu.df %>% relocate(all_of(grouped_sample_ids),.after=OTU_ID)
+      
+      NTC.df <- sample.data %>% filter(.data[[sample_type_var]] == "NTC")
+      
+      NTC_samples<- NTC.df$Sample_ID
+      
+      otu.df<-otu.df %>% relocate(all_of(NTC_samples),.after=OTU_ID)  #formatted table
+      
+      #number of negative controls
+      n.blanks = length(NTC_samples)
+      
+      #vector of numbers listing the number of individuals in each user-specified group
+      numb.ind<-sample.data %>% filter(.data[[sample_type_var]]!='NTC') %>% group_size()
+      
+      #performing decontamination:
+      
+      result<-decon(data=otu.df,
+                    numb.blanks = n.blanks,
+                    numb.ind = numb.ind,
+                    taxa = T,
+                    runs=2,
+                    thresh = 0.7,
+                    prop.thresh = 0.00005,
+                    regression = 0,
+                    low.threshold = 40,
+                    up.threshold = 400)
+      
+      #type ?decon() in the console for more info about other parameters and how the result is formatted
+      
+      
+      otu_removed_df<-result$OTUs.removed
+      
+      #otus removed from all groups
+      otus_totally_removed <- otu_removed_df[otu_removed_df$All.groups=="Totally.removed","OTU_ID"]
+      
+      
+      physeq.subset %>%
+        transform_sample_counts(function(x) x/sum(x) *100)  -> physeq.subset_tmp
+      
+      #Creating a diagnostic bar plot of relative abundances of the ASVs (at the taxonomic level indicated in `taxa_plot`) removed from all groups. Facet wrap according to `facet_plot`.
+      
+      prune_taxa(otus_totally_removed, physeq.subset_tmp) %>%
+        plot_bar(fill= taxa_plot) +
+        facet_wrap(.~get(facet_plot),scales="free_x") +
+        theme(plot.title = element_text(hjust = 0.5)) +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 3)) -> p1.microDecon
+      
+      #updating the otu table of physeq.subset object with decontaminated otu table
+      physeq.decon <- physeq.subset
+      otu_table(physeq.decon) <- otu_table(result$decon.table %>% select(-any_of(c("Mean.blank","Taxa"))) %>% remove_rownames() %>% column_to_rownames("OTU_ID") %>% data.matrix(),taxa_are_rows = TRUE)
+      
+      result.run_groupwise[[i]]<- list("result.microDecon" = result,
+                                       "diagnostic.plot" = p1.microDecon,
+                                       "physeq.decontaminated" = physeq.decon)
+      
+    }
+    
+    #name the result
+    naming_fun <- function(x){return(paste(grouping_var,x,sep = "_"))}
+    
+    names(result.run_groupwise) <-c(sapply(as.character(groups),naming_fun,USE.NAMES = FALSE))
+    
+    
+    return(result.run_groupwise) 
+    
+    
+  }else{
+    #sample_data(physeq) as a dataframe
+    as(sample_data(physeq),"matrix") %>%
+      data.frame(check.names=FALSE) %>%
+      rownames_to_column("Sample_ID") -> sample.data
+    
+    #group and arrange `sample.data`according to the grouping variable (e.g Plate or Batch number or sequencing run)
+    sample.data<-sample.data %>% group_by(.data[[grouping_var]]) %>% arrange(.data[[grouping_var]])
+    
+    #get the grouped sample ids: we will use this to format the otu table
+    grouped_sample_ids<-sample.data$Sample_ID
+    
+    #get otu table as dataframe
+    as(otu_table(physeq),"matrix") %>% data.frame(check.names=FALSE) %>% rownames_to_column("OTU_ID") -> otu.df
+    
+    #checking if we need taxonomic information of the ASVs and adding them if needed
+    if(taxa_info == TRUE){
+      tax.table <- as(tax_table(physeq),"matrix") %>% data.frame(check.names=FALSE ) %>% rownames_to_column('ASV')
+      taxa <- tax.table[,taxa_level]
+      otu.df<-otu.df %>% mutate(Taxa = taxa)
+    }
+    
+    #formatting the otu table in the way required by microDecon
+    otu.df<-otu.df %>% relocate(all_of(grouped_sample_ids),.after=OTU_ID)
+    
+    NTC.df <- sample.data %>% filter(.data[[sample_type_var]] == "NTC")
+    
+    NTC_samples<- NTC.df$Sample_ID
+    
+    otu.df<-otu.df %>% relocate(all_of(NTC_samples),.after=OTU_ID)  #formatted table
+    
+    #number of negative controls
+    n.blanks = length(NTC_samples)
+    
+    #vector of numbers listing the number of individuals in each user-specified group
+    numb.ind<-sample.data %>% filter(.data[[sample_type_var]]!='NTC') %>% group_size()
+    
+    #performing decontamination:
+    
+    result<-decon(data=otu.df,
+                  numb.blanks = n.blanks,
+                  numb.ind = numb.ind,
+                  taxa = T,
+                  runs=2,
+                  thresh = 0.7,
+                  prop.thresh = 0.00005,
+                  regression = 0,
+                  low.threshold = 40,
+                  up.threshold = 400)
+    
+    #type ?decon() in the console for more info about other parameters and how the result is formatted
+    
+    
+    otu_removed_df<-result$OTUs.removed
+    
+    #otus removed from all groups
+    otus_totally_removed <- otu_removed_df[otu_removed_df$All.groups=="Totally.removed","OTU_ID"]
+    
+    
+    physeq %>%
+      transform_sample_counts(function(x) x/sum(x) *100)  -> physeq_tmp
+    
+    #Creating a diagnostic bar plot of relative abundances of the ASVs (at the taxonomic level indicated in `taxa_plot`) removed from all groups. Facet wrap according to `facet_plot`.
+    
+    prune_taxa(otus_totally_removed, physeq_tmp) %>%
+      plot_bar(fill= taxa_plot) +
+      facet_wrap(.~get(facet_plot),scales="free_x") +
+      theme(plot.title = element_text(hjust = 0.5)) +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 3)) -> p1.microDecon
+    
+    #updating the otu table of physeq object with decontaminated otu table
+    physeq.decon <- physeq
+    otu_table(physeq.decon) <- otu_table(result$decon.table %>% select(-any_of(c("Mean.blank","Taxa"))) %>% remove_rownames() %>% column_to_rownames("OTU_ID") %>% data.matrix(),taxa_are_rows = TRUE)
+    
+    out <- list("result.microDecon" = result,
+                "diagnostic.plot" = p1.microDecon,
+                "physeq.decontaminated" = physeq.decon)
+    return(out)
+  }
   
-  # to add:
-  
-  # https://github.com/MBARI-BOG/BOG-Banzai-Dada2-Pipeline/blob/e40953dcb4980792d0320d6d1f4c815bfaa7484c/Pipeline_scripts/decon_std_outputs_v1.0.R
-  # https://github.com/Mettetron/3Species/blob/c36ed383fa0d81aeeec76b8a04bba3c8b588f7c5/DADA2_filterAndNorm.R
-  # https://github.com/zjgold/gruinard_decon/blob/3b1b2d076f9e74ed9c9c298f17f409621e62f44f/decontamination_utilities.R
+
 }
+
+# to add:
+
+# https://github.com/MBARI-BOG/BOG-Banzai-Dada2-Pipeline/blob/e40953dcb4980792d0320d6d1f4c815bfaa7484c/Pipeline_scripts/decon_std_outputs_v1.0.R
+# https://github.com/Mettetron/3Species/blob/c36ed383fa0d81aeeec76b8a04bba3c8b588f7c5/DADA2_filterAndNorm.R
+# https://github.com/zjgold/gruinard_decon/blob/3b1b2d076f9e74ed9c9c298f17f409621e62f44f/decontamination_utilities.R
+
+
+
+
