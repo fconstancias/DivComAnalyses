@@ -837,6 +837,94 @@ phyloseq_distance_boxplot <- function(p = ps, dist = dlist$wjaccard, d = "Sample
 }
 
 
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+
+phyloseq_add_taxa_vector <- function(dist = clr_euk,
+                                     phyloseq = physeq,
+                                     figure_ord = figure_pca,
+                                     m = "PCoA",
+                                     pval_cutoff = 0.05,
+                                     top_r = 12,
+                                     taxrank_glom = "Family",
+                                     tax_rank_plot = "Family",
+                                     id_taxa = "mOTU",
+                                     fact = 3,
+                                     seed = 123)
+{
+  require(phyloseq); require(tidyverse); require(vegan)  
+  
+  # Calculate ordination
+  set.seed(seed)
+  iMDS  <- ordinate(physeq, 
+                    m,
+                    clr_euk)
+  
+  physeq %>% 
+    transform_sample_counts(function(x) {x/sum(x)} * 100)  -> tmp1
+  
+  tmp1 %>%
+    tax_glom(taxrank_glom) %>%
+    otu_table() %>%
+    t() %>%
+    data.frame() -> tmp
+  
+  # Create plot, store as temp variable, p
+  set.seed(seed)
+  p <- phyloseq::plot_ordination(physeq, iMDS)
+  
+  p
+  
+  
+  dune.spp.fit <- envfit(iMDS$vectors, tmp, permutations = 999) # this fits species vectors
+  
+  
+  spp.scrs <- as.data.frame(scores(dune.spp.fit, display = "vectors")) #save species intrinsic values into dataframe
+  spp.scrs <- cbind(spp.scrs, id = rownames(spp.scrs)) #add species names to dataframe
+  spp.scrs <- cbind(spp.scrs, pval = dune.spp.fit$vectors$pvals, r = dune.spp.fit$vectors$r) #add pvalues to dataframe so you can select species which are significant
+  #spp.scrs<- cbind(spp.scrs, abrev = abbreviate(spp.scrs$Species, minlength = 6)) #abbreviate species names
+  sig.spp.scrs <- filter(spp.scrs, pval<=pval_cutoff ) %>% top_n(top_r, r) #subset data to show species significant at 0.05
+  
+  # left_join(sig.spp.scrs,
+  #          tmp1 %>%
+  #   tax_table() %>%
+  #   as.data.frame(),
+  #   by = c("id" = id_taxa)) -> all
+  
+  as(tax_table(tmp1), "matrix") %>% 
+    as.data.frame() %>%
+    rownames_to_column('ASV') -> tax_table
+  
+  left_join(sig.spp.scrs,
+            tax_table,
+            by = c("id" = id_taxa)) %>%
+    dplyr::rename(tax_rank_plot = all_of(tax_rank_plot)) -> all
+  
+  # !!variable := name_of_col_from_df
+  
+  figure_ord %>% print() +
+    geom_segment(data = all, aes(x = 0, xend=Axis.1* fact, y=0, yend=Axis.2 * fact), arrow = arrow(length = unit(0.25, "cm")), colour = "grey10", lwd=0.3) + #add vector arrows of significant species
+    ggrepel::geom_text_repel(data = all, aes(x= Axis.1* fact, y=Axis.2*fact, label = tax_rank_plot), cex = 3, direction = "both", segment.size = 0.25) -> p2
+  
+  out <- list("plot" = p2,
+              "ord" = iMDS,
+              "envfit" = spp.scrs,
+              "signenvfit" = all)
+  
+  return(out)
+}
+
+
+
 
 #' @title ...
 #' @param .
