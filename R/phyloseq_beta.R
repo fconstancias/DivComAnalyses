@@ -857,7 +857,7 @@ phyloseq_add_taxa_vector <- function(dist = clr_euk,
                                      top_r = 12,
                                      taxrank_glom = "Family",
                                      tax_rank_plot = "Family",
-                                     id_taxa = "mOTU",
+                                     id_taxa = "ASV",
                                      fact = 3,
                                      seed = 123)
 {
