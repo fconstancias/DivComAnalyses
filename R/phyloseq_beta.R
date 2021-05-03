@@ -572,7 +572,7 @@ phyloseq_TW <- function(dm,
 
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] -> dm
 
-  # source("https://raw.githubusercontent.com/alekseyenko/WdStar/master/Wd.R")
+  source("https://raw.githubusercontent.com/alekseyenko/WdStar/master/Wd.R")
   Tw2.posthoc.tests(dm = dm,
                     f = get_variable(physeq, variable),
                     nrep = nrep,
