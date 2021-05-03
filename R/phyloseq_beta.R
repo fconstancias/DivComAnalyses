@@ -120,7 +120,8 @@ phyloseq_compute_bdiv <- function(phylo_tmp,
 #'library(phyloseq)
 #'data(esophagus)
 #'phyloseq_compute_bdiv(esophagus, 100) -> dist
-#'
+#'esophagus %>%
+#'phyloseq_plot_bdiv(., dlist = dist) -> ords
 #'
 #'
 #'
