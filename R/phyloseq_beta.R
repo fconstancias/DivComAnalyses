@@ -867,7 +867,7 @@ phyloseq_add_taxa_vector <- function(dist = clr_euk,
   set.seed(seed)
   iMDS  <- ordinate(physeq, 
                     m,
-                    clr_euk)
+                    dist)
   
   physeq %>% 
     transform_sample_counts(function(x) {x/sum(x)} * 100)  -> tmp1
