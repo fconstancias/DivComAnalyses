@@ -920,6 +920,7 @@ phyloseq_distance_boxplot <- function(p = ps, dist = dlist$wjaccard, d = "Sample
   require("tidyverse")
   
   s <- sample_names(p)
+  
   as.matrix(dist)[s,s] %>%
     as.dist() -> dm
   
@@ -1759,8 +1760,9 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
 #'
 
 physeq_multi_domain_pln <- function(ps,
-                                    Kingdom_A_filter = c("Bacteria", "Archaea"),
-                                    Kingdom_B_filter = c("Eukaryota", "Fungi"),
+                                    A_filter = c("Bacteria", "Archaea"),
+                                    B_filter = c("Eukaryota", "Fungi"),
+                                    tax_level_filter = "Kingdom",
                                     prev_filter = 0.70,
                                     rename_taxa = FALSE,
                                     tax_glom = FALSE,
@@ -1790,12 +1792,22 @@ physeq_multi_domain_pln <- function(ps,
   
   ## ------------------------------------------------------------------------
   
-  ps %>%
-    subset_taxa(Kingdom %in% paste0(Kingdom_A_filter)) -> ps_A
+  #https://github.com/joey711/phyloseq/issues/1137
   
-  ps %>%
-    subset_taxa(Kingdom %in% paste0(Kingdom_B_filter)) -> ps_B
+  # ps %>%
+  #   subset_taxa(Kingdom %in% paste0(Kingdom_A_filter)) -> ps_A
   
+  taxmat <- as(tax_table(ps), "matrix")
+  taxa_A <- rownames(taxmat)[taxmat[,tax_level_filter] %in% A_filter]
+  
+  prune_taxa(taxa_A, ps) -> ps_A
+  
+  # ps %>%
+  #   subset_taxa(Kingdom %in% paste0(Kingdom_B_filter)) -> ps_B
+  
+  taxa_B <- rownames(taxmat)[taxmat[,tax_level_filter] %in% B_filter]
+  
+  prune_taxa(taxa_B, ps) -> ps_B
   ## ------------------------------------------------------------------------
   
   ## extract counts
@@ -1859,11 +1871,15 @@ physeq_multi_domain_pln <- function(ps,
   
   ## ------------------------------------------------------------------------
   
+  
   models_net %>%
     getBestModel("StARS") -> model_StARS # if StARS is requested, stabiltiy selection is performed if needed 
   
   models_net %>%
     getBestModel("BIC") -> model_BIC# if StARS is requested, stabiltiy selection is performed if needed 
+  
+  ## ------------------------------------------------------------------------
+  
   
   ## ------------------------------------------------------------------------
   
