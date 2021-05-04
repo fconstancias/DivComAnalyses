@@ -1742,9 +1742,149 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
   names(res) <- distances
   
   return(res)
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
+
+physeq_multi_domain_pln <- function(ps,
+                                    Kingdom_A_filter = c("Bacteria", "Archaea"),
+                                    Kingdom_B_filter = c("Eukaryota", "Fungi"),
+                                    prev_filter = 0.70,
+                                    rename_taxa = FALSE,
+                                    tax_glom = FALSE,
+                                    formula_model = paste0("Abundance ~ 1 + offset(log(Offset))")){
+  
+  ## ------------------------------------------------------------------------
+  require(tidyverse); require(phyloseq)
+  cat(paste0('\n##',"You are using tidyverse version ", packageVersion('tidyverse'),'\n\n'))
+  cat(paste0('\n##',"You are using phyloseq version ", packageVersion('phyloseq'),'\n\n'))
+  
+  ## ------------------------------------------------------------------------
+  
+  if(tax_glom!=FALSE)
+  {
+    ps %>%
+      tax_glom(taxrank = tax_glom) -> ps
+  }
   
   
+  if(rename_taxa){
+    taxa_names(ps) <-  tax_table(ps)[,tax_glom]
+  }
+  
+  ps %>%
+    microbiome::core(detection=0, 
+                     prevalence=prev_filter) -> ps
+  
+  ## ------------------------------------------------------------------------
+  
+  ps %>%
+    subset_taxa(Kingdom %in% paste0(Kingdom_A_filter)) -> ps_A
+  
+  ps %>%
+    subset_taxa(Kingdom %in% paste0(Kingdom_B_filter)) -> ps_B
+  
+  ## ------------------------------------------------------------------------
+  
+  ## extract counts
+  counts_A <- as(phyloseq::otu_table(ps_A), "matrix") %>%
+    data.frame()
+  ## extract covariates (or prepare your own)
+  covariates_A  <- phyloseq::sample_data(ps_A)
+  ## prepare data
+  my_data_A  <- prepare_data(counts = counts_A, covariates = covariates_A)
+  
+  ## extract counts
+  counts_B <- as(phyloseq::otu_table(ps_B), "matrix") %>%
+    data.frame()
+  ## extract covariates (or prepare your own)
+  covariates_B <- phyloseq::sample_data(ps_B)
+  ## prepare data
+  my_data_B  <- prepare_data(counts = counts_B, covariates = covariates_B)
+  
+  ## ------------------------------------------------------------------------
+  
+  don_net <- t(rbind(counts_A,counts_B))
+  
+  ## ------------------------------------------------------------------------
+  
+  offset_A <- compute_offset(t(counts_A), offset = "TSS")
+  offset_B <- compute_offset(t(counts_B), offset = "TSS") 
+  
+  # Offset=matrix(c(rep(offset_A, nrow(counts_A)),rep(offset_B, nrow(counts_B))),
+  #               ncol = ncol(counts_A) + ncol(counts_B), nrow = nrow(counts_A) + nrow(counts_B), byrow=TRUE)
+  # 
+  Offset = matrix(c(rep(offset_A, nrow(counts_A)),rep(offset_B, nrow(counts_B))),
+                  dim(don_net)[1], nrow=dim(don_net)[2], byrow=TRUE)
+  
+  Offset=t(Offset)
+  ## ------------------------------------------------------------------------
+  
+  data_cov <- prepare_data(counts = don_net, covariates = covariates_ITS)
+  
+  data_cov$Offset <- Offset
+  ## ------------------------------------------------------------------------
+  
+  models_net <- PLNnetwork(as.formula(formula_model), data = data_cov)
+  
+  ## ------------------------------------------------------------------------
+  
+  models_net %>%
+    plot("diagnostic") -> diag_p
+  
+  ## ------------------------------------------------------------------------
+  
+  models_net %>%
+    plot() -> model_p
+  
+  ## ------------------------------------------------------------------------
+  
+  models_net %>%
+    coefficient_path(corr = TRUE) %>%
+    ggplot(aes(x = Penalty, y = Coeff, group = Edge, colour = Edge)) +
+    geom_line(show.legend = FALSE) +  coord_trans(x="log10") + theme_bw() -> model_p2
   
   
+  ## ------------------------------------------------------------------------
   
+  models_net %>%
+    getBestModel("StARS") -> model_StARS # if StARS is requested, stabiltiy selection is performed if needed 
+  
+  models_net %>%
+    getBestModel("BIC") -> model_BIC# if StARS is requested, stabiltiy selection is performed if needed 
+  
+  ## ------------------------------------------------------------------------
+  
+  out <- list("models" = models_net,
+              "diag_p" = diag_p,
+              "model_p" = model_p,
+              "model_p2" = model_p2,
+              "model_StARS" = model_StARS,
+              "model_BIC" = model_BIC,
+              "lambda" = models_net$penalties,
+              "my_graph" = plot(model_StARS, plot = FALSE),
+              "model_p3" = plot(model_StARS),
+              "model_p4" = data.frame(
+                fitted   = as.vector(fitted(model_StARS)),
+                observed = as.vector(data_cov$Abundance)
+              ) %>%
+                ggplot(aes(x = observed, y = fitted)) +
+                geom_point(size = .5, alpha =.25 ) +
+                scale_x_log10(limits = c(1,1000)) +
+                scale_y_log10(limits = c(1,1000)) +
+                theme_bw() + annotation_logticks())
+  
+  return(out)
 }
