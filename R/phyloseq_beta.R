@@ -1844,7 +1844,7 @@ physeq_multi_domain_pln <- function(ps,
   Offset=t(Offset)
   ## ------------------------------------------------------------------------
   
-  data_cov <- prepare_data(counts = don_net, covariates = covariates_ITS)
+  data_cov <- prepare_data(counts = don_net, covariates = covariates_B)
   
   data_cov$Offset <- Offset
   ## ------------------------------------------------------------------------
