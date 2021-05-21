@@ -302,7 +302,7 @@ ggrare <- function(physeq, step = 10, label = NULL, color = NULL, plot = TRUE, p
 #'
 #'
 
-phyloseq_rarefied_unrarefied_richness <- function(physeq, sample_size, seed, color_data, fill_data, shape_data)
+phyloseq_rarefied_unrarefied_richness <- function(physeq, measure = "Observed", sample_size = 1000, seed = 123, color_data = NULL, fill_data = NULL, shape_data = NULL)
 {
   require(phyloseq)
   physeq %>%
@@ -312,13 +312,13 @@ phyloseq_rarefied_unrarefied_richness <- function(physeq, sample_size, seed, col
   prune_samples(sample_sums(physeq)>= sample_size, physeq) -> physeq
   
   
-  data.frame(a =  estimate_richness(physeq_rarefied, measures = "Observed")[, 1],
-             b = estimate_richness(physeq, measures = "Observed")[, 1],
+  data.frame(a =  estimate_richness(physeq_rarefied, measures  =measure )[, 1],
+             b = estimate_richness(physeq, measures = measure)[, 1],
              sample_data(physeq)) %>%
     ggplot(aes(x = a, y = b)) +
     geom_point(aes_string(color = color_data, fill = fill_data, shape = shape_data)) +
     geom_smooth(method="lm", level=0.95) +
-    labs(x = "\nRarefied Richness", y = "UN-Rarefied Richness\n") +
+    labs(x = paste0("\nRarefied " ,measure), y = paste0("UN-Rarefied ", measure, "\n")) +
     theme_minimal() -> p
   
   return(p)
