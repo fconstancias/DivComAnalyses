@@ -446,6 +446,7 @@ physeq_add_metadata <- function(physeq,
   require(tidyverse); require(speedyseq)
   
   ## ------------------------------------------------------------------------  
+  physeq@sam_data = NULL
   
   phyloseq::merge_phyloseq(physeq,
                            metadata %>%
@@ -659,7 +660,8 @@ humann2_RNA_DNA_ratio_plot <- function(df,
                                        filter_species = FALSE,
                                        only_pos = TRUE, # dplyr::filter(DNA  > 0 , RNA > 0)
                                        facet_formula = FALSE,#". ~ Health_status"
-                                       export_legend = FALSE){ #  
+                                       export_legend = FALSE,
+                                       box_width = 0.8){ #  
   
   require(tidyverse); require(ggConvexHull)
   
@@ -691,9 +693,9 @@ humann2_RNA_DNA_ratio_plot <- function(df,
   df %>%
     ggplot(aes_string(x = x_plot, y = y_plot, color = color, fill = fill, shape = shape)) + 
     geom_boxplot(outlier.colour = NA, alpha = 0.2,
-                 position = position_dodge(width=0.7)) +
+                 position = position_dodge(width=box_width)) +
     # geom_jitter(size=1, alpha=0.2) +
-    ggbeeswarm::geom_beeswarm(size=1, alpha=0.2) +
+    # ggbeeswarm::geom_beeswarm(size=1, alpha=0.2) +
     # geom_violin(size=1, alpha=0.2) +
     geom_hline(yintercept = 0,
                col = "red",
