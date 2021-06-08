@@ -995,11 +995,11 @@ phyloseq_add_taxa_vector <- function(dist = clr_euk,
   
   # Calculate ordination
   set.seed(seed)
-  iMDS  <- ordinate(physeq, 
+  iMDS  <- ordinate(phyloseq, 
                     m,
                     dist)
   
-  physeq %>% 
+  phyloseq %>% 
     transform_sample_counts(function(x) {x/sum(x)} * 100)  -> tmp1
   
   tmp1 %>%
@@ -1010,7 +1010,7 @@ phyloseq_add_taxa_vector <- function(dist = clr_euk,
   
   # Create plot, store as temp variable, p
   set.seed(seed)
-  p <- phyloseq::plot_ordination(physeq, iMDS)
+  p <- phyloseq::plot_ordination(phyloseq, iMDS)
   
   p
   
