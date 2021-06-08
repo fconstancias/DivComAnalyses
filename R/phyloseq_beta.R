@@ -950,8 +950,12 @@ phyloseq_distance_boxplot <- function(p = ps, dist = dlist$wjaccard, d = "Sample
   # plot
   p = ggplot(wu.sd, aes(x = Type2, y = value)) +
     theme_bw() +
-    geom_boxplot(aes(color = ifelse(Type1 == Type2, "red", "black"))) +
-    geom_jitter(aes(color = ifelse(Type1 == Type2, "red", "black")))+
+    geom_jitter(aes(color = ifelse(Type1 == Type2, "red", "black")),
+                alpha = 0.1)+
+    geom_boxplot(aes(color = ifelse(Type1 == Type2, "red", "black")),
+                 outlier.shape = NA,
+                 outlier.colour = NA) +
+                 # outlier.shape = NA,) +
     scale_color_identity() +
     facet_wrap(~ Type1, scales = "free_x") +
     theme(axis.text.x=element_text(angle = 90, hjust = 1, vjust = 0.5)) +
@@ -980,7 +984,7 @@ phyloseq_distance_boxplot <- function(p = ps, dist = dlist$wjaccard, d = "Sample
 #'
 
 phyloseq_add_taxa_vector <- function(dist = clr_euk,
-                                     phyloseq = physeq,
+                                     phyloseq,
                                      figure_ord = figure_pca,
                                      m = "PCoA",
                                      pval_cutoff = 0.05,
