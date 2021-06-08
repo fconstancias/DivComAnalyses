@@ -953,6 +953,7 @@ phyloseq_distance_boxplot <- function(p = ps, dist = dlist$wjaccard, d = "Sample
     geom_jitter(aes(color = ifelse(Type1 == Type2, "red", "black")),
                 alpha = 0.1)+
     geom_boxplot(aes(color = ifelse(Type1 == Type2, "red", "black")),
+                 fill = "transparent",
                  outlier.shape = NA,
                  outlier.colour = NA) +
                  # outlier.shape = NA,) +
