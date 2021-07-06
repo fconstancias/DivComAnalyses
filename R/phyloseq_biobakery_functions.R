@@ -99,13 +99,20 @@ metaphlan_2phyloseq <- function(merged_metaphlan,
 #'
 
 clean_phyloseq_sample_names <- function(physeq,
-                                        str_rm =  "_DNA_cat_Abundance-CPM_DNA",
-                                        str_replace = "_DNA"){
+                                        sub_pat =  "_DNA_cat_Abundance-CPM_DNA",
+                                        str_replace = ""){
   
   ## ------------------------------------------------------------------------
   require(tidyverse); require(phyloseq)
   
-  sample_names(physeq) <- str_replace(sample_names(physeq), str_rm, str_replace)
+  physeq %>% 
+  sample_names() %>% 
+  # gsub("[^-]*-(.*)", "\\1", .) %>% 
+  sub(sub_pat, str_replace, .) -> new_names
+  
+  sample_names(physeq) <- new_names
+
+  #sample_names(physeq) <- str_replace(sample_names(physeq), str_rm, str_replace)
   ## ------------------------------------------------------------------------
   return(physeq)
 }
