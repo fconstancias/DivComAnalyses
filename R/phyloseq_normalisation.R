@@ -592,7 +592,7 @@ get_strains <- function(physeq_obj, label = "Unannotated", other_label = NULL,
   return(physeq_obj)
 }
 
-phyloseq_get_strains_fast <- function(physeq)
+phyloseq_get_strains_fast <- function(physeq, species = TRUE)
 {
   
   require(phyloseq);require(tidyverse)
@@ -610,7 +610,7 @@ phyloseq_get_strains_fast <- function(physeq)
   
   physeq_tmp %>%
     get_strains(label = "unknown",
-                species = TRUE) -> tmp2
+                species = species) -> tmp2
   
   as(tax_table(tmp2), "matrix") %>%
     data.frame() %>%
