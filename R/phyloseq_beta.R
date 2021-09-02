@@ -1910,3 +1910,84 @@ physeq_multi_domain_pln <- function(ps,
   
   return(out)
 }
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
+
+in_vitro_mIMT_STABvsTreat <- function(physeq,
+                                      dlist,
+                                      group,
+                                      formula,
+                                      strata,
+                                      group_color,
+                                      group_shape,
+                                      group_alpha)
+{
+  
+  ps <- prune_samples(get_variable(physeq, "treatment") == group,
+                      physeq)
+  
+  # ps <- physeq %>%
+  #   subset_samples(treatment %in% group) 
+  
+  lapply(
+    dlist,
+    FUN = phyloseq_adonis,
+    physeq = ps,
+    # subset_samples(!treatment %in% c("Inulin_3", "Iron", "Control")),
+    formula = formula,
+    nrep = 999,
+    strata = strata
+  ) %>%
+    bind_rows(.id = "Distance") %>%
+    filter(!Distance %in% c("bray", "d_0", "d_0.5")) -> adonis_tmp
+  
+  m = "PCoA"
+  ps %>%
+    phyloseq_plot_bdiv(dlist,
+                       m = m,
+                       seed = 123,
+                       axis1 = 1,
+                       axis2 = 2) -> plots
+  
+  # removing some, otherwise it is too much...
+  plots$bray = NULL
+  plots$d_0 = NULL
+  plots$d_0.5 = NULL
+  
+  plots %>%
+    plyr::ldply(function(x) x$data) -> df
+  
+  names(df)[1] <- "distance"
+  p = ggplot(df, aes_string(colnames(df)[2], colnames(df)[3]))
+  p = p + geom_point(size=2,
+                     aes_string(color= group_color, 
+                                shape = group_shape,
+                                alpha = group_alpha))
+  
+  p = p + facet_wrap( ~ distance, scales="free")
+  
+  p = p + ggtitle(paste0(m," using various distance metrics ")) +
+    theme_light() #+ scale_color_viridis_d()
+  
+  p + scale_color_viridis_d() + 
+    scale_alpha_continuous(range = c(0.6, 1),
+                           breaks = c(20,30,40)) +
+    scale_shape_manual(values = c(1,19,0,15))
+  
+  output = list("plot" = p,
+                "PERMANOVA" = adonis_tmp)
+  
+  return(output)
+}
