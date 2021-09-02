@@ -138,15 +138,15 @@ phyloseq_plot_bdiv <- function(ps_rare,
 {
   if (m == "CoDa")
   {
+    # d.czm <- zCompositions::cmultRepl(t(otu_table(ps_rare)),  label=0, method="CZM")
+    # d.clr <- t(apply(d.czm, 1, function(x){log(x) - mean(log(x))})) %>% as.matrix()
+    # 
+    # ps_rare@otu_table = NULL
+    # 
+    # ps_rare@otu_table = otu_table((d.clr), taxa_are_rows = FALSE)
 
-    d.czm <- zCompositions::cmultRepl(t(otu_table(ps_rare)),  label=0, method="CZM")
-    d.clr <- t(apply(d.czm, 1, function(x){log(x) - mean(log(x))})) %>% as.matrix()
-
-    ps_rare@otu_table = NULL
-
-    ps_rare@otu_table = otu_table((d.clr), taxa_are_rows = FALSE)
-
-    # ps_clr <- microbiome::transform(ps_rare, "clr")
+    ps_rare <- microbiome::transform(ps_rare, "clr")
+    
     ord_clr <- phyloseq::ordinate(ps_rare, "RDA")
 
     #Scale axes and plot ordination
