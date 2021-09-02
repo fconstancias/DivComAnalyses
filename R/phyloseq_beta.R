@@ -1926,6 +1926,7 @@ physeq_multi_domain_pln <- function(ps,
 #'
 
 in_vitro_mIMT_STABvsTreat <- function(physeq,
+                                      var = "treatment"
                                       dlist,
                                       group,
                                       formula,
@@ -1935,7 +1936,7 @@ in_vitro_mIMT_STABvsTreat <- function(physeq,
                                       group_alpha)
 {
   
-  ps <- prune_samples(get_variable(physeq, "treatment") == group,
+  ps <- prune_samples(get_variable(physeq, var) == group,
                       physeq)
   
   # ps <- physeq %>%
@@ -1991,3 +1992,5 @@ in_vitro_mIMT_STABvsTreat <- function(physeq,
   
   return(output)
 }
+
+
