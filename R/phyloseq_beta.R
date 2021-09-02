@@ -1926,7 +1926,7 @@ physeq_multi_domain_pln <- function(ps,
 #'
 
 in_vitro_mIMT_STABvsTreat <- function(physeq,
-                                      var = "treatment"
+                                      var = "treatment",
                                       dlist,
                                       group,
                                       formula,
