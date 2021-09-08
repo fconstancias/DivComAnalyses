@@ -1021,8 +1021,6 @@ phyloseq_add_taxa_vector <- function(dist = clr_euk,
   set.seed(seed)
   p <- phyloseq::plot_ordination(phyloseq, iMDS)
   
-  p
-  
   
   dune.spp.fit <- envfit(iMDS$vectors, tmp, permutations = 999) # this fits species vectors
   
