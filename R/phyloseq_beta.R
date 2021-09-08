@@ -349,6 +349,7 @@ calc_pairwise_permanovas_strata <- function(dm, metadata_map, compare_header, n_
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
     as.dist() -> dm
 
+  
   comp_var = as.factor(metadata_map[, compare_header])
   comp_pairs = combn(levels(comp_var), 2)
   pval = c()
@@ -738,8 +739,8 @@ Tw2.posthoc.1vsAll.tests = function(dm, f, nrep=999, strata=NULL){
 phyloseq_adonis_strata_perm <- function(dm,
                                         physeq = physeq,
                                         formula = paste0(variables, collapse=" + "),
-                                        nrep = nrep,
-                                        strata = strata){
+                                        nrep = 999,
+                                        strata = "none"){
   require(vegan)
 
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
@@ -753,19 +754,19 @@ phyloseq_adonis_strata_perm <- function(dm,
     perm <- how(nperm = nrep)
     setBlocks(perm) <- with(df, strata)
 
-    vegan::adonis(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
+    vegan::adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
            # strata = strata,
            permutations = perm,
-           data = df)$aov.tab %>%
+           data = df)%>%
       data.frame() %>%
       rownames_to_column('terms') -> out
 
 
 
   }else{
-    adonis(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
+    adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
            permutations = nrep,
-           data = df)$aov.tab %>%
+           data = df) %>%
       data.frame() %>%
       rownames_to_column('terms') -> out
   }
