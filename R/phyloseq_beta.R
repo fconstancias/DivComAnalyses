@@ -454,7 +454,7 @@ test_filt_map = function(map, filter_cat, filter_vals, keep_vals){
 #'
 
 
-physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm = 999, strat = "none") {
+physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat) {
   # require(mctoolsr)
   
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
@@ -462,8 +462,7 @@ physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm = 999,
   
   physeq %>%
     sample_data() %>%
-    data.frame() %>% 
-    rownames_to_column('tmp_id') -> metadata_map
+    data.frame() -> metadata_map
   
   comp_var = as.factor(metadata_map[, compare_header])
   comp_pairs = combn(levels(comp_var), 2)
