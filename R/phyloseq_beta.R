@@ -869,7 +869,7 @@ p = p + geom_point(size=2,
                    aes_string(color= color_group, 
                               shape = shape_group))
 
-p = p + facet_wrap( ~ distance, scales="free")
+p = p +   facet_grid( ~ distance)
 
 p = p + ggtitle(paste0("Ordination using various distance metrics ")) +
   theme_light() 
