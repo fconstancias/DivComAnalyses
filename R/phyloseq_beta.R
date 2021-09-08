@@ -343,13 +343,13 @@ phyloseq_plot_PCoA_3d <- function(ps_rare,
 #'
 #'
 
-calc_pairwise_permanovas_strata <- function(dm, metadata_map, compare_header, n_perm, strat) {
+calc_pairwise_permanovas_strata <- function(dm, metadata_map, compare_header, n_perm = 999, strat = "none") {
   # require(mctoolsr)
 
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
     as.dist() -> dm
 
-  comp_var = metadata_map[, compare_header]
+  comp_var = as.factor(metadata_map[, compare_header])
   comp_pairs = combn(levels(comp_var), 2)
   pval = c()
   R2 = c()
