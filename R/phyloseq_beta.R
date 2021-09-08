@@ -155,8 +155,12 @@ phyloseq_plot_bdiv <- function(ps_rare,
     #https://github.com/ggloor/CoDa_microbiome_tutorial/wiki/Part-1:-Exploratory-Compositional-PCA-biplot
 
 
+    aidist <- ps_rare %>% 
+      phyloseq::distance(method = "euclidean")
+    
     out <- list("PCA" = p,
-                "physeq_clr" = ps_rare)
+                "physeq_clr" = ps_rare,
+                "aidist" = aidist)
 
     return(out)
       }else{
