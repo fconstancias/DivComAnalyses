@@ -795,8 +795,8 @@ phyloseq_adonis_strata_perm <- function(dm,
 phyloseq_adonis <- function(dm,
                             physeq = physeq,
                             formula = paste0(variables, collapse=" + "),
-                            nrep = nrep,
-                            strata = strata){
+                            nrep = 999,
+                            strata = "none"){
   require(vegan)
 
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
