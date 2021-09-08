@@ -740,8 +740,8 @@ Tw2.posthoc.1vsAll.tests = function(dm, f, nrep=999, strata=NULL){
 phyloseq_adonis_strata_perm <- function(dm,
                                         physeq,
                                         formula = paste0(variables, collapse=" + "),
-                                        nrep = 999,
-                                        strata = "none"){
+                                        nrep,
+                                        strata){
   require(vegan)
   
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
