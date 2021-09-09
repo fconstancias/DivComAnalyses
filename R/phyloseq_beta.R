@@ -1139,6 +1139,71 @@ phyloseq_dbRDA <- function(ps,
 #' @note .
 #' @return .
 #' @export
+#' @examples
+#'
+
+phyloseq_pairwise_dbRDA <- function(ps,
+                           dm,
+                           forumla = "dist ~ treatment",
+                           group_plot = NULL,
+                           vec_ext = 0.2)
+{
+  require(ggvegan); require(ggord) #require(plyr); 
+  
+  as.matrix(dm)[sample_names(ps),sample_names(ps)] %>%
+    as.dist() -> dist
+  
+  ps %>% sample_data() %>% data.frame() -> metadata
+  
+  BiodiversityR::multiconstrained(method = "capscale", formula = "dist ~ treatment", 
+                                  data = metadata, 
+                                  add = TRUE) -> multi_dbRDA
+  
+  dbRDA <- vegan::capscale(formula(paste0("dist","~",forumla)), 
+                           metadata,
+                           add = TRUE)
+  
+  # overll significance of the model
+  anova(dbRDA) %>%
+    data.frame() -> anova_all
+  
+  # significance of different covariables
+  anova(dbRDA, by = "terms") %>%
+    data.frame() -> anova_terms
+  
+  # source('https://raw.githubusercontent.com/fawda123/ggord/master/R/ggord.R')
+  
+  # ggord(dbRDA, grp_in = metadata[,variables]) -> p
+  autoplot(dbRDA) -> p
+  
+  if(! is.null(group_plot)){
+    ggord(dbRDA, metadata[,group_plot], 
+          vec_ext = vec_ext,
+          alpha = 0.5,
+          ellipse_pro = 0.8,
+          hull = FALSE) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) -> p2
+  }
+  
+  return(out <- list("plot" = p,
+                     "plot2"= p2,
+                     "dbRDA" = dbRDA,
+                     "anova_all" = anova_all,
+                     "anova_terms" = anova_terms))
+  
+  detach("package:ggvegan", unload=TRUE);detach("package:ggord", unload=TRUE) #detach("package:plyr", unload=TRUE)
+  
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
 #' @examples require(phyloseq);require(tidyverse); require(vegan);sample_data(enterotype)
 #' @examples enterotype %>% phyloseq::distance(method = "bray") -> bc
 #' @examples sample_data(enterotype)$Var <- sample(1:40, nsamples(enterotype), replace=T)
