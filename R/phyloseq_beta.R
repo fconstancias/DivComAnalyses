@@ -1209,7 +1209,7 @@ phyloseq_dbRDA <- function(ps,
   }
   
   return(out <- list("plot" = p,
-                     "plot2"= p2,
+                     "plot2"= p2),
                      "dbRDA" = dbRDA,
                      "anova_all" = anova_all,
                      "anova_terms" = anova_terms))
@@ -1241,17 +1241,19 @@ phyloseq_pairwise_dbRDA <- function(ps,
                                     RHS_formula = "Treatment"){
   require(ggvegan); require(ggord); require(BiodiversityR)
   
+  my_dist = NULL; metadata = NULL
+  
   as.matrix(dm)[sample_names(ps),sample_names(ps)] %>%
     as.dist() -> my_dist
   
   ps %>% sample_data() %>% data.frame() -> metadata
   
-  multiconstrained(method="capscale", formula = as.formula(paste0("my_dist~ ", RHS_formula)), 
+  multiconstrained(method="capscale", formula = formula(paste0("my_dist~ ", RHS_formula)), 
                                   data = metadata, 
                                   add = TRUE) -> multi_dbRDA
 
   
-  return(out = multi_dbRDA %>%  data.frame())
+  return(multi_dbRDA %>% data.frame() %>%  rownames_to_column("comp"))
 
   # detach("package:ggvegan", unload=TRUE);detach("package:ggord", unload=TRUE); detach("package:BiodiversityR", unload=TRUE)
   unloadNamespace("ggvegan"); unloadNamespace("ggord"); unloadNamespace("BiodiversityR")
