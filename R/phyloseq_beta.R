@@ -749,9 +749,10 @@ phyloseq_adonis_strata_perm <- function(dm,
   physeq %>%
     sample_data() %>%
     data.frame() %>% 
-    rownames_to_column("tmp_id")-> df
+    rownames_to_column("tmp_id") -> df
   
   if (strata %in% colnames(df)){
+    
     perm <- how(nperm = nrep)
     setBlocks(perm) <- with(df, strata)
     
@@ -814,19 +815,19 @@ phyloseq_adonis <- function(dm,
   
   if (strata %in% colnames(df)){
     
-    adonis(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
+    adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
            strata = strata,
            permutations = nrep,
-           data = df)$aov.tab %>%
+           data = df) %>%
       data.frame() %>%
       rownames_to_column('terms') -> out
     
     
     
   }else{
-    adonis(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
+    adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
            permutations = nrep,
-           data = df)$aov.tab %>%
+           data = df) %>%
       data.frame() %>%
       rownames_to_column('terms') -> out
   }
