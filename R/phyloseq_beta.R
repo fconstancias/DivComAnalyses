@@ -479,24 +479,24 @@ physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat
       
       if (!missing(n_perm)) {
         m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
-                                                                             compare_header], permutations = n_perm,
-                          strata = dm_w_map_filt$map_loaded[,
-                                                            strat])
+                                                                              compare_header], permutations = n_perm,
+                           strata = dm_w_map_filt$map_loaded[,
+                                                             strat])
       }
       else {
         m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
-                                                                             compare_header],
-                          strata = dm_w_map_filt$map_loaded[,
-                                                            strat])
+                                                                              compare_header],
+                           strata = dm_w_map_filt$map_loaded[,
+                                                             strat])
       }
     }else{
       if (!missing(n_perm)) {
         m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
-                                                                             compare_header], permutations = n_perm)
+                                                                              compare_header], permutations = n_perm)
       }
       else {
         m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
-                                                                             compare_header])
+                                                                              compare_header])
       }
     }
     pval = c(pval, m$`Pr(>F)`[1])
@@ -759,7 +759,7 @@ phyloseq_adonis_strata_perm <- function(dm,
             # strata = strata,
             permutations = perm,
             data = df) %>% 
-    data.frame() %>%
+      data.frame() %>%
       rownames_to_column('terms') -> out
     
     
@@ -990,7 +990,7 @@ phyloseq_distance_boxplot <- function(p = ps, dist = dlist$wjaccard, d = "Sample
 #' @examples
 #'
 
-phyloseq_add_taxa_vector <- function(dist = clr_euk,
+phyloseq_add_taxa_vector <- function(dist,
                                      phyloseq,
                                      figure_ord = figure_pca,
                                      m = "PCoA",
@@ -1003,6 +1003,9 @@ phyloseq_add_taxa_vector <- function(dist = clr_euk,
                                      seed = 123)
 {
   require(phyloseq); require(tidyverse); require(vegan)  
+  
+  as.matrix(dist)[sample_names(phyloseq),sample_names(phyloseq)] %>%
+    as.dist() -> dist
   
   # Calculate ordination
   set.seed(seed)
@@ -1079,11 +1082,15 @@ phyloseq_add_taxa_vector <- function(dist = clr_euk,
 #'
 
 phyloseq_dbRDA <- function(ps,
-                           dist,
-                           forumla = paste0(variables, collapse=" + "))
+                           dm,
+                           forumla = paste0(variables, collapse=" + "),
+                           group_plot = NULL,
+                           vec_ext = 0.2)
 {
-  require(plyr); require(ggvegan)
+  require(ggvegan); require(ggord) #require(plyr); 
   
+  as.matrix(dm)[sample_names(ps),sample_names(ps)] %>%
+    as.dist() -> dist
   
   ps %>% sample_data() %>% data.frame() -> metadata
   
@@ -1104,12 +1111,21 @@ phyloseq_dbRDA <- function(ps,
   # ggord(dbRDA, grp_in = metadata[,variables]) -> p
   autoplot(dbRDA) -> p
   
+  if(! is.null(group_plot)){
+    ggord(dbRDA, metadata[,group_plot], 
+          vec_ext = vec_ext,
+          alpha = 0.5,
+          ellipse_pro = 0.8,
+          hull = FALSE) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) -> p2
+  }
+  
   return(out <- list("plot" = p,
+                     "plot2"= p2,
                      "dbRDA" = dbRDA,
                      "anova_all" = anova_all,
                      "anova_terms" = anova_terms))
   
-  detach("package:plyr", unload=TRUE);detach("package:ggvegan", unload=TRUE)
+  detach("package:ggvegan", unload=TRUE);detach("package:ggord", unload=TRUE) #detach("package:plyr", unload=TRUE)
   
 }
 
@@ -1136,7 +1152,13 @@ phyloseq_plot_dbrda <- function(physeq, dm, grouping_column, pvalueCutoff = 0.5,
 {
   abund_table <- otu_table(physeq)
   meta_table <- data.frame(sample_data(physeq))[,c(env.variables,grouping_column)]
+  
   complete.cases(meta_table) -> cc
+  
+  
+  as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
+    as.dist() -> dm
+  
   as.matrix(dm)[cc,cc] -> dm
   meta_table[cc,] -> meta_table
   if (norm_method == "center_scale")
@@ -1981,9 +2003,9 @@ in_vitro_mIMT_STABvsTreat <- function(physeq,
                                 shape = group_shape,
                                 alpha = group_alpha))
   
-  p = p + facet_wrap( ~ distance, scales="free")
+  p = p + facet_wrap(distance ~ ., scales="free")
   
-  p = p + ggtitle(paste0(m," using various distance metrics ")) +
+  p = p + ggtitle(paste0(m," using various distance metrics ", "- ", group, " Group")) +
     theme_light() #+ scale_color_viridis_d()
   
   p + scale_color_viridis_d() + 
