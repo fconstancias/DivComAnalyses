@@ -384,12 +384,12 @@ calc_pairwise_permanovas_strata <- function(dm, physeq, compare_header, n_perm, 
       if (!missing(n_perm)) {
         m = vegan::adonis(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
                                                                              compare_header], permutations = n_perm,
-                           na.action = na.exclude)
+                          na.action = na.exclude)
       }
       else {
         m = vegan::adonis(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
                                                                              compare_header] %>% as.factor(),
-                           na.action = na.exclude)
+                          na.action = na.exclude)
       }
     }
     pval = c(pval, m$`Pr(>F)`[1])
@@ -509,6 +509,66 @@ physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat
         m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
                                                                               compare_header])
       }
+    }
+    pval = c(pval, m$`Pr(>F)`[1])
+    R2 = c(R2, m$R2[1])
+  }
+  results = data.frame(t(comp_pairs), R2, pval)
+  results$pvalBon = pval * length(pval)
+  results$pvalFDR = round(pval * (length(pval)/rank(pval, ties.method = "average")),
+                          3)
+  
+  #detach("package:mctoolsr", unload=TRUE)
+  
+  return(results)
+  
+  
+  detach("package:vegan", unload=TRUE)
+  
+}
+
+
+physeq_pairwise_permanovas_adonis2 <- function(dm, physeq, compare_header, n_perm, strat) {
+  
+  require(vegan)
+  
+  as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
+    as.dist() -> dist
+  
+  physeq %>%
+    sample_data() %>%
+    data.frame() -> df
+  
+  comp_var = as.factor(df[, compare_header])
+  comp_pairs = combn(levels(comp_var), 2)
+  
+  pval= NULL; R2 = NULL
+  
+  for (i in 1:ncol(comp_pairs)) {
+    
+    pair = comp_pairs[, i]
+    dm_w_map = list(dm_loaded = dm, map_loaded = metadata_map)
+    dm_w_map$map_loaded$in_pair = comp_var %in% pair
+    dm_w_map_filt = filter_dm(dm_w_map, filter_cat = "in_pair",
+                              keep_vals = TRUE)
+    
+    dm_w_map_filt$dm_loaded -> dist_tmp
+    dm_w_map_filt$map_loaded -> df_tmp
+    
+    if (strat %in% colnames(metadata_map)){
+      
+      perm <- how(nperm = n_perm)
+      setBlocks(perm) <- with(df_tmp, strata)      
+      
+      adonis2(formula = as.formula(paste("dist_tmp", paste(compare_header), sep=" ~ ")),
+              permutations = perm,
+              data = df_tmp)$aov  -> m
+      
+    }else{
+
+      adonis2(formula = as.formula(paste("dist_tmp", paste(compare_header), sep=" ~ ")),
+              permutations = n_perm,
+              data = df_tmp) -> m
     }
     pval = c(pval, m$`Pr(>F)`[1])
     R2 = c(R2, m$R2[1])
@@ -838,9 +898,9 @@ phyloseq_adonis <- function(dm,
   if (strata %in% colnames(df)){
     
     adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
-           strata = strata,
-           permutations = nrep,
-           data = df) %>%
+            strata = strata,
+            permutations = nrep,
+            data = df) %>%
       data.frame() %>%
       rownames_to_column('terms') -> out
     
@@ -848,8 +908,8 @@ phyloseq_adonis <- function(dm,
     
   }else{
     adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
-           permutations = nrep,
-           data = df) %>%
+            permutations = nrep,
+            data = df) %>%
       data.frame() %>%
       rownames_to_column('terms') -> out
   }
@@ -1172,10 +1232,10 @@ phyloseq_dbRDA <- function(ps,
 #'
 
 phyloseq_pairwise_dbRDA <- function(ps,
-                           dm,
-                           forumla = "dist ~ treatment",
-                           group_plot = NULL,
-                           vec_ext = 0.2)
+                                    dm,
+                                    forumla = "dist ~ treatment",
+                                    group_plot = NULL,
+                                    vec_ext = 0.2)
 {
   require(ggvegan); require(ggord) #require(plyr); 
   
