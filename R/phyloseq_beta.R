@@ -368,13 +368,13 @@ calc_pairwise_permanovas_strata <- function(dm, physeq, compare_header, n_perm, 
     if (strat %in% colnames(metadata_map)){
       
       if (!missing(n_perm)) {
-        m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
+        m = vegan::adonis(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
                                                                              compare_header], permutations = n_perm,
                           strata = dm_w_map_filt$map_loaded[,
                                                             strat], na.action = na.exclude)
       }
       else {
-        m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
+        m = vegan::adonis(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
                                                                              compare_header],
                           strata = dm_w_map_filt$map_loaded[,
                                                             strat],
@@ -382,13 +382,13 @@ calc_pairwise_permanovas_strata <- function(dm, physeq, compare_header, n_perm, 
       }
     }else{
       if (!missing(n_perm)) {
-        m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
+        m = vegan::adonis(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
                                                                              compare_header], permutations = n_perm,
                            na.action = na.exclude)
       }
       else {
-        m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
-                                                                             compare_header],
+        m = vegan::adonis(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
+                                                                             compare_header] %>% as.factor(),
                            na.action = na.exclude)
       }
     }
@@ -1116,7 +1116,7 @@ phyloseq_dbRDA <- function(ps,
                            group_plot = NULL,
                            vec_ext = 0.2)
 {
-  require(ggvegan); require(ggord) #require(plyr); 
+  require(ggvegan); require(ggord); require(vegan); 
   
   as.matrix(dm)[sample_names(ps),sample_names(ps)] %>%
     as.dist() -> dist
