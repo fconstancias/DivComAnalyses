@@ -100,6 +100,9 @@ phyloseq_ampvis_heatmap <- function(physeq,
   
   return(p)
   
+  detach("package:ampvis2", unload=TRUE)
+  
+  
 }
 
 phyloseq_to_ampvis2 <- function(physeq) {

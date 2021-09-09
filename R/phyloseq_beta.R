@@ -343,14 +343,18 @@ phyloseq_plot_PCoA_3d <- function(ps_rare,
 #'
 #'
 
-calc_pairwise_permanovas_strata <- function(dm, metadata_map, compare_header, n_perm,  strat) {
+calc_pairwise_permanovas_strata <- function(dm, physeq, compare_header, n_perm,  strat) {
   # require(mctoolsr)
+  
+  physeq %>% 
+    sample_data() %>% 
+    data.frame() -> metadata_map
   
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
     as.dist() -> dm
   
   comp_var = as.factor(metadata_map[, compare_header])
-  comp_pairs = combn(levels(comp_var), 2)
+  comp_pairs = utils::combn(base::levels(comp_var), 2)
   pval = c()
   R2 = c()
   
@@ -367,22 +371,25 @@ calc_pairwise_permanovas_strata <- function(dm, metadata_map, compare_header, n_
         m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
                                                                              compare_header], permutations = n_perm,
                           strata = dm_w_map_filt$map_loaded[,
-                                                            strat])
+                                                            strat], na.action = na.exclude)
       }
       else {
         m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
                                                                              compare_header],
                           strata = dm_w_map_filt$map_loaded[,
-                                                            strat])
+                                                            strat],
+                          na.action = na.exclude)
       }
     }else{
       if (!missing(n_perm)) {
         m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
-                                                                             compare_header], permutations = n_perm)
+                                                                             compare_header], permutations = n_perm,
+                           na.action = na.exclude)
       }
       else {
         m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
-                                                                             compare_header])
+                                                                             compare_header],
+                           na.action = na.exclude)
       }
     }
     pval = c(pval, m$`Pr(>F)`[1])
@@ -395,6 +402,9 @@ calc_pairwise_permanovas_strata <- function(dm, metadata_map, compare_header, n_
   
   # detach("package:mctoolsr", unload=TRUE)
   return(results)
+  
+  detach("package:vegan", unload=TRUE)
+  
 }
 
 filter_dm <- function (input_dm, filter_cat, filter_vals, keep_vals)
@@ -456,7 +466,7 @@ test_filt_map = function(map, filter_cat, filter_vals, keep_vals){
 
 
 physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat) {
-  # require(mctoolsr)
+  require(vegan)
   
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
     as.dist() -> dm
@@ -511,6 +521,10 @@ physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat
   #detach("package:mctoolsr", unload=TRUE)
   
   return(results)
+  
+  
+  detach("package:vegan", unload=TRUE)
+  
 }
 
 
@@ -548,6 +562,10 @@ physeq_betadisper <- function(dm,
                                      get_variable(physeq, variable)))$tab$`Pr(>F)`[1] -> out
   
   return(out)
+  
+  
+  detach("package:vegan", unload=TRUE)
+  
 }
 
 #' @title ...
@@ -777,6 +795,9 @@ phyloseq_adonis_strata_perm <- function(dm,
   
   
   return(out)
+  
+  detach("package:vegan", unload=TRUE)
+  
 }
 
 #' @title ...
@@ -836,6 +857,9 @@ phyloseq_adonis <- function(dm,
   
   
   return(out)
+  
+  detach("package:vegan", unload=TRUE)
+  
 }
 
 #' @title ...
@@ -1066,6 +1090,9 @@ phyloseq_add_taxa_vector <- function(dist,
               "signenvfit" = all)
   
   return(out)
+  
+  detach("package:vegan", unload=TRUE)
+  
 }
 
 
