@@ -1209,7 +1209,7 @@ phyloseq_dbRDA <- function(ps,
   }
   
   return(out <- list("plot" = p,
-                     "plot2"= p2),
+                     "plot2"= p2,
                      "dbRDA" = dbRDA,
                      "anova_all" = anova_all,
                      "anova_terms" = anova_terms))
