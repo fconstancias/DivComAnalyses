@@ -565,7 +565,7 @@ physeq_pairwise_permanovas_adonis2 <- function(dm, physeq, compare_header, n_per
               data = df_tmp)$aov  -> m
       
     }else{
-
+      
       adonis2(formula = as.formula(paste("dist_tmp", paste(compare_header), sep=" ~ ")),
               permutations = n_perm,
               data = df_tmp) -> m
@@ -1176,6 +1176,7 @@ phyloseq_dbRDA <- function(ps,
                            group_plot = NULL,
                            vec_ext = 0.2)
 {
+  ### ------
   require(ggvegan); require(ggord); require(vegan); 
   
   as.matrix(dm)[sample_names(ps),sample_names(ps)] %>%
@@ -1183,9 +1184,13 @@ phyloseq_dbRDA <- function(ps,
   
   ps %>% sample_data() %>% data.frame() -> metadata
   
+  ### ------
+  
   dbRDA <- vegan::capscale(formula(paste0("dist","~",forumla)), 
                            metadata,
                            add = TRUE)
+  
+  ### ------
   
   # overll significance of the model
   anova(dbRDA) %>%
@@ -1200,21 +1205,30 @@ phyloseq_dbRDA <- function(ps,
   # ggord(dbRDA, grp_in = metadata[,variables]) -> p
   autoplot(dbRDA) -> p
   
-  if(! is.null(group_plot)){
+  ### ------
+  
+  if(!is.null(group_plot)){
     ggord(dbRDA, metadata[,group_plot], 
           vec_ext = vec_ext,
           alpha = 0.5,
           ellipse_pro = 0.8,
           hull = FALSE) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) -> p2
+    out <- list("plot" = p,
+                "plot2"= p2,
+                "dbRDA" = dbRDA,
+                "anova_all" = anova_all,
+                "anova_terms" = anova_terms)
+    
   }
-  
   out <- list("plot" = p,
-              "plot2"= p2,
               "dbRDA" = dbRDA,
               "anova_all" = anova_all,
               "anova_terms" = anova_terms)
   
+  ### ------
+  
   return(out)
+  ### ------
   
   detach("package:ggvegan", unload=TRUE);detach("package:ggord", unload=TRUE) #detach("package:plyr", unload=TRUE)
   
@@ -1241,6 +1255,7 @@ phyloseq_dbRDA <- function(ps,
 phyloseq_pairwise_dbRDA <- function(ps,
                                     dm,
                                     RHS_formula = "Treatment"){
+  
   require(ggvegan); require(ggord); require(BiodiversityR)
   
   my_dist = NULL; metadata = NULL
@@ -1248,15 +1263,24 @@ phyloseq_pairwise_dbRDA <- function(ps,
   as.matrix(dm)[sample_names(ps),sample_names(ps)] %>%
     as.dist() -> my_dist
   
+  
+  # print("this is my dist")
+  # print(my_dist)
+  # print("this was my dist")
+  
   ps %>% sample_data() %>% data.frame() -> metadata
   
-  multiconstrained(method="capscale", formula = formula(paste0("my_dist~ ", RHS_formula)), 
-                                  data = metadata, 
-                                  add = TRUE) -> multi_dbRDA
-
+  # 
+  #   eval(parse(text = paste('multi_dbRDA_test <- multiconstrained(method= "capscale", my_dist ~ ', do.call(paste, 
+  #                                                                   c(as.list(RHS_formula_test), sep = " + ")), ",data = metadata,add = TRUE)", sep = " ")))
   
-  return(multi_dbRDA %>% data.frame() %>%  rownames_to_column("comp"))
-
+  multiconstrained(method="capscale", formula = formula(paste0(" my_dist ~ ", RHS_formula)), 
+                   data = metadata, 
+                   add = TRUE) -> multi_dbRDA
+  
+  out <- multi_dbRDA %>% data.frame() %>%  rownames_to_column("comp")
+  return(out)
+  
   # detach("package:ggvegan", unload=TRUE);detach("package:ggord", unload=TRUE); detach("package:BiodiversityR", unload=TRUE)
   unloadNamespace("ggvegan"); unloadNamespace("ggord"); unloadNamespace("BiodiversityR")
 }
