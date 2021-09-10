@@ -1173,7 +1173,7 @@ phyloseq_add_taxa_vector <- function(dist,
 phyloseq_dbRDA <- function(ps,
                            dm,
                            forumla = paste0(variables, collapse=" + "),
-                           group_plot = NULL,
+                           group_plot,
                            vec_ext = 0.2)
 {
   ### ------
@@ -1208,6 +1208,7 @@ phyloseq_dbRDA <- function(ps,
   ### ------
   
   if(!is.null(group_plot)){
+    
     ggord(dbRDA, metadata[,group_plot], 
           vec_ext = vec_ext,
           alpha = 0.5,
@@ -1220,12 +1221,14 @@ phyloseq_dbRDA <- function(ps,
                 "anova_all" = anova_all,
                 "anova_terms" = anova_terms)
     
-  }
+  }else{
+
   out <- list("plot" = p,
               "dbRDA" = dbRDA,
               "anova_all" = anova_all,
               "anova_terms" = anova_terms)
   
+  }
   ### ------
   
   return(out)
