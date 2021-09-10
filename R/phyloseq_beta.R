@@ -1213,6 +1213,7 @@ phyloseq_dbRDA <- function(ps,
           alpha = 0.5,
           ellipse_pro = 0.8,
           hull = FALSE) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) -> p2
+    
     out <- list("plot" = p,
                 "plot2"= p2,
                 "dbRDA" = dbRDA,
