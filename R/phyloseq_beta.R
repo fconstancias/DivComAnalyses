@@ -1208,11 +1208,13 @@ phyloseq_dbRDA <- function(ps,
           hull = FALSE) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) -> p2
   }
   
-  return(out <- list("plot" = p,
-                     "plot2"= p2,
-                     "dbRDA" = dbRDA,
-                     "anova_all" = anova_all,
-                     "anova_terms" = anova_terms))
+  out <- list("plot" = p,
+              "plot2"= p2,
+              "dbRDA" = dbRDA,
+              "anova_all" = anova_all,
+              "anova_terms" = anova_terms)
+  
+  return(out)
   
   detach("package:ggvegan", unload=TRUE);detach("package:ggord", unload=TRUE) #detach("package:plyr", unload=TRUE)
   
