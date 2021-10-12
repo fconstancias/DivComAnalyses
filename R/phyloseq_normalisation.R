@@ -601,7 +601,8 @@ phyloseq_get_strains_fast <- function(physeq, species = TRUE)
   as(tax_table(physeq), "matrix") %>%
     data.frame() %>%
     rownames_to_column('ASV') %>% 
-    mutate_at(vars(everything()), na_if, "unknown") -> tmp1
+    mutate_at(vars(everything()), na_if, "unknown") %>% 
+    mutate_at(vars(everything()), na_if, "") -> tmp1
   
   
   tmp1 %>%
@@ -631,7 +632,6 @@ phyloseq_get_strains_fast <- function(physeq, species = TRUE)
   
   return(physeq)
 }
-
 
 #' @title ...
 #' @param .
