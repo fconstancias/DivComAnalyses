@@ -885,7 +885,8 @@ phyloseq_adonis <- function(dm,
                             physeq = physeq,
                             formula = paste0(variables, collapse=" + "),
                             nrep = 999,
-                            strata = "none"){
+                            strata = "none",
+                            terms_margins = "terms"){
   require(vegan)
   
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
@@ -900,7 +901,8 @@ phyloseq_adonis <- function(dm,
     adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
             strata = strata,
             permutations = nrep,
-            data = df) %>%
+            data = df,
+            by = terms_margins) %>%
       data.frame() %>%
       rownames_to_column('terms') -> out
     
@@ -909,7 +911,8 @@ phyloseq_adonis <- function(dm,
   }else{
     adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
             permutations = nrep,
-            data = df) %>%
+            data = df,
+            by = terms_margins) %>%
       data.frame() %>%
       rownames_to_column('terms') -> out
   }
