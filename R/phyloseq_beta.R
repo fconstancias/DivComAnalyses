@@ -1523,6 +1523,9 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
     #extract distance matrix of class dist
     d.mat <- bdiv_list[[dist]]
     
+    as.matrix(d.mat)[sample_names(physeq),sample_names(physeq)] %>%
+      as.dist() -> d.mat
+    
     #sample data as dataframe
     as(sample_data(physeq),"matrix") %>%
       data.frame(check.names=FALSE) %>%
