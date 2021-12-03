@@ -1839,7 +1839,7 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
         
         
         ggplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label)) +
-          geom_boxplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label),outlier.size = 0.5) +
+          geom_boxplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label),outlier.colour = NA) +
           geom_point(position=position_jitterdodge(jitter.width = 0.1,seed=123),aes(group=Label),size=0.1, alpha=0.4)+
           theme_bw() + xlab("Day") + ylab("Distance to previous timepoint") -> plot
         
