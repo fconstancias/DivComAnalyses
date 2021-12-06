@@ -953,9 +953,10 @@ phyloseq_plot_ordinations_facet <- function(plot_list,
                                             shape_group = NULL)
 {
   plot_list %>%
-    plyr::ldply(function(x) x$data) -> df
+    plyr::ldply(function(x) x$data) %>% 
+    dplyr::rename(distance = `.id`) -> df
   
-  names(df)[1] <- "distance"
+  # names(df)[1] <- "distance"
   
   df %>%
     ggplot(aes_string(colnames(df)[2], colnames(df)[3])) -> p
@@ -1008,16 +1009,14 @@ phyloseq_ordinations_expl_var <- function(plot_list)
 #'
 #'
 
-phyloseq_distance_boxplot <- function(p = ps, dist = dlist$wjaccard, d = "SampleType") 
+phyloseq_distance_boxplot <- function(p, dist = dlist$wjaccard, d = "SampleType", filter = NULL) 
 {
   
   require("phyloseq")
   require("tidyverse")
-  
-  s <- sample_names(p)
-  
-  as.matrix(dist)[s,s] %>%
-    as.dist() -> dm
+
+  as.matrix(dist)[sample_names(p),sample_names(p)] %>%
+    as.dist() -> dist
   
   # calc distances
   # wu = phyloseq::distance(p, m)
@@ -1042,6 +1041,11 @@ phyloseq_distance_boxplot <- function(p = ps, dist = dlist$wjaccard, d = "Sample
   colnames(sd) = c("Var2", "Type2")
   wu.sd = left_join(wu.sd, sd, by = "Var2")
   
+  if(!is.null(filter)){
+    wu.sd %>% 
+      dplyr::filter(Type1 == !!filter) -> wu.sd
+  }
+  
   # plot
   p = ggplot(wu.sd, aes(x = Type2, y = value)) +
     theme_bw() +
@@ -1056,8 +1060,7 @@ phyloseq_distance_boxplot <- function(p = ps, dist = dlist$wjaccard, d = "Sample
     facet_wrap(~ Type1, scales = "free_x") +
     theme(axis.text.x=element_text(angle = 90, hjust = 1, vjust = 0.5)) +
     # ggtitle(paste0("Distance Metric = ")) +
-    ylab("Distance")# +
-  # xlab()
+    ylab("Distance") + xlab(NULL)
   
   # return
   out = list(plot=p,
@@ -1225,12 +1228,12 @@ phyloseq_dbRDA <- function(ps,
                 "anova_terms" = anova_terms)
     
   }else{
-
-  out <- list("plot" = p,
-              "dbRDA" = dbRDA,
-              "anova_all" = anova_all,
-              "anova_terms" = anova_terms)
-  
+    
+    out <- list("plot" = p,
+                "dbRDA" = dbRDA,
+                "anova_all" = anova_all,
+                "anova_terms" = anova_terms)
+    
   }
   ### ------
   
@@ -1839,7 +1842,9 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
         
         
         ggplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label)) +
-          geom_boxplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label),outlier.colour = NA) +
+          geom_boxplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label),                 fill = NA,
+                       outlier.shape = NA,
+                       outlier.colour = NA) +
           geom_point(position=position_jitterdodge(jitter.width = 0.1,seed=123),aes(group=Label),size=0.1, alpha=0.4)+
           theme_bw() + xlab("Day") + ylab("Distance to previous timepoint") -> plot
         
@@ -1876,7 +1881,9 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
         
         
         ggplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label)) +
-          geom_boxplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label),outlier.size = 0.5) +
+          geom_boxplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label),                 fill = NA,
+                       outlier.shape = NA,
+                       outlier.colour = NA) +
           geom_point(position=position_jitterdodge(jitter.width = 0.1,seed=123),aes(group=Label),size=0.1, alpha=0.4) +
           theme_bw() + xlab("Day") + ylab(paste("Distance to ",group_to_compare)) -> plot
       }
@@ -1914,7 +1921,9 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
         
         #plot
         ggplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label)) +
-          geom_boxplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label),outlier.size = 0.5) +
+          geom_boxplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label),                 fill = NA,
+                       outlier.shape = NA,
+                       outlier.colour = NA) +
           geom_point(position=position_jitterdodge(jitter.width = 0.1,seed=123),aes(group=Label),size=0.1, alpha=0.4) +
           theme_bw() + xlab("Day") + ylab(paste("Distance to",time_var,fixed_time)) -> plot
         
