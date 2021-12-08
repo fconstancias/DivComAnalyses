@@ -18,7 +18,7 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
                                                    prevfilter = 0.33,
                                                    formula =  paste("age", "deit", sep = " ", collapse = " + "),
                                                    fittype = "parametric",
-                                                   taxnames_rm = c("unknown, Incertae Sedis")
+                                                   taxnames_rm = c("unknown, Incertae Sedis"),
                                                    contrast = c("diet", "high ALA", "low ALA"),
                                                    level_facet = "Class",
                                                    Group2 = NULL,
