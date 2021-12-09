@@ -1082,6 +1082,7 @@ phyloseq_distance_boxplot <- function(p, dist = dlist$wjaccard, d = "SampleType"
 #' @examples
 #'
 
+
 phyloseq_add_taxa_vector <- function(dist,
                                      phyloseq,
                                      figure_ord = figure_pca,
@@ -1091,8 +1092,10 @@ phyloseq_add_taxa_vector <- function(dist,
                                      taxrank_glom = "Family",
                                      tax_rank_plot = "Family",
                                      id_taxa = "ASV",
+                                     taxnames_rm = "unknown",
                                      fact = 3,
-                                     seed = 123)
+                                     seed = 123,
+                                     perm = 999)
 {
   require(phyloseq); require(tidyverse); require(vegan)  
   
@@ -1108,8 +1111,20 @@ phyloseq_add_taxa_vector <- function(dist,
   phyloseq %>% 
     transform_sample_counts(function(x) {x/sum(x)} * 100)  -> tmp1
   
+  # 
+  # if (taxrank_glom != "Strain"){
+  #   tmp1 %>% 
+  #   speedyseq::tax_glom(taxrank = taxrank_glom) -> tmp1
+  #   
+  #   prune_taxa(data.frame(tax_table(tmp1)[,taxrank_glom])  %>%
+  #                dplyr::filter(!get(taxrank_glom) %in% taxnames_rm) %>% rownames(),tmp1) -> tmp1
+  #   
+  #   taxa_names(tmp1) <-  tax_table(tmp1)[,taxrank_glom]
+  # }  
+  
+  
   tmp1 %>%
-    tax_glom(taxrank_glom) %>%
+    speedyseq::tax_glom(taxrank_glom) %>%
     otu_table() %>%
     t() %>%
     data.frame() -> tmp
@@ -1119,14 +1134,15 @@ phyloseq_add_taxa_vector <- function(dist,
   p <- phyloseq::plot_ordination(phyloseq, iMDS)
   
   
-  dune.spp.fit <- envfit(iMDS$vectors, tmp, permutations = 999) # this fits species vectors
+  dune.spp.fit <- envfit(iMDS$vectors, tmp, permutations = perm) # this fits species vectors
   
   
   spp.scrs <- as.data.frame(scores(dune.spp.fit, display = "vectors")) #save species intrinsic values into dataframe
   spp.scrs <- cbind(spp.scrs, id = rownames(spp.scrs)) #add species names to dataframe
   spp.scrs <- cbind(spp.scrs, pval = dune.spp.fit$vectors$pvals, r = dune.spp.fit$vectors$r) #add pvalues to dataframe so you can select species which are significant
   #spp.scrs<- cbind(spp.scrs, abrev = abbreviate(spp.scrs$Species, minlength = 6)) #abbreviate species names
-  sig.spp.scrs <- filter(spp.scrs, pval<=pval_cutoff ) %>% top_n(top_r, r) #subset data to show species significant at 0.05
+  # sig.spp.scrs <- filter(spp.scrs, pval<=pval_cutoff ) %>% top_n(top_r, r) #subset data to show species significant at 0.05
+  sig.spp.scrs <- spp.scrs
   
   # left_join(sig.spp.scrs,
   #          tmp1 %>%
@@ -1141,7 +1157,11 @@ phyloseq_add_taxa_vector <- function(dist,
   left_join(sig.spp.scrs,
             tax_table,
             by = c("id" = id_taxa)) %>%
-    dplyr::rename(tax_rank_plot = all_of(tax_rank_plot)) -> all
+    dplyr::rename(tax_rank_plot = all_of(tax_rank_plot)) %>% 
+    dplyr::filter(!tax_rank_plot %in% taxnames_rm,
+                    pval<=pval_cutoff) %>% 
+    top_n(top_r, r) -> all
+  
   
   # !!variable := name_of_col_from_df
   
