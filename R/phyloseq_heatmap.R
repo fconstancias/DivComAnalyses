@@ -25,7 +25,9 @@ phyloseq_ampvis_heatmap <- function(physeq,
                                     facet_by, 
                                     tax_aggregate = FALSE, 
                                     tax_add = NULL, 
-                                    ntax = 10)
+                                    ntax = 10,
+                                    order_y_by = NULL,
+                                    order_x_by = NULL)
 {
   require(tidyverse)
   require(ampvis2)
@@ -83,7 +85,8 @@ phyloseq_ampvis_heatmap <- function(physeq,
                 plot_values = TRUE,
                 plot_values_size = 2,
                 tax_show = ntax,
-                # order_x_by = "cluster",
+                order_x_by = order_x_by,
+                order_y_by = order_y_by,
                 min_abundance = 0,
                 tax_aggregate = tax_aggregate,
                 tax_add = tax_add,
