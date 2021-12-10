@@ -465,8 +465,7 @@ test_filt_map = function(map, filter_cat, filter_vals, keep_vals){
 #'
 
 
-physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat, terms_margins = "terms",
-) {
+physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat, terms_margins = "terms") {
   require(vegan)
   
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
