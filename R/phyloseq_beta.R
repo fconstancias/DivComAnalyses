@@ -1248,6 +1248,122 @@ phyloseq_add_taxa_vector <- function(dist,
   
 }
 
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'dist=d_list$wjaccard
+#'phyloseq=physeq_rare_cec_mIMT2
+#'figure_ord = pca_tmp
+
+
+phyloseq_add_metadata_vector <- function(dist,
+                                     phyloseq,
+                                     figure_ord = figure_pca,
+                                     m = "PCoA",
+                                     pval_cutoff = 0.05,
+                                     top_r = 12,
+                                     metadata_sel = c("B24_Acetate", "B24_Propionate", "B24_Butyrate", "B24_Formate", "B24_Succinate", "B24_Lactate", "B24_BCFA"),
+                                     fact = 0.5,
+                                     seed = 123,
+                                     perm = 999,
+                                     norm_method = "center_scale",
+                                     color = "green",
+                                     linetype = "dashed",
+                                     na.rm = TRUE)
+{
+  require(phyloseq); require(tidyverse); require(vegan)  
+  
+  as.matrix(dist)[sample_names(phyloseq),sample_names(phyloseq)] %>%
+    as.dist() -> dist
+  
+  # Calculate ordination
+  set.seed(seed)
+  
+  iMDS  <- ordinate(phyloseq, 
+                    m,
+                    dist)
+  
+  phyloseq %>% 
+    transform_sample_counts(function(x) {x/sum(x)} * 100)  -> tmp1
+  
+  # 
+  # if (taxrank_glom != "Strain"){
+  #   tmp1 %>% 
+  #   speedyseq::tax_glom(taxrank = taxrank_glom) -> tmp1
+  #   
+  #   prune_taxa(data.frame(tax_table(tmp1)[,taxrank_glom])  %>%
+  #                dplyr::filter(!get(taxrank_glom) %in% taxnames_rm) %>% rownames(),tmp1) -> tmp1
+  #   
+  #   taxa_names(tmp1) <-  tax_table(tmp1)[,taxrank_glom]
+  # }  
+  
+  tmp1 %>%
+    sample_data()%>%
+    data.frame() %>% 
+    dplyr::select(any_of(metadata_sel)) %>% 
+    drop_na() -> tmp
+  
+  
+  if(nrow(tmp) == 0) {
+    print ("No metadata were selected - or only NA.")}else{
+    
+
+     
+  if (norm_method == "center_scale")
+  {
+    tmp %>%
+      mutate_if(is.numeric, scale) -> tmp
+  }
+  
+  # Create plot, store as temp variable, p
+  set.seed(seed)
+  p <- phyloseq::plot_ordination(phyloseq, iMDS)
+  
+  
+  dune.spp.fit <- envfit(iMDS$vectors, tmp, permutations = perm, na.rm = na.rm) # this fits species vectors
+  
+  
+  spp.scrs <- as.data.frame(scores(dune.spp.fit, display = "vectors")) #save species intrinsic values into dataframe
+  spp.scrs <- cbind(spp.scrs, id = rownames(spp.scrs)) #add species names to dataframe
+  spp.scrs <- cbind(spp.scrs, pval = dune.spp.fit$vectors$pvals, r = dune.spp.fit$vectors$r) #add pvalues to dataframe so you can select species which are significant
+  #spp.scrs<- cbind(spp.scrs, abrev = abbreviate(spp.scrs$Species, minlength = 6)) #abbreviate species names
+  # sig.spp.scrs <- filter(spp.scrs, pval<=pval_cutoff ) %>% top_n(top_r, r) #subset data to show species significant at 0.05
+  sig.spp.scrs <- spp.scrs
+  
+  
+  sig.spp.scrs %>% 
+    rownames_to_column('label') %>% 
+    dplyr::filter(pval<=pval_cutoff) %>% 
+    top_n(top_r, r) -> all
+  
+
+  
+  # !!variable := name_of_col_from_df
+  
+  figure_ord  +
+    geom_segment(data = all, 
+                 aes(x = 0, xend=Axis.1* fact, y=0, yend=Axis.2 * fact), arrow = arrow(length = unit(0.25, "cm")),linetype= linetype, colour = color, lwd=0.3, inherit.aes = FALSE) + #add vector arrows of significant species
+    ggrepel::geom_text_repel(data = all, aes(x= Axis.1* fact, y=Axis.2*fact, label = label), cex = 3, direction = "both", colour = color, segment.size = 0.25, inherit.aes = FALSE) -> p2
+  
+  out <- list("plot" = p2,
+              "ord" = iMDS,
+              "envfit" = spp.scrs,
+              "signenvfit" = all)
+  
+  return(out)
+  }
+  
+  detach("package:vegan", unload=TRUE)
+  
+}
 
 
 
