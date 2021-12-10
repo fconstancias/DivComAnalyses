@@ -465,7 +465,8 @@ test_filt_map = function(map, filter_cat, filter_vals, keep_vals){
 #'
 
 
-physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat) {
+physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat, terms_margins = "terms",
+) {
   require(vegan)
   
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
@@ -492,22 +493,26 @@ physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat
         m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
                                                                               compare_header], permutations = n_perm,
                            strata = dm_w_map_filt$map_loaded[,
-                                                             strat])
+                                                             strat],
+                           by = terms_margins)
       }
       else {
         m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
                                                                               compare_header],
                            strata = dm_w_map_filt$map_loaded[,
-                                                             strat])
+                                                             strat],
+                           by = terms_margins)
       }
     }else{
       if (!missing(n_perm)) {
         m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
-                                                                              compare_header], permutations = n_perm)
+                                                                              compare_header], permutations = n_perm,
+                           by = terms_margins)
       }
       else {
         m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
-                                                                              compare_header])
+                                                                              compare_header],
+                           by = terms_margins)
       }
     }
     pval = c(pval, m$`Pr(>F)`[1])
@@ -528,7 +533,7 @@ physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat
 }
 
 
-physeq_pairwise_permanovas_adonis2 <- function(dm, physeq, compare_header, n_perm, strat) {
+physeq_pairwise_permanovas_adonis2 <- function(dm, physeq, compare_header, n_perm, strata, terms_margins = "terms") {
   
   require(vegan)
   
@@ -555,19 +560,21 @@ physeq_pairwise_permanovas_adonis2 <- function(dm, physeq, compare_header, n_per
     dm_w_map_filt$dm_loaded -> dist_tmp
     dm_w_map_filt$map_loaded -> df_tmp
     
-    if (strat %in% colnames(df)){
+    if (strata %in% colnames(df)){
       
       perm <- how(nperm = n_perm)
       setBlocks(perm) <- with(df_tmp, strata)      
       
       adonis2(formula = as.formula(paste("dist_tmp", paste(compare_header), sep=" ~ ")),
               permutations = perm,
+              by = terms_margins,
               data = df_tmp)$aov  -> m
       
     }else{
       
       adonis2(formula = as.formula(paste("dist_tmp", paste(compare_header), sep=" ~ ")),
               permutations = n_perm,
+              by = terms_margins,
               data = df_tmp) -> m
     }
     pval = c(pval, m$`Pr(>F)`[1])
@@ -819,7 +826,8 @@ phyloseq_adonis_strata_perm <- function(dm,
                                         physeq,
                                         formula = paste0(variables, collapse=" + "),
                                         nrep,
-                                        strata){
+                                        terms_margins = "terms",
+                                        strata = "none"){
   require(vegan)
   
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
@@ -838,6 +846,7 @@ phyloseq_adonis_strata_perm <- function(dm,
     adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
             # strata = strata,
             permutations = perm,
+            by = terms_margins,
             data = df) %>% 
       data.frame() %>%
       rownames_to_column('terms') -> out
@@ -847,6 +856,7 @@ phyloseq_adonis_strata_perm <- function(dm,
   }else{
     adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
             permutations = nrep,
+            by = terms_margins,
             data = df) %>%
       data.frame() %>%
       rownames_to_column('terms') -> out
@@ -949,29 +959,87 @@ phyloseq_adonis <- function(dm,
 
 
 phyloseq_plot_ordinations_facet <- function(plot_list,
-                                            color_group,
-                                            shape_group = NULL)
+                                            color_group = "treatment_grouped",
+                                            shape_group = NULL,
+                                            axis_names = c("Axis.1", "Axis.2"),
+                                            return_eig_df = FALSE)
 {
-  plot_list %>%
-    plyr::ldply(function(x) x$data) %>% 
-    dplyr::rename(distance = `.id`) -> df
+  ## ------------------------------------------------------------------------
   
-  # names(df)[1] <- "distance"
+  if(class(plot_list[[1]]) == "list"){
+    
+    ## ------------------------------------------------------------------------
+    
+    
+    unlist(plot_list, recursive = FALSE, use.names = TRUE) -> un_listed
+    
+    un_listed %>%
+      plyr::ldply(function(x) x$data) %>% 
+      dplyr::rename(group = `.id`) %>% 
+      separate(group, into = c("a","b"), sep = "\\.") ->  df
+    
+    df %>% 
+      ggplot(aes_string(axis_names[[1]], axis_names[[2]])) -> p
+    # tidyr::separate(group, into = c("gpA", "gpB"), sep = ".", fill= "left", remove = FALSE)
+    p = p + geom_point(size=2,
+                       aes_string(color= color_group, 
+                                  shape = shape_group))
+    
+    p = p + facet_wrap(b ~ a, scales="free")
+    
+    p = p + ggtitle(paste0("Ordination using various distance metrics ")) +
+      theme_light() 
+    
+    ## ------------------------------------------------------------------------
+    out <- p
+    
+    if(return_eig_df!=FALSE){
+      un_listed %>%
+        plyr::ldply(function(x) x$labels$x) %>%
+        bind_cols(plyr::ldply(un_listed, function(x) x$labels$y)) %>%
+        data.frame() -> eig_df
+      
+      out <- list("plots" = p,
+                  "eig_df" = eig_df)      
+    }
+  }else{
+    
+    ## ------------------------------------------------------------------------
+    
+    plot_list %>%
+      plyr::ldply(function(x) x$data) %>% 
+      dplyr::rename(distance = `.id`) -> df
+    
+    df %>% 
+      ggplot(aes_string(axis_names[[1]], axis_names[[2]])) -> p
+    # tidyr::separate(group, into = c("gpA", "gpB"), sep = ".", fill= "left", remove = FALSE)
+    p = p + geom_point(size=2,
+                       aes_string(color= color_group, 
+                                  shape = shape_group))
+    
+    p = p + facet_wrap(distance ~. , scales="free")
+    
+    p = p + ggtitle(paste0("Ordination using various distance metrics ")) +
+      theme_light() 
+    
+    out <- p
+    ## ------------------------------------------------------------------------
+    if(return_eig_df!=FALSE){
+      
+      plot_list %>%
+        plyr::ldply(function(x) x$labels$x) %>%
+        bind_cols(plyr::ldply(plot_list, function(x) x$labels$y)) %>%
+        data.frame() -> eig_df
+      
+      out <- list("plots" = p,
+                  "eig_df" = eig_df)      
+    }
+  }
   
-  df %>%
-    ggplot(aes_string(colnames(df)[2], colnames(df)[3])) -> p
   
-  p = p + geom_point(size=2,
-                     aes_string(color= color_group, 
-                                shape = shape_group))
-  
-  p = p + facet_wrap( ~ distance, scales="free")
-  
-  p = p + ggtitle(paste0("Ordination using various distance metrics ")) +
-    theme_light() 
-  
-  return(p)
+  return(out)
 }
+
 
 #' @title ...
 #' @param .
@@ -2154,7 +2222,8 @@ in_vitro_mIMT_STABvsTreat <- function(physeq,
                                       strata,
                                       group_color,
                                       group_shape,
-                                      group_alpha)
+                                      group_alpha,
+                                      m = "PCoA")
 {
   
   ps <- prune_samples(get_variable(physeq, var) == group,
@@ -2175,7 +2244,7 @@ in_vitro_mIMT_STABvsTreat <- function(physeq,
     bind_rows(.id = "Distance") %>%
     filter(!Distance %in% c("bray", "d_0", "d_0.5")) -> adonis_tmp
   
-  m = "PCoA"
+
   ps %>%
     phyloseq_plot_bdiv(dlist,
                        m = m,
@@ -2212,6 +2281,49 @@ in_vitro_mIMT_STABvsTreat <- function(physeq,
                 "PERMANOVA" = adonis_tmp)
   
   return(output)
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
+
+phyloseq_generate_pcoa_per_variables <- function(tmp,
+                                                 group,
+                                                 dist){
+  
+  
+  out <- vector("list", length(tmp %>%
+                                 get_variable(group) %>%
+                                 levels()))
+  names(out) <- tmp %>%
+    get_variable(group) %>% levels()
+  
+  for(tp in tmp %>%
+      get_variable(group) %>%
+      unique()){
+    # print(tp)
+    prune_samples(get_variable(tmp, group) == tp,
+                  tmp) %>% 
+      filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> filter_tmp
+    
+    filter_tmp %>%   
+      phyloseq_plot_bdiv(dlist = d_list,
+                         seed = 123,
+                         axis1 = 1,
+                         axis2 = 2) -> out[[tp]]
+  }
+  
+  return(out)
 }
 
 
