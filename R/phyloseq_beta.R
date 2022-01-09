@@ -1162,7 +1162,8 @@ phyloseq_add_taxa_vector <- function(dist,
                                      taxnames_rm = "unknown",
                                      fact = 3,
                                      seed = 123,
-                                     perm = 999)
+                                     perm = 999,
+                                     join_cbind = "join") # to avoid issue with rownames when specific character
 {
   require(phyloseq); require(tidyverse); require(vegan)  
   
@@ -1188,21 +1189,26 @@ phyloseq_add_taxa_vector <- function(dist,
   #   
   #   taxa_names(tmp1) <-  tax_table(tmp1)[,taxrank_glom]
   # }  
-  
-  
-  tmp1 %>%
-    speedyseq::tax_glom(taxrank_glom) %>%
-    otu_table() %>%
-    t() %>%
-    data.frame() -> tmp
+ 
+  if(taxrank_glom != FALSE) {
+    tmp1 %>%
+      speedyseq::tax_glom(taxrank_glom) %>%
+      otu_table() %>%
+      t() %>%
+      data.frame() -> tmp
+  }else{
+    tmp1 %>%
+      otu_table() %>%
+      t() %>%
+      data.frame() -> tmp 
+  }
+
   
   # Create plot, store as temp variable, p
   set.seed(seed)
   p <- phyloseq::plot_ordination(phyloseq, iMDS)
   
-  
   dune.spp.fit <- envfit(iMDS$vectors, tmp, permutations = perm) # this fits species vectors
-  
   
   spp.scrs <- as.data.frame(scores(dune.spp.fit, display = "vectors")) #save species intrinsic values into dataframe
   spp.scrs <- cbind(spp.scrs, id = rownames(spp.scrs)) #add species names to dataframe
@@ -1221,6 +1227,7 @@ phyloseq_add_taxa_vector <- function(dist,
     as.data.frame() %>%
     rownames_to_column('ASV') -> tax_table
   
+  if(join_cbind == "join"){
   left_join(sig.spp.scrs,
             tax_table,
             by = c("id" = id_taxa)) %>%
@@ -1228,6 +1235,13 @@ phyloseq_add_taxa_vector <- function(dist,
     dplyr::filter(!tax_rank_plot %in% taxnames_rm,
                     pval<=pval_cutoff) %>% 
     top_n(top_r, r) -> all
+  }  if(join_cbind == "cbind"){
+    cbind(sig.spp.scrs, tax_table) %>% 
+      dplyr::rename(tax_rank_plot = all_of(tax_rank_plot)) %>% 
+      dplyr::filter(!tax_rank_plot %in% taxnames_rm,
+                    pval<=pval_cutoff) %>% 
+      top_n(top_r, r) -> all
+  }
   
   
   # !!variable := name_of_col_from_df
