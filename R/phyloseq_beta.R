@@ -1235,7 +1235,8 @@ phyloseq_add_taxa_vector <- function(dist,
     dplyr::filter(!tax_rank_plot %in% taxnames_rm,
                     pval<=pval_cutoff) %>% 
     top_n(top_r, r) -> all
-  }  if(join_cbind == "cbind"){
+  } 
+  if(join_cbind == "cbind"){
     cbind(sig.spp.scrs, tax_table) %>% 
       dplyr::rename(tax_rank_plot = all_of(tax_rank_plot)) %>% 
       dplyr::filter(!tax_rank_plot %in% taxnames_rm,
