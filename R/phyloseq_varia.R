@@ -55,3 +55,127 @@ physeq_most_abundant <- function(physeq,
   }
   return(taxa_top_all)
 }
+
+
+
+'%!in%' <- function(x,y)!('%in%'(x,y))
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
+#'
+
+physeq_get_unique <- function(ps, var){
+  
+  ps %>% 
+    speedyseq::psmelt() %>% 
+    distinct( get(var)) %>%  # could be anything: taxa, metadata, ...
+    pull() -> out
+  
+  return(out)
+  
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
+
+
+generate_color_palette <- function(ps, var, seed = 123456, pal = "randomcoloR", runTsne = FALSE, altCol = FALSE, print = TRUE){
+  
+  ps %>% 
+    physeq_get_unique(var) -> var_uniq
+  
+  if(pal == "randomcoloR"){
+    set.seed(seed)
+    var_uniq %>% 
+      length() %>% 
+      randomcoloR::distinctColorPalette(k = ., altCol = altCol, runTsne = runTsne) -> col
+  }else{
+    var_uniq %>% 
+      length() %>% 
+      ggpubr::get_palette(k = ., palette = pal) -> col
+  }
+  
+  if(print == TRUE){
+    pie(rep(1, length(col)),                                
+        col = col)
+  }
+  
+  names(col) <- var_uniq
+  
+  return(col)
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
+#'
+#'
+#'
+
+
+physeq_simplify_tax <- function(ps, tax_sel, round_otu = FALSE){
+  
+  ps %>% 
+    tax_table() %>% 
+    data.frame() -> tax_mapping
+  
+  
+  if(round_otu == TRUE){
+    
+    round(otu_table(ps)) -> otu_table(ps)
+    
+  }
+  
+  ps %>% 
+    speedyseq::tax_glom(tax_sel[1]) -> ps_glom
+  
+  ps_glom %>% 
+    tax_table() %>% 
+    data.frame() %>% 
+    select(!!tax_sel) %>% 
+    as.matrix() -> tax_table(ps_glom)
+  
+  taxa_names(ps_glom) <- tax_table(ps_glom)[,tax_sel[1]]
+  
+  ps_glom %>% 
+    tax_table() %>% 
+    data.frame() %>% 
+    left_join(tax_mapping %>% distinct(Best_Hit_ARO, .keep_all = TRUE),
+              by = setNames(tax_sel[1], tax_sel[1]),
+              suffix = c("_x", "")) %>% 
+    column_to_rownames(tax_sel[1])  %>% 
+    as.matrix() -> tax_table(ps_glom)
+  
+  return(ps_glom)
+}
