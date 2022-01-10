@@ -143,7 +143,6 @@ generate_color_palette <- function(ps, var, seed = 123456, pal = "randomcoloR", 
 #'
 #'
 
-
 physeq_simplify_tax <- function(ps, tax_sel, round_otu = FALSE){
   
   ps %>% 
@@ -158,22 +157,29 @@ physeq_simplify_tax <- function(ps, tax_sel, round_otu = FALSE){
   }
   
   ps %>% 
-    speedyseq::tax_glom(tax_sel[1]) -> ps_glom
-  
-  ps_glom %>% 
     tax_table() %>% 
     data.frame() %>% 
     select(!!tax_sel) %>% 
-    as.matrix() -> tax_table(ps_glom)
+    as.matrix() -> tax_table(ps)
+  
+  
+  ps %>% 
+    speedyseq::tax_glom(tax_sel[1]) -> ps_glom
+  
+  
   
   taxa_names(ps_glom) <- tax_table(ps_glom)[,tax_sel[1]]
+  
+  tax_sel[1] -> sel
+  
   
   ps_glom %>% 
     tax_table() %>% 
     data.frame() %>% 
-    left_join(tax_mapping %>% distinct(Best_Hit_ARO, .keep_all = TRUE),
+    left_join(tax_mapping %>% distinct(!!sel, .keep_all = TRUE),
               by = setNames(tax_sel[1], tax_sel[1]),
               suffix = c("_x", "")) %>% 
+    # mutate(str_remove_all(:=) %>% 
     column_to_rownames(tax_sel[1])  %>% 
     as.matrix() -> tax_table(ps_glom)
   
