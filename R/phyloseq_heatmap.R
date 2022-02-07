@@ -26,6 +26,7 @@ phyloseq_ampvis_heatmap <- function(physeq,
                                     tax_aggregate = FALSE, 
                                     tax_add = NULL, 
                                     ntax = 10,
+                                    plot_values = TRUE,
                                     order_y_by = NULL,
                                     order_x_by = NULL)
 {
@@ -82,7 +83,7 @@ phyloseq_ampvis_heatmap <- function(physeq,
     amp_heatmap(group_by = group_by,#treatment
                 facet_by = facet_by,
                 normalise = FALSE,
-                plot_values = TRUE,
+                plot_values = plot_values,
                 plot_values_size = 2,
                 tax_show = ntax,
                 order_x_by = order_x_by,
