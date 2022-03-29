@@ -9,18 +9,37 @@
 #' @export
 #' @examples
 #'
+#'source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_heatmap.R")
 #'
+#'library(phyloseq)
+#'data("GlobalPatterns")
 #'
+#'GlobalPatterns %>% 
+#'  phyloseq_ampvis_heatmap(physeq = ., 
+#'                          transform = "compositional", 
+#'                          facet_by = "SampleType" , 
+#'                          group_by = "Primer",  
+#'                          tax_aggregate = "Genus", 
+#'                          tax_add = NULL, 
+#'                          ntax =  5) -> heat_overall
+#'                          
+#'source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_varia.R")
+#'GlobalPatterns %>% 
+#' physeq_most_abundant(group_var = "SampleType",
+#'                     ntax = 5,
+#'                     tax_level = "Genus") -> top_taxa_per_group
 #'
+#'GlobalPatterns %>% 
+#'  transform_sample_counts(function(x) x/sum(x) * 100) %>%
+#'  subset_taxa(Genus %in% top_taxa_per_group) %>% 
+#'  phyloseq_ampvis_heatmap(physeq = ., 
+#'                          transform = FALSE, 
+#'                          facet_by = "SampleType" , 
+#'                          group_by = "Primer",  
+#'                          tax_aggregate = "Genus", 
+#'                          tax_add = NULL, 
+#'                          ntax =  Inf) -> heat_top_taxa_per_group
 #'
-#'
-# library(phyloseq)
-# data("soilrep")
-# 
-# enterotype %>% 
-#   physeq_most_abundant(group_var = "warmed",
-#                      ntax = 2,
-#                      tax_level = "Genus") -> tmp
 
 
 physeq_most_abundant <- function(physeq,
@@ -71,14 +90,33 @@ physeq_most_abundant <- function(physeq,
 #' @export
 #' @examples
 #'
+#'library(phyloseq)
 #'
+#'data("GlobalPatterns")
+#'
+#'# Applied on tax_table information
+#'GlobalPatterns %>% 
+#'  physeq_get_unique("Kingdom")
+#'
+#'GlobalPatterns %>% 
+#'  physeq_get_unique("Phylum") %>% 
+#'  length()
+#'
+#'# Applied on sample_metadata
+#'# First check the variable names
+#'GlobalPatterns %>% 
+#'  sample_variables()
+#'
+#'# apply
+#'GlobalPatterns %>% 
+#'  physeq_get_unique("Primer")
 #'
 
 physeq_get_unique <- function(ps, var){
   
   ps %>% 
     speedyseq::psmelt() %>% 
-    distinct( get(var)) %>%  # could be anything: taxa, metadata, ...
+    distinct(get(var)) %>%  # could be anything: taxa, metadata, ...
     pull() -> out
   
   return(out)
@@ -97,23 +135,48 @@ physeq_get_unique <- function(ps, var){
 #' @export
 #' @examples
 #'
+#'library(phyloseq)
+#'data("GlobalPatterns")
 #'
+#'# First check the variable names
+#'GlobalPatterns %>% 
+#'  sample_variables()
+#'
+#'# apply
+#'GlobalPatterns %>% 
+#'  generate_color_palette(var = "SampleType",
+#'                         pal = "npg") -> my_pal
+#'my_pal
 
-
-generate_color_palette <- function(ps, var, seed = 123456, pal = "randomcoloR", runTsne = FALSE, altCol = FALSE, print = TRUE){
+generate_color_palette <- function(ps, 
+                                   var, 
+                                   seed = 123456, 
+                                   pal = "randomcoloR", 
+                                   runTsne = FALSE, 
+                                   altCol = FALSE, 
+                                   print = TRUE){
   
   ps %>% 
     physeq_get_unique(var) -> var_uniq
   
   if(pal == "randomcoloR"){
+    require(randomcoloR)
     set.seed(seed)
     var_uniq %>% 
       length() %>% 
       randomcoloR::distinctColorPalette(k = ., altCol = altCol, runTsne = runTsne) -> col
+    
+    detach("package:randomcoloR", unload=TRUE)
+    
   }else{
+    require(ggpubr)
+    
     var_uniq %>% 
       length() %>% 
       ggpubr::get_palette(k = ., palette = pal) -> col
+    
+    detach("package:ggpubr", unload=TRUE)
+    
   }
   
   if(print == TRUE){
@@ -139,7 +202,8 @@ generate_color_palette <- function(ps, var, seed = 123456, pal = "randomcoloR", 
 #' @examples
 #'
 #'
-#'
+#'ps_CARD %>% 
+#'physeq_simplify_tax(round_otu = TRUE, tax_sel = c("Best_Hit_ARO")) -> ps_AMRgn
 #'
 #'
 

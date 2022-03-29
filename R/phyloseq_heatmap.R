@@ -9,12 +9,37 @@
 #' @export
 #' @examples
 #'
+#'
+#'source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_heatmap.R")
+#'
 #'library(phyloseq)
 #'data("GlobalPatterns")
 #'
-#'phyloseq_ampvis_heatmap(GlobalPatterns,"percent", "Primer","SampleType",  "Species", "Phylum", 10) -> out
+#'GlobalPatterns %>% 
+#'  phyloseq_ampvis_heatmap(physeq = ., 
+#'                          transform = "compositional", 
+#'                          facet_by = "SampleType" , 
+#'                          group_by = "Primer",  
+#'                          tax_aggregate = "Genus", 
+#'                          tax_add = NULL, 
+#'                          ntax =  5) -> heat_overall
+#'                          
+#'source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_varia.R")
+#'GlobalPatterns %>% 
+#' physeq_most_abundant(group_var = "SampleType",
+#'                     ntax = 5,
+#'                     tax_level = "Genus") -> top_taxa_per_group
 #'
-#'
+#'GlobalPatterns %>% 
+#'  transform_sample_counts(function(x) x/sum(x) * 100) %>%
+#'  subset_taxa(Genus %in% top_taxa_per_group) %>% 
+#'  phyloseq_ampvis_heatmap(physeq = ., 
+#'                          transform = FALSE, 
+#'                          facet_by = "SampleType" , 
+#'                          group_by = "Primer",  
+#'                          tax_aggregate = "Genus", 
+#'                          tax_add = NULL, 
+#'                          ntax =  Inf) -> heat_top_taxa_per_group
 #'
 #'
 #'
