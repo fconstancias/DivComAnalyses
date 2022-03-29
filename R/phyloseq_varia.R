@@ -11,36 +11,50 @@
 #'
 #'source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_heatmap.R")
 #'
-#'library(phyloseq)
+#'library(phyloseq); library(tidyverse)
+#'
 #'data("GlobalPatterns")
 #'
 #'GlobalPatterns %>% 
 #'  phyloseq_ampvis_heatmap(physeq = ., 
-#'                          transform = "compositional", 
+#'                          transform = "compositional", # = percentage transformation
 #'                          facet_by = "SampleType" , 
 #'                          group_by = "Primer",  
-#'                          tax_aggregate = "Genus", 
+#'                          tax_aggregate = "Species", 
 #'                          tax_add = NULL, 
 #'                          ntax =  5) -> heat_overall
-#'                          
-#'source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_varia.R")
+#'
+#'heat_overall
+#'
+#'
+#'# How many sample types?
 #'GlobalPatterns %>% 
-#' physeq_most_abundant(group_var = "SampleType",
-#'                     ntax = 5,
-#'                     tax_level = "Genus") -> top_taxa_per_group
+#'  physeq_get_unique("SampleType")
+#'
+#'
+#'# 5 Most abundant Species based on ASV classification - i.e., not agglomerated at the Species level - per sample types:
+#'GlobalPatterns %>% 
+#'  physeq_most_abundant(group_var = "SampleType",
+#'                       ntax = 5,
+#'                       tax_level = "Species") -> top_taxa_per_group
+#'
+#'# looking at the five most abondant per SampleType we obtain 8 Species
+#' 
+#'top_taxa_per_group 
+#'
 #'
 #'GlobalPatterns %>% 
-#'  transform_sample_counts(function(x) x/sum(x) * 100) %>%
-#'  subset_taxa(Genus %in% top_taxa_per_group) %>% 
+#'  transform_sample_counts(function(x) x/sum(x) * 100) %>% # transform as percentage before filtering
+#'  subset_taxa(Species %in% top_taxa_per_group) %>% # extract only the taxa to display - after percentage normalisation
 #'  phyloseq_ampvis_heatmap(physeq = ., 
-#'                          transform = FALSE, 
+#'                          transform = FALSE, # extract only the taxa to display - after percentage normalisation
 #'                          facet_by = "SampleType" , 
 #'                          group_by = "Primer",  
-#'                          tax_aggregate = "Genus", 
+#'                          tax_aggregate = "Species", 
 #'                          tax_add = NULL, 
 #'                          ntax =  Inf) -> heat_top_taxa_per_group
 #'
-
+#'heat_top_taxa_per_group
 
 physeq_most_abundant <- function(physeq,
                                  group_var,
