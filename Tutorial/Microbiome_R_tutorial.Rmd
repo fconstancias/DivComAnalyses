@@ -1,0 +1,303 @@
+
+---
+title: "Microbial community analysis using R and phyloseq"
+author: "Florentin Constancias"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    self_contained: true
+    thumbnails: true
+    lightbox: true
+    gallery: true
+    use_bookdown: false
+    highlight: haddock
+---
+
+
+```{r packages, results=FALSE, warning=FALSE, include=TRUE}
+require(tidyverse); packageVersion("tidyverse")
+require(phyloseq); packageVersion("phyloseq")
+options(getClass.msg=FALSE) # https://github.com/epurdom/clusterExperiment/issues/66
+```
+
+# Loading functions from github:
+The package is in progress but we do not actually need one, we can directly source the functions from github - **internet connection needed**:
+```{r sourcing, results=FALSE, warning=FALSE, include=TRUE}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_taxa_tests.R") 
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_normalisation.R") 
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_alpha.R") 
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_beta.R") 
+```
+**Microbial community analysis using R and phyloseq**
+
+# Introduction
+
+This is a guidline for community analysis using R, [Phyloseq](https://joey711.github.io/phyloseq/), [microbiome](http://microbiome.github.io/microbiome/), [vegan](https://cran.r-project.org/web/packages/vegan/vignettes/intro-vegan.pdf), [ggplot2](http://ggplot2.org/), [tidyverse packages](https://www.tidyverse.org/) and custom made functions to facilitate the analyses and visualization [DivComAnalyses](https://github.com/fconstancias/DivComAnalyses).
+We recommend using post-clustering approach for processing raw metabarcoding data and we developped a R friendly pipeline based on [DADA2](https://www.nature.com/articles/ismej2017119) named [metabaRpipe](https://github.com/fconstancias/metabaRpipe).
+
+
+Please cite all the packages and tools that you have used in your analysis. Also make sure that you provide the scripts you used for analysis as supplementary material with your research article.    
+You can also find useful cheat sheets for R in the folder Useful "Useful R cheat sheets".  
+
+============================================================================================ 
+
+Here, we will use data  .For other published test datasets you can check [Qiita](https://qiita.ucsd.edu)    
+
+Location of test data files: `./input_files`  
+
+# Importing data & Exploration
+
+## Data import
+
+Let's load the phyloseq object that we generated removing contaminants and unknown ASV at the phylum level - not much information was removed in that case.
+
+Define phyloseq object's location: 
+
+```{r}
+ps = "/Users/fconstan/Projects/ETH/uBeads/MiSeq/physeq_silva132_clean.RDS"
+```
+
+
+Load phyloseq object:
+```{r}
+ps %>% # ps object wich is path of our physeq file on our computer is going to ...
+  readRDS() -> physeq  # the readRDS function and then it is directed/stored to a R object we named physeq
+```
+
+Call phyloseq object:
+```{r}
+physeq
+```
+calling our physeq object gives us informations: it contains an 'otu_table, taxonomic path of those 'OTU' (in our case *ASV* are *OTU*, but OTU are not necessarly ASV), the taxonomical path of those OTU (i.e., tax_table()), metadata (i.e., sample_data()), a phylogenetic tree of the 'OTU' (i.e., phy_tree()) as well as the sequence of the 'OTU': (i.e., refseq()).
+
+Those data can be easely access:
+
+Check OTU table
+```{r}
+
+physeq %>%
+  otu_table() %>%
+  head() # print only the first few rows
+
+```
+
+Check tax table
+```{r}
+
+physeq %>%
+  tax_table() %>%
+  head() # print only the first few rows
+
+```
+
+Our phyloseq object has a 'Strain' taxonomic information we created - know taxonomical information at highest level + ASV id
+
+```{r}
+
+physeq %>%
+  tax_table() %>%
+  head()# print only the first few rows
+
+```
+
+N.B.: I prefer to use tydiverse's pipe: %>% which makes the code more readable as compared to classical R.
+For more info: <https://dplyr.tidyverse.org/> & <https://rstudio.com/resources/cheatsheets/>
+
+Which is similar to:
+```{r}
+head(tax_table(physeq))
+```
+
+Check nucleotide sequences of the ASV:
+```{r}
+physeq %>%
+  refseq()
+```
+
+
+Check metadata:
+```{r}
+physeq %>%
+  sample_variables()
+```
+
+
+```{r}
+physeq %>%
+  sample_data() %>%
+  head() # print only the first few rows
+```
+
+Phyloseq package has also some usefull functions:
+to acess sample names
+```{r}
+physeq %>%
+  sample_names() %>% 
+  head() # print only the first few rows
+```
+
+which is similar to:
+```{r}
+physeq %>%
+  otu_table() %>% 
+  colnames() %>%
+  head() # print only the first few rows
+```
+
+Some checks:
+
+First top samples with highest highest total number of reads
+```{r}
+physeq %>%
+    sample_sums() %>%
+    sort(decreasing = TRUE) %>%
+    head() 
+```
+
+First top ASV with highest highest total number of reads:
+
+```{r}
+physeq %>%
+    taxa_sums() %>%
+    sort(decreasing = TRUE) %>%
+    head() 
+```
+
+Getting help on a particular function:
+
+```{r}
+?taxa_sums()
+# then google
+# then R package manual
+# then ... colleague/ researchgate
+```
+
+## Manipulating a phyloseq object
+
+### Filtering:
+
+#### prune_taxa()/prune_samples() are two functions who prunes unwanted taxa/samples from a phyloseq object based on a vector of taxa to keep:
+```{r}
+#Create a logical vector answering the logical question: does the ASV represent more than 10 reads in total?
+
+physeq %>%
+  taxa_sums() > 10 -> taxa_top
+
+#taxa_top is indeed a logical vector
+
+taxa_top %>%
+  head()
+
+#filter the physeq object based on that vector
+
+physeq %>%
+    prune_taxa(taxa = taxa_top) -> physeq_filtered 
+```
+
+Note that all the data in our physeq_filtered object has been filtered: otu_table(), tax_table(), refseq(), ...
+```{r}
+physeq
+```
+
+```{r}
+physeq_filtered
+```
+
+#### subset_taxa() subset_samples()) subsets unwanted taxa/samples from a phyloseq object based on conditions that must be met:
+
+Keep only OTU belonging to Firmicutes Phyla:
+```{r}
+physeq %>%
+  subset_taxa(Phylum == "Firmicutes")
+```
+
+Keep only samples from the first PCR_plate according to our metadata:
+```{r}
+physeq %>%
+  subset_samples(PCR_plate == "P1")
+```
+
+Keep only samples from the  PCR_plate P1 P2 according to our metadata:
+```{r}
+physeq %>%
+  subset_samples(PCR_plate %in% c("P1", "P2"))
+```
+
+Keep only samples which do not belong to PCR_plate P3:
+```{r}
+physeq %>%
+  subset_samples(PCR_plate != "P3") # != different from
+```
+
+Keep only samples which do not belong to PCR_plate P3 and with a sample_number (numerical data in metadata) > 10:
+```{r}
+physeq %>%
+  subset_samples(PCR_plate != "P3" | sample_number > 30) # != different from, | = or, & = AND
+```
+
+### Smoothing taxonomical information with tax_glom():
+
+tax_glom agglomerates ASVs at a given taxonomic level. Finer taxonomic information is lost even if ASV names id is maintained.
+
+Agglomerate taxonomy at the phylum level:
+
+```{r}
+physeq %>%
+  tax_glom(taxrank = "Phylum")
+```
+
+### Abundance counts:
+
+#### rarefy_evendepth() down samples all samples to the same sequencing depth (a.k.a., Library Size) and prunes ASV that disappear from all samples as a result.
+
+```{r}
+physeq %>%
+  rarefy_even_depth(rngseed = 123) %>% # important to specify rngseed: random number generator for reproducibility
+  sample_sums() %>%
+  head()
+```
+
+```{r}
+physeq %>%
+  sample_sums() %>%
+  min()
+```
+In this example, we rarefied all the dataset to 23 sequences per sample because it is the minumum in the dataset.
+
+Should you rarefy your data ? This question is still under 'debate': see  <https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003531>
+or <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5335496/>. It depend on the type of analysis you are going to do, the shape of your rarefaction curves, ... but to make it short it for alpha-diversity and beta diversity rarefaction is advised for standard analysis, not for negative bionomial based abundance testing.
+
+#### transform_sample_counts applies a function to the abundance vector of each sample.  It is useful for normalization.
+
+```{r}
+physeq %>%
+  transform_sample_counts(function(x) x/sum(x) * 100) %>%
+  sample_sums() %>%
+  head()
+```
+
+## Combining several operations:
+
+```{r}
+physeq %>%
+  subset_samples(PCR_plate != "P3" | sample_number > 30) %>%
+  prune_taxa(taxa =  taxa_sums(physeq) > 1000) %>% 
+  subset_taxa(Phylum != "unknown" & Genus %in% c("Lactococcus", "Streptococcus")) %>%
+  filter_taxa(function(x) sum(x) > 0, TRUE) %>% 
+  rarefy_even_depth(sample.size = 1000, rngseed = 123)  %>%
+  tax_glom(taxrank = "Genus") %>%
+  transform_sample_counts(function(x) x/sum(x) * 100)
+```
+
+
+
+
+This website theme was created by modifiying the rmdformats readthedown format.
+
+```{r}
+
+sessionInfo()
+
+```
+
+
