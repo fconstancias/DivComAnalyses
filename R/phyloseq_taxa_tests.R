@@ -194,10 +194,18 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
 #' @examples
 #'
 #'
-#'
+#'data("GlobalPatterns")
+#'GlobalPatterns %>% 
+#' subset_samples(SampleType %in% c("Feces", "Skin")) %>% 
+#' phyloseq_get_strains_fast  -> ps_tmp
+#' 
+#'ps_tmp %>% phyloseq_Maaslin2(fixed_effects = "SampleType",random_effects = NULL , min_abundance = 2, min_prevalence = 0.5 ,  normalization = "NONE", transform = "NONE", analysis_method = "ZINB", output_dir = "~/test_masslin2_ZINB/")
+#'ps_tmp %>% phyloseq_Maaslin2(fixed_effects = "SampleType",random_effects = NULL , min_abundance = 2, min_prevalence = 0.5 ,  normalization = "NONE", transform = "NONE", analysis_method = "NEGBIN", output_dir = "~/test_masslin2_negbin/")
+
 
 phyloseq_Maaslin2 <- function(phyloseq,
                               taxrank = "Strain",
+                              rename_ASV_strain = TRUE,
                               taxnames_rm = c("unknown, Incertae Sedis"),
                               min_abundance = 0, 
                               min_prevalence = 0.1 ,
@@ -212,7 +220,7 @@ phyloseq_Maaslin2 <- function(phyloseq,
                               cores = 10,
                               plot_heatmap = TRUE,
                               plot_scatter = TRUE,
-                              heatmap_first_n = 100,
+                              heatmap_first_n = 50,
                               output_dir = "~/test_masslin2/"){
   
   ##---------------------------------------------
@@ -223,10 +231,19 @@ phyloseq_Maaslin2 <- function(phyloseq,
   if (taxrank != "Strain"){
     prune_taxa(data.frame(tax_table(phyloseq)[,taxrank])  %>%
                  dplyr::filter(!get(taxrank) %in% taxnames_rm) %>% rownames(),phyloseq) -> phyloseq
+    
+    taxa_names(phyloseq) <-  tax_table(phyloseq)[,taxrank]
+    
   }
   
-  taxa_names(phyloseq) <-  tax_table(phyloseq)[,taxrank]
+  if (rename_ASV_strain != FALSE){
+    taxa_names(phyloseq) <-  tax_table(phyloseq)[,taxrank]
+  }
   
+  ##---------------------------------------------
+  
+  phyloseq %>% 
+    filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> phyloseq
   ##---------------------------------------------
   
   # phyloseq %>%
@@ -238,6 +255,7 @@ phyloseq_Maaslin2 <- function(phyloseq,
   Maaslin2(phyloseq %>% otu_table() %>%  t(), 
            phyloseq %>% sample_data() %>% data.frame(), 
            output_dir, 
+           analysis_method = analysis_method,
            normalization = normalization, 
            transform = transform,
            min_abundance = min_abundance, 
@@ -248,7 +266,9 @@ phyloseq_Maaslin2 <- function(phyloseq,
            correction =  correction,
            max_significance = max_significance,
            cores = cores,
-           heatmap_first_n = heatmap_first_n)
+           heatmap_first_n = heatmap_first_n,
+           plot_heatmap = plot_heatmap,
+           plot_scatter = plot_scatter)
   
   ##---------------------------------------------
   
