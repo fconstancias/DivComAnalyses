@@ -182,6 +182,81 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
   
 }
 
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
+#'
+
+phyloseq_Maaslin2 <- function(phyloseq,
+                              taxrank = "Strain",
+                              taxnames_rm = c("unknown, Incertae Sedis"),
+                              min_abundance = 0, 
+                              min_prevalence = 0.1 ,
+                              min_variance = 0,
+                              random_effects = c("generation"),
+                              fixed_effects = c("treatment"),
+                              max_significance = 0.25,
+                              normalization = "TSS",
+                              transform = "LOG",
+                              analysis_method = "LM",
+                              correction = "BH",
+                              cores = 10,
+                              plot_heatmap = TRUE,
+                              plot_scatter = TRUE,
+                              heatmap_first_n = 100,
+                              output_dir = "~/test_masslin2/"){
+  
+  ##---------------------------------------------
+  require(tidyverse); require(Maaslin2); require(phyloseq)
+  
+  ##---------------------------------------------
+  
+  if (taxrank != "Strain"){
+    prune_taxa(data.frame(tax_table(phyloseq)[,taxrank])  %>%
+                 dplyr::filter(!get(taxrank) %in% taxnames_rm) %>% rownames(),phyloseq) -> phyloseq
+  }
+  
+  taxa_names(phyloseq) <-  tax_table(phyloseq)[,taxrank]
+  
+  ##---------------------------------------------
+  
+  # phyloseq %>%
+  #   filter_taxa(function(x){sum(x > sumfilter) > prevfilter*nsamples(phyloseq)}, prune = TRUE) -> ps_filtered
+  
+  ##---------------------------------------------
+  
+  
+  Maaslin2(phyloseq %>% otu_table() %>%  t(), 
+           phyloseq %>% sample_data() %>% data.frame(), 
+           output_dir, 
+           normalization = normalization, 
+           transform = transform,
+           min_abundance = min_abundance, 
+           min_prevalence = min_prevalence,
+           min_variance = min_variance,
+           random_effects = random_effects,
+           fixed_effects = fixed_effects,
+           correction =  correction,
+           max_significance = max_significance,
+           cores = cores,
+           heatmap_first_n = heatmap_first_n)
+  
+  ##---------------------------------------------
+  
+  gc()
+  
+  ##---------------------------------------------
+  
+}
 
 
 #' @title ...
