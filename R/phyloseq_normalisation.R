@@ -486,6 +486,158 @@ phyloseq_filter_samples <- function(physeq, thrs)
   
 }
 
+
+#' @title Remove OTU with low proportion threshold
+#' @param .
+#' @param thrs in percent
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'library(phyloseq)
+#'data("GlobalPatterns")
+#'
+#'phyloseq_get_strains(GlobalPatterns) -> out
+#'
+#'
+
+phyloseq_filter_per_sample_OTU <- function(physeq, 
+                                           thrs = 0.1)
+{
+  ##---------------------------------------------
+  
+  require(phyloseq); require(tidyverse)
+  
+  ##---------------------------------------------
+  
+  physeq %>%
+    otu_table() %>%
+    data.frame() %>%
+    # t() %>%
+    data.frame() -> df
+  
+  tax <- taxa_names(physeq)
+  ntax <- ntaxa(physeq)
+  samples <- sample_names(physeq)
+  
+  ##---------------------------------------------
+  
+  df %>%
+    rownames_to_column('ASV')%>%
+    select(ASV) -> results_all
+  
+  ##---------------------------------------------
+  
+  # results_all_2 <- results_all
+  # results_all_3 <- results_all
+  
+  for (c in samples)
+  {
+    # print(c)
+    df %>%
+      rownames_to_column('ASV') %>%
+      select(ASV, c) %>%
+      arrange(-get(c)) %>%
+      mutate(percent = get(c)/sum(get(c))) %>%
+      mutate(Accumulated_pc = cumsum(percent)) %>%
+      mutate(above_below = ifelse(percent <= thrs/100, "below", "above")) %>% 
+      mutate(!!c := ifelse(above_below == "above", get(c), 0)) -> tmp
+    
+    # tpm %>%
+    #   mutate(new_count = ifelse(Common_Rare == "Common", get(c), 0)) %>%
+    #   select(- percent, - Accumulated_pc, -!!c, -Common_Rare) %>%
+    #   dplyr::rename(!!c := new_count) -> filtter_sample_common
+    # 
+    # tpm %>%
+    #   mutate(new_count = ifelse(Common_Rare == "Rare", get(c), 0)) %>%
+    #   select(- percent, - Accumulated_pc, -!!c, -Common_Rare) %>%
+    #   dplyr::rename(!!c := new_count) -> filtter_sample_rare
+    # 
+    tmp %>%
+      select(- percent, - Accumulated_pc, !!c, -above_below) -> results
+    
+    full_join(results_all,
+              results) -> results_all
+    
+    # full_join(results_all_2,
+    #           filtter_sample_common) -> results_all_2
+    # 
+    # full_join(results_all_3,
+    #           filtter_sample_rare) -> results_all_3
+  }
+  
+  # results_all %>%
+  #   pivot_longer(samples) %>%
+  #   # group_by(ASV) %>%
+  #   filter(value == "Common") %>%
+  #   pull(ASV) %>%
+  #   unique() -> commons
+  # 
+  # # results_all %>%
+  # #   pivot_longer(samples) %>% group_by(ASV) %>%
+  # #   filter(value == "Rare") %>% distinct(ASV) %>% pull() -> rares
+  # 
+  # setdiff(tax,
+  #         commons) -> rare
+  # 
+  # # union(commons,
+  # #         rare) %>% setdiff(tax)
+  # 
+  # # print(paste0("Results : ", length(commons)," common OTUs ", length(rare), " rare OTUs - over a total of ", ntax, " OTUs"))
+  # 
+  # # common defined as never rare:
+  # 
+  # if (class(physeq) == "phyloseq")
+  # {
+  #   prune_taxa(commons,
+  #              physeq) -> physeq_common
+  #   
+  #   prune_taxa(rare,
+  #              physeq) -> physeq_rare
+  
+  merge_phyloseq(
+    results_all %>% column_to_rownames('ASV') %>% as.matrix() %>% otu_table(taxa_are_rows = TRUE),
+    physeq %>% tax_table(),
+    physeq %>% sample_data()
+  ) %>%
+    filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> phyloseq_filt
+  
+  if (!is.null(physeq@refseq)){
+    merge_phyloseq(phyloseq_filt,
+                    physeq %>% phy_tree()) ->  phyloseq_filt     
+  }
+  
+  out <- phyloseq_filt
+  # 
+  # merge_phyloseq(
+  #   results_all_3 %>% column_to_rownames('ASV') %>% as.matrix() %>% otu_table(taxa_are_rows = TRUE),
+  #   physeq %>% tax_table(),
+  #   physeq %>% refseq(),
+  #   physeq %>% phy_tree(),
+  #   physeq %>% sample_data()
+  # ) %>%
+  #   filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> physeq_persample_rare
+  # 
+  # 
+  # out <- list("global_common" = physeq_common,
+  #             "global_rare" = physeq_rare,
+  #             "per_sample_common" = physeq_persample_common,
+  #             "per_sample_rare" = physeq_persample_rare)
+  
+  return(out)
+  # if(return_plot == TRUE){
+  #   require(microViz)
+  #   
+  #   
+  # }
+}
+
+
+
 #' @title ...
 #' @param .
 #' @param ..
@@ -697,7 +849,7 @@ phyloseq_density_normalize <-  function(physeq = physeq,
   
   #if we want to remove the samples for which we have no qPCR data to avoid future NAs in the phyloseq object
   if(remove.na==TRUE){
-
+    
     prune_samples(!is.na(physeq %>% get_variable(value_idx)),physeq) -> physeq
   }
   
@@ -874,7 +1026,7 @@ physeq_remove_contaminants_crude <- function(physeq,
   
   require(phyloseq)
   require(tidyverse)
-
+  
   
   #adding the strain level annotation to the asvs (ie. instead of ASV1,ASV2..,etc, we now have strain level annotation as taxa_names())
   
@@ -898,7 +1050,7 @@ physeq_remove_contaminants_crude <- function(physeq,
     
   }
   
-
+  
   #create logical vector indicating whether sample is negative or not
   is.neg <- sample_data(physeq)[[sample_type]]==NTC_label
   
@@ -1026,7 +1178,7 @@ phyloseq_remove_contaminants_decontam <- function(physeq,
   
   ps.pa <- transform_sample_counts(physeq, function(abund) 1*(abund>0))
   
-
+  
   ps.pa.neg <- prune_samples(sample_data(physeq)[[sample_type]]==NTC_label,physeq)
   ps.pa.pos <- prune_samples(sample_data(physeq)[[sample_type]]!=NTC_label, physeq)
   
@@ -1328,7 +1480,7 @@ phyloseq_remove_contaminants_microDecon <- function(physeq,
     return(out)
   }
   
-
+  
 }
 
 # to add:
