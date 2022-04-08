@@ -202,12 +202,11 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
 #' phyloseq_get_strains_fast  -> ps_tmp
 #' 
 #'ps_tmp %>% phyloseq_Maaslin2(fixed_effects = "SampleType",random_effects = NULL , min_abundance = 2, min_prevalence = 0.5 ,  normalization = "NONE", transform = "NONE", analysis_method = "ZINB", output_dir = "~/test_masslin2_ZINB/")
-#'ps_tmp %>% phyloseq_Maaslin2(fixed_effects = "SampleType",random_effects = NULL , min_abundance = 2, min_prevalence = 0.5 ,  normalization = "NONE", transform = "NONE", analysis_method = "NEGBIN", output_dir = "~/test_masslin2_negbin/")
+#'ps_tmp %>% phyloseq_Maaslin2(taxrank = FALSE, rename_ASV_strain = FALSE, fixed_effects = "SampleType",random_effects = NULL , min_abundance = 2, min_prevalence = 0.5 ,  normalization = "NONE", transform = "NONE", analysis_method = "NEGBIN", output_dir = "~/test_masslin2_negbin/") -> test
+#'ps_tmp %>% phyloseq_Maaslin2(fixed_effects = "SampleType",random_effects = NULL , min_abundance = 2, min_prevalence = 0.5 ,  normalization = "NONE", transform = "NONE", analysis_method = "CPLM", output_dir = "~/test_masslin2_CPLM/") -> test_CPLM
 
 
 phyloseq_Maaslin2 <- function(phyloseq,
-                              taxrank = "Strain",
-                              rename_ASV_strain = TRUE,
                               taxnames_rm = c("unknown, Incertae Sedis"),
                               min_abundance = 0, 
                               min_prevalence = 0.1 ,
@@ -221,7 +220,7 @@ phyloseq_Maaslin2 <- function(phyloseq,
                               correction = "BH",
                               standardize = TRUE,
                               cores = 4,
-                              plot_heatmap = TRUE,
+                              plot_heatmap = FALSE,
                               plot_scatter = TRUE,
                               heatmap_first_n = 50,
                               output_dir = "~/test_masslin2/"){
@@ -230,30 +229,6 @@ phyloseq_Maaslin2 <- function(phyloseq,
   require(tidyverse); require(Maaslin2); require(phyloseq)
   
   ##---------------------------------------------
-  
-  if (taxrank != "Strain"){
-    prune_taxa(data.frame(tax_table(phyloseq)[,taxrank])  %>%
-                 dplyr::filter(!get(taxrank) %in% taxnames_rm) %>% rownames(),phyloseq) -> phyloseq
-    
-    taxa_names(phyloseq) <-  tax_table(phyloseq)[,taxrank]
-    
-  }
-  
-  if (rename_ASV_strain != FALSE){
-    taxa_names(phyloseq) <-  tax_table(phyloseq)[,taxrank]
-  }
-  
-  ##---------------------------------------------
-  
-  # phyloseq %>% 
-  #   microbiome::transform(transform = transform_ps) -> phyloseq
-  ##---------------------------------------------
-  
-  # phyloseq %>%
-  #   filter_taxa(function(x){sum(x > sumfilter) > prevfilter*nsamples(phyloseq)}, prune = TRUE) -> ps_filtered
-  
-  ##---------------------------------------------
-  
   
   Maaslin2(phyloseq %>% otu_table() %>%  t(), 
            phyloseq %>% sample_data() %>% data.frame(), 
@@ -272,13 +247,15 @@ phyloseq_Maaslin2 <- function(phyloseq,
            cores = cores,
            heatmap_first_n = heatmap_first_n,
            plot_heatmap = plot_heatmap,
-           plot_scatter = plot_scatter)
+           plot_scatter = plot_scatter) -> out
   
   ##---------------------------------------------
   
-  gc()
+  # gc()
   
   ##---------------------------------------------
+  
+  return(out)
 }
 
 
