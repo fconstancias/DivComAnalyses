@@ -297,18 +297,102 @@ physeq_1 %>%
   head()
 ```
 
-Agglomerated dataset at a particular taxonomic rank might be of interest for specific analysis or also to summarise the taxonomic profile at a broader level. It is also meaningful to know the highest taxonomic definition of the ASV. We can do that using the function `phyloseq_get_strains`
+Agglomerated dataset at a particular taxonomic rank might be of interest for specific analysis or also to summarize the taxonomic profile at a broader level. It is also meaningful to know the highest taxonomic definition of the ASV. We can do that using the function `phyloseq_get_strains()`
+
+We first need to source the function from the `DivComAnalyses` repository. Those function can be accessed from your [internet browser](https://github.com/fconstancias/DivComAnalyses/blob/adeebb2f575cd3c033b88268a5827fabee717e7a/R/phyloseq_taxa_tests.R).
 
 ```{r}
 source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_normalisation.R") 
+```
 
+Apply the function:
 
+```{r}
 physeq_1 %>% 
   phyloseq_get_strains()  -> physeq_1_st
+```
 
+We now have the a new `Strain` taxonomic rank which summarizes the taxonomic path:
+
+```{r}
 physeq_1_st %>% 
   tax_table() %>% 
   head()
+```
+
+## Varia:
+
+```{r}
+physeq_1_st %>% 
+  sample_variables()
+```
+
+```{r message=FALSE, warning=FALSE}
+physeq_1_st %>% 
+  physeq_get_unique("treatment_invivo") -> treatment
+
+treatment
+```
+
+```{r message=FALSE, warning=FALSE}
+physeq_1_st %>% 
+  physeq_get_unique("mouse_label") -> mice
+
+mice
+```
+
+```{r message=FALSE, warning=FALSE}
+physeq_1_st %>% 
+  physeq_get_unique("Phylum") -> phyla
+
+phyla
+```
+
+
+```{r message=FALSE, warning=FALSE}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_heatmap.R")
+
+physeq_1_st %>% 
+  phyloseq_ampvis_heatmap(physeq = ., 
+                          facet_by = "treatment_invivo" , 
+                          group_by = "Sample",  
+                          ntax =  5) -> heat_overall
+
+heat_overall
+
+
+physeq_1_st %>% 
+  physeq_most_abundant("treatment_invivo", 
+                       tax_level = "Strain",
+                       ntax = 5) -> most_ab_treat
+
+most_ab_treat
+```
+
+
+```{r message=FALSE, warning=FALSE}
+physeq_1_st %>% 
+  physeq_most_abundant("treatment_invivo", 
+                       tax_level = "Strain",
+                       ntax = 5) -> most_ab_treat
+
+most_ab_treat
+```
+
+```{r}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_varia.R") 
+
+physeq_1_st %>% 
+  physeq_most_abundant(group_var = )
+
+physeq_get_unique
+
+generate_color_palette
+
+physeq_simplify_tax
+
+physeq_glom_rename
+
 ```
 
 ```{r}
@@ -325,6 +409,22 @@ physeq_simplify_tax
 physeq_glom_rename
 
 ```
+
+```{r}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_varia.R") 
+
+physeq_most_abundant
+
+physeq_get_unique
+
+generate_color_palette
+
+physeq_simplify_tax
+
+physeq_glom_rename
+
+```
+
 
 ```{r}
 source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_normalisation.R") 
