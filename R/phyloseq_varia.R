@@ -263,3 +263,53 @@ physeq_simplify_tax <- function(ps, tax_sel, round_otu = FALSE){
   
   return(ps_glom)
 }
+
+
+#' @title Perform agglomeration at a particular level and rename OTU based on that level or rename at highest level
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'#'library(phyloseq)
+#'data("GlobalPatterns")
+#'GlobalPatterns %>%  physeq_glom_rename(rename_ASV_highest = TRUE) %>%  taxa_names()
+
+
+physeq_glom_rename <- function(phyloseq,
+                               speedyseq = FALSE,
+                               taxrank = FALSE,
+                               rename_ASV_highest = FALSE,
+                               taxnames_rm = c("unknown", "Incertae Sedis")){
+  
+  ##---------------------------------------------
+  require(tidyverse); require(phyloseq)
+  if(speedyseq == TRUE){require(speedyseq)}
+  ##---------------------------------------------
+  
+  if (taxrank %in% rank_names(phyloseq)){
+    phyloseq %>% 
+      tax_glom(taxrank = taxrank) -> phyloseq
+    
+    prune_taxa(data.frame(tax_table(phyloseq)[,taxrank])  %>%
+                 dplyr::filter(!get(taxrank) %in% taxnames_rm) %>% rownames(),
+               phyloseq) -> phyloseq
+    
+    taxa_names(phyloseq) <-  tax_table(phyloseq)[,taxrank]
+    
+  }
+  
+  if (rename_ASV_highest != FALSE){
+    
+    taxa_names(phyloseq) <-  tax_table(phyloseq)[,rank_names(phyloseq)[length(rank_names(phyloseq))]]
+  }
+  
+  ##---------------------------------------------
+  
+  return(phyloseq)
+}
