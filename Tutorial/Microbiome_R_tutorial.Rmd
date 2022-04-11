@@ -54,7 +54,6 @@ We recommend using post-clustering approach for processing raw metabarcoding dat
 **internet connection needed**:
 ```{r sourcing, results=FALSE, warning=FALSE, include=TRUE}
 source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_taxa_tests.R") 
-source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_normalisation.R") 
 source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_alpha.R") 
 source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_beta.R") 
 ```
@@ -278,15 +277,18 @@ physeq_1 %>%
 
 ### Smoothing taxonomical information:
 
-####
+#### ASV taxonomic agglomeration:
+
+ASV obtained 16S V4 metabarcoding are mostly defined from a taxonomic perspective at the Family/ Genus. 
 
 ```{r}
 tax_table(physeq_1)[,c("Family","Genus","Species")] %>% 
   head()
 ```
-`tax_glom() `agglomerates ASVs at a given taxonomic level. Finer taxonomic information is lost even if ASV names id is maintained.
 
-Agglomerate taxonomy at the phylum level:
+The function `tax_glom()` agglomerates ASV at a given taxonomic level. Finer taxonomic information is lost even if ASV id `e.g., ASV0002` is maintained.
+
+Agglomerate taxonomy at the Family level:
 
 ```{r}
 physeq_1 %>%
@@ -295,9 +297,14 @@ physeq_1 %>%
   head()
 ```
 
+Agglomerated dataset at a particular taxonomic rank might be of interest for specific analysis or also to summarise the taxonomic profile at a broader level. It is also meaningful to know the highest taxonomic definition of the ASV. We can do that using the function `phyloseq_get_strains`
+
 ```{r}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_normalisation.R") 
+
+
 physeq_1 %>% 
-  phyloseq_get_strains_fast()  -> physeq_1_st
+  phyloseq_get_strains()  -> physeq_1_st
 
 physeq_1_st %>% 
   tax_table() %>% 
@@ -445,11 +452,6 @@ phyloseq_generate_pcoa_per_variables
 
 
 ```
-
-
-
-
-
 
 
 ### Abundance counts:

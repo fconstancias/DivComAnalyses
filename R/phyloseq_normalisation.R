@@ -656,37 +656,39 @@ phyloseq_filter_per_sample_OTU <- function(physeq,
 #'
 #'
 
-phyloseq_get_strains <- function(physeq)
+phyloseq_get_strains <- function(physeq, species = TRUE)
 {
   
-  require(phyloseq); require(tidyverse)
+  require(phyloseq);require(tidyverse)
   physeq_tmp = physeq
   
-  physeq %>%
-    tax_table() %>%
-    as.data.frame() %>%
-    rownames_to_column(var = "ASV") %>%
-    mutate_at(vars(everything()), na_if, "unknown") %>%
+  as(tax_table(physeq), "matrix") %>%
+    data.frame() %>%
+    rownames_to_column('ASV') %>% 
+    mutate_at(vars(everything()), na_if, "unknown") %>% 
+    mutate_at(vars(everything()), na_if, "") -> tmp1
+  
+  
+  tmp1 %>%
     column_to_rownames("ASV") %>%
     as.matrix() -> tax_table(physeq_tmp)
   
   physeq_tmp %>%
     get_strains(label = "unknown",
-                species = TRUE) %>%
-    tax_table() %>%
-    as.data.frame() %>%
-    rownames_to_column("ASV") %>%
+                species = species) -> tmp2
+  
+  as(tax_table(tmp2), "matrix") %>%
+    data.frame() %>%
+    rownames_to_column('ASV')  %>%
     mutate_if(is.factor, as.character) %>%
     unite(Strain, Species, ASV,
           sep = " ", remove = FALSE, na.rm = TRUE) %>%
     column_to_rownames("ASV") %>%
     dplyr::select(-Strain, Strain) -> tax_tbl_tmp
   
-  full_join(physeq %>% tax_table() %>%
-              as.data.frame() %>%
-              rownames_to_column("ASV"),
+  full_join(tmp1,
             tax_tbl_tmp %>%
-              select(Strain) %>%
+              dplyr::select(Strain) %>%
               rownames_to_column("ASV")) %>%
     column_to_rownames("ASV") %>%
     # replace(is.na(.), "unknown") %>%
