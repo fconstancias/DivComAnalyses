@@ -9,7 +9,7 @@ output:
     thumbnails: true
     lightbox: true
     gallery: true
-    use_bookdown: false
+    use_bookdown: true
     highlight: haddock
 ---
 
