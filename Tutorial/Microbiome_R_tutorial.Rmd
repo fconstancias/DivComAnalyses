@@ -327,6 +327,23 @@ physeq_1 %>%
   subset_samples(treatment_invivo != "none" &  BW  > 20 ) # | = or, & = AND
 ```
 
+#### updating metadata:
+
+```{r}
+source("https://raw.githubusercontent.com/fconstancias/metabaRpipe/master/Rscripts/functions.R")
+
+physeq_1 %>%
+  physeq_add_metadata(physeq = .,
+                      metadata = "../data-raw/ps_invivo_meta.xlsx" %>%
+                        readxl::read_xlsx(),
+                      sample_column = "Sample") -> physeq_1_new_meta
+
+physeq_1_new_meta %>% 
+  sample_data() %>% 
+  data.frame() %>% 
+  DT::datatable()
+```
+
 ### Smoothing taxonomical information:
 #### ASV taxonomic agglomeration:
 
@@ -673,127 +690,29 @@ physeq_1_rare %>%
 
 Looks good!
 
-<!-- It seems we could get read of those sparse low abundant taxa by filtering ASV based on their proportion. We wil first transform the counts into % (0-100) and then remove ASV with proportion less than 0.001 % in each of the samples. -->
-
-<!-- ```{r, warning = FALSE, message = FALSE} -->
-<!-- physeq_1_st %>%  -->
-<!--   phyloseq_filter_per_sample_OTU(thrs = 0.01) -> physeq_1_filt  -->
-
-<!-- print(paste0(ntaxa(physeq_1_st) - ntaxa(physeq_1_filt), " ASV were removed")) -->
-<!-- ``` -->
-
-
-<!-- ```{r} -->
-<!-- setdiff(physeq_1_st %>%  taxa_names(), -->
-<!--         physeq_1_filt %>%  taxa_names()) %>%  -->
-<!--   as.vector() -> filt_out_asv -->
-
-<!-- filt_out_asv %>%  -->
-<!--   head() -->
-<!-- ``` -->
-
-
 
 ```{r}
-# microbiomeutilities::plot_abund_prev(., 
-#                                      label.core = TRUE,
-#                                      color = "Class", # NA or "blue"
-#                                      mean.abund.thres = 0.01,
-#                                      mean.prev.thres = 0.95,
-#                                      dot.opacity = 0.7,
-#                                      label.size = 3,
-#                                      label.opacity = 1.0,
-#                                      nudge.label=-0.15,
-#                                      bs.iter=9, # increase for actual analysis e.g. 999
-#                                      size = length(rm_rare_asv), # increase to match your nsamples(asv_ps)
-#                                      replace = TRUE,
-#                                      label.color="#5f0f40") + 
-#   geom_vline(xintercept = 0.95, lty="dashed", alpha=0.7) + 
-#   geom_hline(yintercept = 0.01,lty="dashed", alpha=0.7)  -> pv
-# 
-# pv
-```
+physeq_1_st %>%
+  transform_sample_counts(function(x) x/sum(x) * 1000) %>% # transform as percentage before filtering
+  prune_taxa(rm_rare_asv, .) %>% # keep only the ASV with id matching the rm_rare_asv vector from the 
+microbiomeutilities::plot_abund_prev(.,
+                                     label.core = TRUE,
+                                     color = "Class", # NA or "blue"
+                                     mean.abund.thres = 0.01,
+                                     mean.prev.thres = 0.95,
+                                     dot.opacity = 0.7,
+                                     label.size = 3,
+                                     label.opacity = 1.0,
+                                     nudge.label=-0.15,
+                                     bs.iter=999, # increase for actual analysis e.g. 999
+                                     size = length(rm_rare_asv), # increase to match your nsamples(asv_ps)
+                                     replace = TRUE,
+                                     label.color="#5f0f40") +
+  geom_vline(xintercept = 0.95, lty="dashed", alpha=0.7) +
+  geom_hline(yintercept = 0.01,lty="dashed", alpha=0.7)  -> pv
 
-```{r message=FALSE, warning=FALSE, fig.width= 40, fig.height=80}
-# require(microViz)
-# 
-# physeq_1_st %>% 
-#   transform_sample_counts(function(x) x/sum(x) * 100) %>% # transform as percentage before filtering
-#   phyloseq::prune_taxa(rm_rare_asv, .) %>% 
-#   tax_fix(unknowns = c("Incertae Sedis")) %>%
-#   phyloseq_validate() %>% 
-#   comp_barplot(label = FALSE,
-#     sample_order = "default",
-#     tax_level = "Strain", n_taxa = 15,
-#     bar_outline_colour = NA, facet_by = "treatment_invivo"
-#   ) +
-#   coord_flip() + theme(
-#     axis.text.y = element_blank(),
-#     axis.ticks.y = element_blank()
-#   ) -> plot_rm_rare_asv
-# 
-# plot_rm_rare_asv
+pv
 ```
-
-```{r}
-# p <- physeq_1_st %>% 
-#   physeq_glom_rename(taxrank = "Strain", 
-#                      speedyseq = TRUE) %>% 
-#   transform_sample_counts(function(x) x/sum(x) * 100) %>% # transform as percentage before filtering
-#   phyloseq::prune_taxa(rm_rare_asv, .) %>%
-#   filter_taxa(function(x) sum(x > 0) > 0, TRUE) %>% 
-#   microbiome::plot_composition(sample.sort = NULL) + 
-#   # scale_fill_manual(values = default_colors("Phylum")[taxa(pseq)]) +
-#   #, otu.sort = "abundance") +
-#   # Set custom colors
-#   # scale_fill_manual("Phylum",values = microbiome::default_colors("Phylum")[taxa(physeq_1_st)]) +
-#   # scale_y_continuous(label = scales::percent) + 
-#   # theme_ipsum(grid="Y") +
-#   theme_classic() +
-#   # Removes sample names and ticks
-#   theme(axis.text.x=element_blank(), axis.ticks.x=element_blank(),
-#         legend.position = "none")
-# 
-# print(p)
-```
-```{r}
-# #https://microbiome.github.io/tutorials/Composition.html
-# 
-# physeq_1_st %>% 
-#   physeq_glom_rename(taxrank = "Strain", 
-#                      speedyseq = TRUE) %>% 
-#   subset_samples(treatment_invivo == "none") %>% 
-#   transform_sample_counts(function(x) x/sum(x) * 100) %>% # transform as percentage before filtering
-#   phyloseq::prune_taxa(rm_rare_asv, .) %>% 
-#   microbiome::plot_composition(.,
-#                                plot.type = "barplot") +
-#   theme(legend.position = "none")
-#                            sample.sort = NULL,
-#                            otu.sort = NULL,
-#                            x.label = "Sample",
-#                            plot.type = "barplot",
-#                            verbose = FALSE) +
-# theme_minimal() +
-# guides(fill = guide_legend(ncol = 1)) +
-# labs(x = "Animal secretion samples",
-#      y = "Relative abundance",
-#      title = "Relative abundance data",
-#      subtitle = "Subtitle can be added here",
-#      caption = "Caption text can be added here.") +
-# scale_fill_brewer("Family", palette = "Paired") +
-#   
-#   #Removes sample names and ticks
-#   theme(axis.text.x=element_blank(), 
-#         axis.ticks.x=element_blank()) +
-#   #Adjusts size of subtitle, caption, legend text and legend title
-#   theme(plot.subtitle=element_text(size=8), 
-#         plot.caption=element_text(size=8), 
-#         legend.text=element_text(size=8),
-#         legend.title =element_text(size=10))
-# 
-# print(p.famrel)
-```
-
 
 ## Community analysis:
 
@@ -887,7 +806,7 @@ alpha_plot$data %>%
 ```
 
 
-#### Compute bunch of alpha-diversity indices.
+#### Compute alpha-diversity indices.
 
 `phyloseq_alphas()` function compute all kind of alpha diversity metrics. If `phylo = TRUE,` it will also compute phylogenetic metrics -if you have a phylogenetic tree included in your phyloseq object - **but** could take **quite some** time.
 The idea is not to loose too much time exploring many indices, but on the other hand it can help to better understand the pattern and guide the analysis (phylogeny, richness, evenness).
@@ -963,15 +882,20 @@ alpha_corr
 
 ### Beta-diversity:
 
-Beta-diversity depict similarity between samples based on a synthetic matrix which contains pairwise similarity/dissimilarity values for all the samples combinations. There are phylogenetic / non phylogenetic beta-diversity metrics and abundance or presence based metrics. The most used are Bray-Curtis and Jaccard: non-phylogenetic abundance and presence based metrics, respectively as well as weighted and unweighted unifrac metrics: phylogenetic abundance and presence based metrics, respectively. It could be a good idea to explore several beta-diversity index to see what are responsible on the patterns.
+Beta-diversity depict similarity between samples based on a synthetic matrix which contains pairwise similarity/dissimilarity values for all the samples combinations. There are phylogenetic / non phylogenetic beta-diversity metrics and abundance or presence based metrics. The most used are Bray-Curtis and Jaccard: non-phylogenetic abundance and presence based metrics, respectively as well as weighted and unweighted unifrac metrics: phylogenetic abundance and presence based metrics, respectively.
 
-#### Visualisation
+
+
+First, we generate a distance matrix from the phyloseq_object:
+
 ```{r, message = TRUE}
 physeq_1_rare %>%
   phyloseq::distance(method = "bray") -> bc
 ```
 
-### Heatmap:
+#### Visualisation:
+
+##### Heatmap:
 
 We can visualize the distance matrix using `heatmap()` function: 
 
@@ -981,9 +905,9 @@ bc %>%
   heatmap()
 ```
 
-As you can see it is a symetric matrix: the diagonal are 0 values dissimilarity or distane between same sample = 0. Difficult to identify patterns from there.
+As you can see it is a symetric matrix: the diagonal are 0 values dissimilarity or distance between same sample = 0. Difficult to identify patterns from there.
 
-### PCoA/NMDS
+##### PCoA/NMDS
 
 PCoA and NMDS are unconstrained ordination techniques in order to visualize data with high dimensions. They are similar as a PCA but the input distance matrix can be specified (PCA is based only on euclidean distance.)
 
@@ -993,12 +917,13 @@ physeq_1_rare %>%
            distance = bc) -> ord
 ```
 
-Samples coordinate on the PCoA vectors are stored in but plot_ordination can make use of ord object we have just created easily.
+Samples coordinate on the PCoA axis are stored in but plot_ordination can make use of ord object we have just created easily.
 
 ```{r, message = TRUE}
-ord$vectors %>%
-  head()
+ord$vectors[c(1:10), c(1,2)]
 ```
+
+Plot ordination can be then used to plot the ordination object:
 
 ```{r, message = TRUE}
 physeq_1_rare %>% 
@@ -1007,45 +932,440 @@ physeq_1_rare %>%
                   color = "BW", 
                   shape = "treatment_invivo", 
                   title = "PCoA Bray-Curtis", 
-                  label= "Sample") + theme_bw()
+                  label= "Sample") + 
+  theme_bw()
 ```
 
-### Dendrogram
+##### Dendrogram
 
 ```{r, message = TRUE}
 source("https://raw.githubusercontent.com/mahendra-mariadassou/phyloseq-extended/415075fb7f690f6ac39eab18f62aeb4e4967ef84/R/graphical_methods.R")
+
+require(ape)
 
 physeq_1_rare %>% 
   plot_clust(physeq = ., 
              dist = bc, 
              # label = "desc01",
              color = "treatment_invivo")
+
 ```
-Similar patterns as we saw on the PCoA. Makes sense because the same distance object is the input.
+Similar patterns as we saw on the PCoA. Makes sense because the same distance object is an input ;)
 
-### Statistical tests
+##### Distance boxplot:
 
-#### PERMANOVA
+Another way to visualize pairwise distance comparaison is to plot them as boxplot. The `phyloseq_distance_boxplot()`  performs all pairwise distance comparisons between the group in the facet header, with all of the other groups (including itself). Each boxplot is shown twice, once in each group. For example, "Mock" in the "Soil" facet has the same data has "Soil" in the "Mock" facet.
+
+Red is the within group comparisons, which is why it is typically lower distance compared to the black boxplots. There are some within group comparisons that are actually more distant than comparing across groups.
+
+```{r, message = FALSE, warning = FALSE}
+physeq_1_rare %>% 
+  phyloseq_distance_boxplot(p = ., # phyloseq object
+                            dist = dm, # distance matrix
+                            d = "treatment_invivo") -> out # column in metadata for comparaisons
+```
+
+The function generates the following plot:
+
+```{r, message = FALSE, warning = FALSE}
+out$plot + xlab(NULL) 
+```
+
+We can see samples from TreatA, B and C are mainly distant from the "none" group.
+
+As well as the distance matrix that can be used to customize distance boxplot.
+
+```{r, message = FALSE, warning = FALSE}
+out$matrix %>%
+  head()
+```
+
+#### Statistical tests
+
+##### PERMANOVA:
+
 Let’s check if the observed patterns we visualized in PCoA, dendrogram are significant using PERMANOVA i.e., adonis function from vegan:
 
-```{r, message = TRUE}
-adonis(bc ~ get_variable(ps_rare, "Sex"), 
-       permutations = 1000)$aov.tab
+```{r, message = FALSE}
+vegan::adonis(bc ~ get_variable(physeq_1_rare, "treatment_invivo"))$aov.tab
 ```
 
-Based on Bray-Curtis distance desc04 (i.e., Male vs Female) is significant meaning that bacterial communities from Male are different from Female.
-When dealing with multiple groups, pairwise PERMANOVA is needed to run all pairwise comparaisons (I am using mctoolsr::calc_pairwise_permanovas() in that case)
+Based on Bray-Curtis distance treatment_invivo is significant which means there is at least one group different from the others in terms ob beta-diversity/ community similarity.
 
-#### Beta Dispersion
-In order to conclude we need to check PERMANOVA's main asumption: variance homoscedasticity.
-```{r, message = TRUE}
-boxplot(betadisper(bc, 
-                   get_variable(ps_rare, "Sex")),las=2, 
-        main=paste0("Multivariate Dispersion Test Bray-Curtis "," pvalue = ", 
-                    permutest(betadisper(bc, get_variable(ps_rare, "Sex")))$tab$`Pr(>F)`[1]))
+I have computed some functions to help with the process:
+
+```{r, message = FALSE, warning = FALSE}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_beta.R") 
+
+physeq_1_rare %>% 
+  phyloseq_adonis2(dm = bc,
+                   formula = "treatment_invivo")
+
+```
+The 'Pr..F.' is the pvalue - significant here - and the R2 indicates the strength or the % of explained variation. Here *treatment_invivo* explains 22% of the variations and is significant.
+
+When having more than two levels, it makes sense to run pairwise comparisons:
+
+```{r, message = FALSE, warning = FALSE}
+physeq_1_rare %>% 
+  physeq_pairwise_permanovas_adonis2(dm = bc,
+                                     compare_header = "treatment_invivo") %>% 
+  arrange(pvalFDR)
+
 ```
 
-Variation in communities among Female samples is higher and sigificantly different from bacterial communities from Male samples - as we could see on the PCoA plot. It will require more sophisticated tests to deal with that issue to see mvabund R package or vegan::anosim(). N.B., vegan::anosim() means anosim() function from the R package named vegan.
+When running many statistical tests we increase the risk of false positive results and we need to correct the pvalues. Here we have the raw pvalues pval and the corrected ones using bonnferroni or FDR approaches. The results clearly showed mice from the group TreatA, B and C have different microbiota as compared to the non group (i.e., the Control). BTW it was already the case when we run the statistical test on the alpha-diversity metrics comparing different groups.
+
+
+We can also test the effect of the combinaition of different variables in explaining the variation of beta-diversity.
+
+
+```{r, message = FALSE, warning = FALSE}
+
+physeq_1_rare %>% 
+  phyloseq_adonis2(dm = bc,
+                   formula = " BW + treatment_invivo")
+
+```
+
+```{r, message = FALSE, warning = FALSE}
+
+physeq_1_rare %>% 
+  phyloseq_adonis2(dm = bc,
+                   formula = " treatment_invivo + BW")
+
+```
+
+Note that by default the order matters and the first variable will be fitted against the community distance. The residuals will be fed to the other variable. By default the `terms_margins` argument is set on "terms".
+
+We can also check the interaction between the two:
+
+```{r, message = FALSE, warning = FALSE}
+
+physeq_1_rare %>% 
+  phyloseq_adonis2(dm = bc,
+                   formula = " treatment_invivo * BW") # same as treatment_invivo + BW + treatment_invivo:BW
+
+```
+
+*treatment_invivo* variations explains most of the variations but *BW* Body Weight also explains some variations. Interestingly, the interaction between the 2:  *treatment_invivo:BW* is also significant meaning BW do not impact the communities in a similar way among the differnet treatments.
+
+We can also use `terms_margins = "margin" `which allows to test for the effect of the variables  after controlling the effect of the other.
+
+```{r, message = FALSE, warning = FALSE}
+
+physeq_1_rare %>% 
+  phyloseq_adonis2(dm = bc,
+                  formula = " treatment_invivo + BW",
+                  terms_margins = "margin")
+
+```
+
+More details [here](https://stats.stackexchange.com/questions/312302/adonis-in-vegan-order-of-variables-non-nested-with-one-degree-of-freedom-for).
+
+
+#### Beta Dispersion:
+
+In order to conclude we need to check PERMANOVA's main assumption: variance homoscedasticity.
+
+```{r, message = FALSE, warning= FALSE}
+physeq_1_rare %>% 
+  physeq_betadisper(dm = bc,
+                    variable = "treatment_invivo") -> betadisp
+
+betadisp$pval
+```
+
+Variation in communities among the different groups do not differ in terms of spread of beta diversity. More info [here](http://thebiobucket.blogspot.com/2011/04/assumptions-for-permanova-with-adonis.html).
+
+
+#### Multivariate Welch t-test:
+
+As an alternative to PERMANOVA (i.e., `vegan::adonis``) - and espacially in the case of unbalanced and heteroscedastic data we can use [distance multivariate Welch t-test](https://academic.oup.com/bioinformatics/article/32/23/3552/2525638).
+
+```{r, message = FALSE, warning= FALSE}
+physeq_1_rare %>%
+  phyloseq_TW(dm = bc, 
+              physeq = .,
+              variable = "treatment_invivo") -> out 
+
+out %>% 
+  DT::datatable()
+```
+
+Multivariate Welch t-test confirmed the patterns.
+
+#### Usefull functions:
+
+`phyloseq_compute_bdiv()` function compute all kind of beta diversity distances. If `phylo = TRUE,` it will also compute phylogenetic metrics -if you have a phylogenetic tree included in your phyloseq object - but will take **some** time.
+The idea is not to loose too much time exploring many distances, but on the other hand it can help to better understand the pattern and guide the analysis. The included distances are binary jaccard: bjaccard, weigthed jaccard: wjaccard, bray-curtis, un-weighted unifrac: uunifrac, wunifrac and d_0 and d_0.5 from the generalized unifrac.
+
+```{r}
+physeq_1_rare %>% 
+  phyloseq_compute_bdiv(phylo = TRUE) -> dlist
+
+dlist %>% 
+  summary()
+```
+
+We can remove some of those distance from the list:
+
+```{r}
+dlist$bray <- NULL
+dlist$d_0.5 <- NULL
+dlist$d_0 <- NULL
+```
+
+Compute ordinations:
+
+```{r, warning = FALSE, message = FALSE}
+physeq_1_rare %>% 
+  phyloseq_plot_bdiv(dlist = dlist, # list of distance computed from a phyloseq object
+                     ps_rare = ., # phyloseq object
+                     m = "PCoA", # PCoA or NMDS
+                     seed = 123, # for reproducibility
+                     axis1 = 1, # axis to plot
+                     axis2 = 2) -> plot_list
+```
+
+Explore all the ordination plots:
+
+```{r}
+plot_list %>%
+  phyloseq_plot_ordinations_facet(color_group = "BW",
+                                  shape_group = "treatment_invivo") -> pcoas
+
+pcoas
+```
+
+Check % of explained variance for all ordinations:
+
+`phyloseq_ordinations_expl_var()` generates:
+
+```{r, warning = FALSE,  message = FALSE}
+plot_list %>%
+  phyloseq_ordinations_expl_var() %>%
+  DT::datatable()
+```
+
+Perform PERMANOVA on all distances using lapply:
+
+A way to apply a function to a list is to use lapply. This is an example to run PERMANOVA (Adonis vegan function on a list of distances). We can test here if SampleType influences community distances:
+
+```{r, message = FALSE, warning = FALSE}
+lapply(
+  dlist,
+  FUN = phyloseq_adonis2,
+  physeq = physeq_1_rare,
+  formula = paste0(c("treatment_invivo"), collapse=" * "),
+  nrep = 999,
+  strata = FALSE
+) %>%
+  bind_rows(.id = "Distance") %>%
+  mutate_if(is.numeric, round, 3) %>%
+  # filter(! terms %in% (c("Residuals", "Total"))) %>%
+  DT::datatable()
+```
+
+run pairwise PERMANOVA on all distances:
+
+Since it is significant, we can run pairwise comparisons to further investigate:
+
+```{r, message = FALSE, warning = FALSE}
+lapply(
+  dlist,
+  FUN = physeq_pairwise_permanovas_adonis2,
+  physeq = physeq_1_rare,
+  compare_header = "treatment_invivo",
+  n_perm = 999,
+  strat = FALSE
+) %>%
+  bind_rows(.id = "Distance") %>%
+  mutate_if(is.numeric, round, 3) %>%
+  # filter(! terms %in% (c("Residuals", "Total"))) %>%
+  DT::datatable()
+```
+
+
+```{r, message = FALSE, warning = FALSE}
+lapply(
+  dlist,
+  FUN = physeq_betadisper,
+  physeq = physeq_1_rare,
+  variable = "treatment_invivo"
+)
+```
+
+3d PCoA:
+
+```{r, message= FALSE, warning= FALSE}
+physeq_1_rare %>% 
+  phyloseq_plot_PCoA_3d(ps_rare = .,
+                        dlist = dlist,
+                        shape = FALSE,
+                        color = "treatment_invivo")
+```
+
+
+adding taxa correlated with ordination pattern:
+
+```{r, message= FALSE, warning= FALSE}
+physeq_1_rare %>% 
+  plot_ordination(physeq = ., 
+                  ordination = ord,
+                  color = "treatment_invivo", 
+                  title = "PCoA Bray-Curtis", 
+                  label= NULL) + 
+  theme_bw() +
+  scale_color_manual(values = treat_pal) -> pca
+
+pca
+```
+
+
+
+`phyloseq_add_taxa_vector()`:
+
+
+```{r}
+physeq_1 %>% 
+  phyloseq_add_taxa_vector(phyloseq = .,
+                           dist = dm,
+                           join_cbind = "join",
+                           tax_rank_plot = "Genus",
+                           figure_ord = pca, 
+                           fact = 0.25, pval_cutoff = 0.05,
+                           top_r = 10) -> out #top 10 correlated genera
+
+out$plot
+```
+
+```{r}
+out$signenvfit
+```
+
+```{r}
+physeq_1 %>% 
+  phyloseq_add_metadata_vector(dist = dm,
+                               phyloseq = .,
+                               figure_ord = out$plot,
+                               metadata_sel = c("BW_percent", "BW",  "colon_weight"),# , "histo_colo_total"),
+                               top_r = 10, fact = 0.6, na.rm = TRUE) -> out2
+
+out2$plot
+```
+
+```{r, message = FALSE, warning = FALSE}
+physeq_1 %>% 
+  phyloseq_generate_pcoa_per_variables(tmp = ,
+                                     group = "treatment_invivo",
+                                     dist = dlist) -> pcoa_group
+
+pcoa_group %>% 
+  phyloseq_plot_ordinations_facet(plot_list = ., return_eig_df = TRUE, color_group = "day")
+```
+db-RDA:
+
+Constrained ordination detects how much of community variations is explained / correlated with variables.
+See [here](https://sites.google.com/site/mb3gustame/constrained-analyses/rda/dbrda)
+
+`phyloseq_dbRDA()` takes a phyloseq object, a distance matrix and formula with the covariable(s) to test.
+
+
+```{r, warning = FALSE, message = FALSE}
+physeq_1 %>%
+  phyloseq_dbRDA(dm = dm,
+                 ps = .,
+                 group_plot = "treatment_invivo",
+                 forumla = paste0(c("BW", "DAI"), collapse=" + ")) -> out
+```
+
+The function generates four outputs:
+1- the classic vegan dbRDA:
+
+
+```{r, warning = FALSE, message = FALSE}
+
+out$dbRDA
+
+```
+
+2- the ordination plot:
+
+```{r, message = FALSE, warning= FALSE}
+out$plot2
+```
+
+3- the anova results to test the significance of the model overall:
+
+```{r, message = FALSE, warning= FALSE}
+out$anova_all %>%
+  DT::datatable()
+```
+4- the anova results testing the influence of each of the covaraibles:
+
+```{r, message = FALSE, warning= FALSE}
+out$anova_terms %>%
+  DT::datatable()
+```
+Here The analysis confirm that Body Weigth is correlating with the differences in *BW* Body Weight. When coloring the samples by treatment group we see that treatment also impact body weight.
+
+## Partial dbRDA:
+
+This approach seeks to remove the effect of one or more explanatory variables on a set of response variables prior to a standard RDA. This may be useful when well-characterised variables with strong effects obscure the effects of more interesting explanatory variables. This can be achieved with `vegan::capscale` and the use of `Condition(variable)` in the formula. Here we can try to remove the effect of donor microbiota + fermentation and see constrained ordination plot as well as the statistics.
+
+
+```{r, message = TRUE, warning = TRUE}
+physeq_1 %>% 
+  phyloseq_dbRDA(ps = .,
+                 dm = dm,
+                 forumla = " treatment_invivo + Condition(BW)",
+                 group_plot = "treatment_invivo",
+                 vec_ext = 0.4) -> dbRDA_test
+
+dbRDA_test$anova_all %>% 
+  mutate_if(is.numeric, round, 3) %>%
+  DT::datatable()
+
+```
+
+We can access the dbRDA object displaying constrained and unconstrained variations as well as conditioned:
+
+```{r, message = TRUE, warning = TRUE}
+dbRDA_test$dbRDA
+```
+
+We can access the constrained ordination plot:
+
+```{r, message = TRUE, warning = TRUE}
+dbRDA_test$plot2
+# can be fine tuned with ?ggord()
+```
+
+```{r, message = FALSE, warning = FALSE}
+dbRDA_test$anova_terms
+```
+
+Since treatment has an effect we can further investigate the pairwise comparisons accross levels of treatment:
+
+```{r, message = TRUE, warning = TRUE}
+
+# physeq_1 %>% 
+# phyloseq_pairwise_dbRDA(ps = .,
+#                         dm = dm,
+#                         RHS_formula = " treatment_invivo + Condition(BW)") -> pw_db_treat_cond
+# 
+# pw_db_treat_cond %>%
+#   mutate_if(is.numeric, round, 3) %>%
+#   DT::datatable()
+```
+
+
+```{r}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_beta.R") 
+```
+
+
 
 
 ### Miscellaneous:
@@ -1427,256 +1747,154 @@ phyloseq_correlate_taxa
 
 ```
 
-```{r}
-source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_alpha.R") 
 
-phyloseq_alphas
-
-plot_alphas
-
-correlate_alpha
-
-plot_taxa_abundances_over_time
-```
-
+### To explore:
 
 ```{r}
-source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_beta.R") 
-
-phyloseq_compute_bdiv
-
-phyloseq_plot_bdiv
-
-phyloseq_plot_PCoA_3d
-
-physeq_pairwise_permanovas_adonis2
-
-physeq_betadisper
-
-phyloseq_TW
-
-phyloseq_adonis_strata_perm
-
-phyloseq_adonis
-
-phyloseq_plot_ordinations_facet
-
-phyloseq_ordinations_expl_var
-
-phyloseq_distance_boxplot
-
-phyloseq_add_taxa_vector
-
-phyloseq_add_metadata_vector
-
-phyloseq_dbRDA
-
-phyloseq_pairwise_dbRDA
-
-phyloseq_plot_dbrda
-
-in_vitro_mIMT_STABvsTreat
-
-phyloseq_generate_pcoa_per_variables
-
-```
-
-## Compute beta-diversity matrices:
-
-*phyloseq_compute_bdiv* function compute all kind of beta diversity distances. If `phylo = TRUE,` it will also compute phylogenetic metrics -if you have a phylogenetic tree included in your phyloseq object - but will take **some** time.
-The idea is not to loose too much time exploring many distances, but on the other hand it can help to better understand the pattern and guide the analysis. The included distances are binary jaccard: bjaccard, weigthed jaccard: wjaccard, bray-curtis, un-weighted unifract: uunifrac, wunifrac and d_0 and d_0.5 from the generalized unifrac.
-
-```{r, warning = FALSE, message = FALSE}
-ps %>%
-  phyloseq_compute_bdiv(phylo = FALSE,
-                        seed = 123) -> dlist
-```
-
-## Compute ordinations:
-
-```{r, warning = FALSE, message = FALSE}
-phyloseq_plot_bdiv(dlist = dlist, # list of distance computed from a phyloseq object
-                   ps_rare = ps, # phyloseq object
-                   m = "PCoA", # PCoA or NMDS
-                   seed = 123, # for reproducibility
-                   axis1 = 1, # axis to plot
-                   axis2 = 2) -> plot_list
-```
-
-## Explore all the ordination plots:
-
-```{r}
-
-plot_list %>%
-  phyloseq_plot_ordinations_facet(color_group = "SampleType",
-                                  shape_group = NULL)
-
-```
-
-## Check %explained variance for all ordiantions:
-
-*phyloseq_ordinations_expl_var* generate 
-```{r, warning = FALSE,  message = FALSE}
-plot_list %>%
-  phyloseq_ordinations_expl_var() %>%
+physeq_1_rare %>% 
+  phyloseq_ntaxa_by_tax(TaxRank = "Genus",
+                        add_meta_data = FALSE) %>% 
+  arrange(-N.OTU) %>% 
   DT::datatable()
 ```
 
-## Distance plots:
+```{r}
+physeq_1 %>% 
+  phyloseq_coverage(., 
+                    correct_singletons = FALSE, 
+                    add_attr = T) %>% 
+  arrange(-SampleCoverage) %>% 
+  DT::datatable()
 
-Another way to visualize pairwise distance comparaison is to plot them as boxplot. The *phyloseq_distance_boxplot* performs all pairwise distance comparisons between the group in the facet header, with all of the other groups (including itself). Each boxplot is shown twice, once in each group. For example, "Mock" in the "Soil" facet has the same data has "Soil" in the "Mock" facet.
-
-Red is the within group comparisons, which is why it is typically lower distance compared to the black boxplots. There are some within group comparisons (for example in "feces") that are actually more distant than comparing across groups.
-
-```{r, message = FALSE, warning = FALSE}
-phyloseq_distance_boxplot(p = ps, # phyloseq object
-                          dist = dlist$wjaccard, # distance (computed with the phyloseq object)
-                          d = "SampleType") -> out # column in metadata for comparaisons
 ```
 
-The function generates the following plot:
-```{r, message = FALSE, warning = FALSE, fig.height=10, fig.width=10}
-out$plot + xlab(NULL) 
+```{r}
+physeq_1 %>%
+  phyloseq_coverage_raref(seeds = 123, multithread = TRUE)
+```
+
+```{r}
+physeq_1 %>%
+  phyloseq_effort_div()
+```
+
+```{r}
+# physeq_1 %>%
+#   phyloseq_effort_div_rangeplot(range = seq(from = 10, to = 100, by = 10),
+#                                 # range_type = "coverage",
+#                                 show_plot = TRUE)
+```
+
+```{r}
+# physeq_1 %>%
+#   metagMisc::phyloseq_mult_raref_dist(dissimilarity = "bray",
+#                            parallel = TRUE)
+```
+
+```{r}
+physeq_1 %>%
+  phyloseq_mult_raref_div(parallel = TRUE)
+```
+
+```{r}
+physeq_1 %>% 
+  phyloseq_phylo_div()
+```
+
+```{r}
+physeq_1 %>% 
+  phyloseq_phylo_ses()
 ```
 
 
-As well as the distance matrix that can be used for instance for other plots:
-```{r, message = FALSE, warning = FALSE}
-out$matrix %>%
+
+```{r}
+physeq_1 %>% 
+  phyloseq_sep_samp()
+```
+
+```{r}
+physeq_1 %>% 
+  phyloseq_sep_tax()
+```
+
+```{r}
+physeq_1 %>% 
+  phyloseq_standardize_otu_abundance()
+```
+
+
+```{r}
+physeq_1 %>% 
+  phyloseq_summary(., physeq_1_rare, more_stats = TRUE)
+```
+
+
+```{r}
+physeq_1 %>% 
+  phyloseq_taxonomy_imputation()
+```
+
+```{r}
+source("https://raw.githubusercontent.com/vmikk/metagMisc/master/R/phyloseq_taxonomic_resolution.R")
+
+physeq_1 %>% 
+  phyloseq_taxonomic_resolution()
+```
+
+```{r}
+physeq_1 %>% 
+  phyloseq_to_MetaCommunity() -> meta_out
+
+meta_out %>% 
+  str()
+```
+
+
+
+```{r}
+physeq_1 %>% 
+  phyloseq_get_strains() %>% 
+  physeq_glom_rename(rename_ASV = "Strain") %>% 
+  prevalence(count = TRUE, sort = TRUE) %>% 
   head()
-```
-## PERMANOVA
 
-### Perform PERMANOVA on all distances using lapply:
-
-A way to apply a function to a list is to use lapply. This is an example to run PERMANOVA (Adonis vegan function on a list of distances). We can test here if SampleType influences community distances:
-```{r, message = FALSE, warning = FALSE, fig.height=10, fig.width=10}
-lapply(
-  dlist,
-  FUN = phyloseq_adonis,
-  physeq = ps,
-  formula = paste0(c("SampleType"), collapse=" * "),
-  nrep = 999,
-  strata = FALSE
-) %>%
-  bind_rows(.id = "Distance") %>%
-  mutate_if(is.numeric, round, 3) %>%
-  # filter(! terms %in% (c("Residuals", "Total"))) %>%
-  DT::datatable()
+physeq_1 %>% nsamples()
 ```
 
-### run pairwise PERMANOVA on all distances:
-
-Since it is significant, we can run pairwise comparaisons to further investigate:
-```{r, message = FALSE, warning = FALSE}
-lapply(
-  dlist,
-  FUN = physeq_pairwise_permanovas,
-  physeq = ps,
-  compare_header = "SampleType",
-  n_perm = 999,
-  strat = FALSE
-) %>%
-  bind_rows(.id = "Distance") %>%
-  mutate_if(is.numeric, round, 3) %>%
-  # filter(! terms %in% (c("Residuals", "Total"))) %>%
-  DT::datatable()
-```
-
-We can also test for our numerical covariables using PERMANOVA:
-```{r, message = FALSE, warning = FALSE}
-lapply(
-  dlist,
-  FUN = phyloseq_adonis,
-  physeq = ps,
-  formula = paste0(c("CovarA","CovarB", "CovarE"), collapse=" + "), # usie * in order to investigate intereaction between covariables on the community
-  nrep = 999,
-  strata = FALSE # consider strata when running PERMANOVA on the same samples - e.g., over time.
-) %>%
-  bind_rows(.id = "Distance") %>%
-  mutate_if(is.numeric, round, 3) %>%
-  # filter(! terms %in% (c("Residuals", "Total"))) %>%
-  DT::datatable()
-```
-
-All the examples above using lapply, functions can be used on a specific distance. So here, we just focus on the Bray-Curtis distance from the distance list we have generated.
+<https://cran.r-project.org/web/packages/iNEXT/vignettes/Introduction.html>
 
 ```{r, message = FALSE, warning = FALSE}
-physeq_pairwise_permanovas(dm = dlist$bray,
-                           physeq = ps,
-                           compare_header = "SampleType",
-                           n_perm = 999,
-                           strat = FALSE) %>%
-  DT::datatable()
 
-```
+physeq_1 %>% 
+  phyloseq_get_strains() %>% 
+  physeq_glom_rename(rename_ASV = "Strain") %>% 
+  prepare_inext(., correct_singletons = F) -> inext
 
-### Betadisper test estimate variance homogeneity between groups. A significant p.value indicates differences in beta-diversity variability:
-Check here for more details <https://clubedaciencia.com.br/betadisper-and-adonis-homogeneity-of/> or `?vegan::betadisper`:
+inext %>% 
+  iNEXT::iNEXT(., q=c(0, 1, 2), 
+               datatype = "incidence_freq",
+               nboot = 2,
+               se = FALSE) -> out
 
-```{r, message = FALSE, warning = FALSE, fig.height=10, fig.width=10}
-lapply(
-  dlist,
-  FUN = physeq_betadisper,
-  physeq = ps,
-  variable = "SampleType"
-) %>%
-  bind_rows(.id = "Distance") %>%
-  mutate_if(is.numeric, round, 3) %>%
-  # filter(! terms %in% (c("Residuals", "Total"))) %>%
-  DT::datatable()
-```
-
-## db-RDA:
-
-Constrained ordination to detect how much of community variations is explained / correlated with covariables.
-See : <https://sites.google.com/site/mb3gustame/constrained-analyses/rda/dbrda>
-
-*phyloseq_dbRDA* takes a phyloseq object, a distance matrix and formula with the covariable(s) to test.
-```{r, warning = FALSE, message = FALSE}
-ps %>%
-  phyloseq_dbRDA(dist = dlist$wjaccard,
-                 forumla = paste0(c("CovarA", "CovarB", "CovarC", "CovarD"), collapse=" + ")) -> out
-```
-
-The function generates four outputs:
-1- the classic vegan dbRDA
-```{r, warning = FALSE, message = FALSE}
-
-out$dbRDA
-
-```
-
-2- the ordination plot:
-
-```{r, message = FALSE, warning= FALSE}
-out$plot
+out %>% 
+  iNEXT::ggiNEXT(., type=1, facet.var="site")
 ```
 
 
-3- the anova results to test the significance of the model overall:
 
-```{r, message = FALSE, warning= FALSE}
-out$anova_all %>%
-  DT::datatable()
-```
-4- the anova results testing the influence of each of the covaraibles:
 
-```{r, message = FALSE, warning= FALSE}
-out$anova_terms %>%
-  DT::datatable()
-```
 
 
 ```{r}
-physeq_1_st %>%
-  # subset_samples(PCR_plate != "P3" | sample_number > 30) %>%
-  prune_taxa(taxa =  taxa_sums(physeq_1_st) > 1000) %>%
-  subset_taxa(Phylum != "unknown" & Order %in% c("Clostridiales", "Bacteroidales")) %>%
-  # filter_taxa(function(x) sum(x) > 0, TRUE) %>%
-  rarefy_even_depth(sample.size = 1000, rngseed = 123)  %>%
-  tax_glom(taxrank = "Order") %>%
-  transform_sample_counts(function(x) x/sum(x) * 100)
+# physeq_1_st %>%
+#   # subset_samples(PCR_plate != "P3" | sample_number > 30) %>%
+#   prune_taxa(taxa =  taxa_sums(physeq_1_st) > 1000) %>%
+#   subset_taxa(Phylum != "unknown" & Order %in% c("Clostridiales", "Bacteroidales")) %>%
+#   # filter_taxa(function(x) sum(x) > 0, TRUE) %>%
+#   rarefy_even_depth(sample.size = 1000, rngseed = 123)  %>%
+#   tax_glom(taxrank = "Order") %>%
+#   transform_sample_counts(function(x) x/sum(x) * 100)
 ```
 
 
@@ -1687,9 +1905,12 @@ sessionInfo()
 ```
 
 
+
+
+
 # Alternative analysis approaches using user friendly platformes:
 
-If you do not have experience with `R` and you do not want to invest time learning it or you want basic descritpions of your data, the easiest way to proceed is to use user friendly interfaces. 
+If you do not have experience with `R` and you do not want to invest time learning it or you want basic descriptions of your data, the easiest way to proceed is to use user friendly interfaces. 
 There are several options:
 
 ## R-Shiny-interfaces:

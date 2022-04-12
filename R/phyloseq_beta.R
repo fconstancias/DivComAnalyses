@@ -532,7 +532,7 @@ physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat
 }
 
 
-physeq_pairwise_permanovas_adonis2 <- function(dm, physeq, compare_header, n_perm, strata, terms_margins = "terms") {
+physeq_pairwise_permanovas_adonis2 <- function(dm, physeq, compare_header, n_perm = 999, strata = "none", terms_margins = "terms") {
   
   require(vegan)
   
@@ -625,9 +625,15 @@ physeq_betadisper <- function(dm,
   
   
   vegan::permutest(vegan::betadisper(dm,
-                                     get_variable(physeq, variable)))$tab$`Pr(>F)`[1] -> out
+                                     get_variable(physeq, variable)))$tab$`Pr(>F)`[1] -> pval
   
-  return(out)
+  boxplot(vegan::betadisper(dm, 
+                     get_variable(physeq, variable)),las=2, 
+          main=paste0("Multivariate Dispersion Test "," pvalue = ", 
+                      vegan::permutest(betadisper(bc, get_variable(physeq, variable)))$tab$`Pr(>F)`[1])) -> plot
+  
+  return(out <- list("pval" = pval,
+                     "plot" = plot))
   
   
   detach("package:vegan", unload=TRUE)
@@ -657,18 +663,22 @@ physeq_betadisper <- function(dm,
 phyloseq_TW <- function(dm,
                         physeq = physeq,
                         variable = variable,
-                        nrep = nrep,
-                        strata = strata){
+                        nrep = 999,
+                        strata = NULL){
   
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] -> dm
   
   # source("https://raw.githubusercontent.com/alekseyenko/WdStar/master/Wd.R")
+  if(!is.null(strata)){strata = get_variable(physeq, strata)}
+  
   Tw2.posthoc.tests(dm = dm,
                     f = get_variable(physeq, variable),
                     nrep = nrep,
-                    strata = get_variable(physeq, strata)) %>%
-    data.frame() -> out
-  out$pvalFDR = p.adjust(out$p.value, method = "fdr")
+                    strata = strata) %>%
+    # as.data.frame.table() %>% 
+    as.data.frame.array() %>% 
+    mutate(pvalFDR = p.adjust(p.value, method = "fdr")) -> out
+  
   return(out)
 }
 
@@ -889,8 +899,9 @@ phyloseq_adonis_strata_perm <- function(dm,
 #'
 #'
 #'
+phyloseq_adonis <- phyloseq_adonis2
 
-phyloseq_adonis <- function(dm,
+phyloseq_adonis2 <- function(dm,
                             physeq = physeq,
                             formula = paste0(variables, collapse=" + "),
                             nrep = 999,
@@ -2447,7 +2458,7 @@ phyloseq_generate_pcoa_per_variables <- function(tmp,
       filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> filter_tmp
     
     filter_tmp %>%   
-      phyloseq_plot_bdiv(dlist = d_list,
+      phyloseq_plot_bdiv(dlist = dist,
                          seed = 123,
                          axis1 = 1,
                          axis2 = 2) -> out[[tp]]
@@ -2457,3 +2468,290 @@ phyloseq_generate_pcoa_per_variables <- function(tmp,
 }
 
 
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
+#' A column 'Stab_Treat' in your metadata should describe if samples were collected during the Stab or Treatment phase
+#' A column 'Period' in your metadata should describe the treatment Period / fermentation / repetition using same donor.
+#' A column 'Treatment' in your metadata should describe the Treatment applied.
+#' Only pairwise ratio will be computed for each ASV (or taxa if you specify tax_rank) within the same Treatment factors (Treatment metadata), within the same Period (Period metadata) and between TREAT vs STAB (Stab_Treat metadata, STAB is the reference)
+
+
+plot_ratio_Stab_Treat_taxa <- function(ps_new,
+                                       transform = "compositional", # percentage 0,1
+                                       tax_rank = "Genus",
+                                       taxa_sel = NULL, #to be implemented
+                                       detection = 0, # Detection threshold for absence/presence
+                                       prevalence = 0.20, # Prevalence threshold (in [0, 1]).
+                                       n_filter = 4, # Minimum number of ratio per ASV/Taxa to be kept : to plot - perform stats
+                                       meta_sel = c("sample_name","Stab_Treat", "Period", "Reactor","Timepoint", "Treatment","Period"), # selection of metadata to be exported with the data 
+                                       plot = TRUE,
+                                       stats = FALSE,
+                                       ref_group_stat = "NA",
+                                       to_remove = c("unknown", "Incertae Sedis")){
+  
+  #### ------------- get pairwise sample combinations
+  
+  ps_new %>%  
+    sample_names() %>% 
+    as.vector() -> samples_names
+  
+  tibble::tibble(Sample_A = samples_names,
+                 Sample_B = samples_names) %>% 
+    tidyr::expand(Sample_A, Sample_B) %>% 
+    dplyr::filter(Sample_A != Sample_B) -> sample_pw  # remove self comparaisons 
+  
+  #### ------------- transformation prevalence filtering - if no taconomic agglomeration
+  
+  if(is.null(tax_rank)){
+    
+    ps_new %>% 
+      microbiome::transform(transform = transform) %>% 
+      microbiome::core(., detection = detection, prevalence = prevalence ) -> ps_new
+    
+  }
+  #### ------------- Taxonomic agglomeration and transformation prevalence filtering
+  
+  if(!is.null(tax_rank)){
+    ps_new %>% 
+      speedyseq::tax_glom(taxrank = tax_rank) %>% 
+      microbiome::transform(transform = transform) %>% 
+      microbiome::core(., detection = detection, prevalence = prevalence ) -> ps_new
+    
+    prune_taxa(data.frame(tax_table(ps_new)[,tax_rank])   
+               %>%  dplyr::filter(!get(tax_rank) %in% to_remove) %>% rownames(),ps_new) -> ps_new
+    
+    taxa_names(ps_new) <-  tax_table(ps_new)[,tax_rank]
+    
+  } 
+  
+  #### ------------- Extracting metadata based on meta_sel parameter
+  
+  ps_new %>%
+    sample_data() %>% 
+    data.frame() %>% 
+    dplyr::select(one_of(meta_sel)) -> meta_data
+  
+  meta_data_A <- meta_data
+  meta_data_B <- meta_data
+  
+  names(meta_data_A) <- paste0(names(meta_data), "_A")
+  names(meta_data_B) <- paste0(names(meta_data), "_B")
+  
+  #### ------------- Joining metadata with pairwise sample comparaisons
+  
+  sample_pw %>% 
+    left_join(meta_data_A,
+              by = c("Sample_A" = "sample_name_A")) %>% 
+    left_join(meta_data_B,
+              by = c("Sample_B" = "sample_name_B")) %>% 
+    filter(Stab_Treat_A  %in% "STAB" & # Sample_A has to be STAB  (Stab_Treat_A colum)
+             Stab_Treat_B == "TREAT" & # and Sample_B has to be TREAT (Stab_Treat_B colum)
+             Period_A == Period_B, # and Period_A (of Sample_A has to be the same as the period of Sample_B - no between period ratios)
+           Treatment_A == Treatment_B) -> sample_pw_meta # only within treatment ratios 
+  
+  #### ------------- Exporting the OTU 'abundance' data
+  
+  ps_new %>%
+    speedyseq::psmelt() %>% 
+    dplyr::select(Sample, OTU, Abundance) -> data
+  
+  data_A <- data
+  data_B <- data
+  
+  names(data_A) <- paste0(names(data), "_A")
+  names(data_B) <- paste0(names(data), "_B")
+  
+  #### ------------- Joining OTU abundance with pairwise sample comparisons + metadata already filter above
+  
+  sample_pw_meta %>% 
+    left_join(.,
+              data_A,
+              by = c("Sample_A" = "Sample_A")) %>% 
+    left_join(.,
+              data_B,
+              by = c("Sample_B" = "Sample_B")) %>% 
+    dplyr::filter(OTU_A == OTU_B) %>% # only within 'OTU' ratio - could be Genus...
+    dplyr::mutate(ratio = Abundance_B  / Abundance_A ) %>%  # computing ratio
+    dplyr::mutate(log10_ratio = log10(ratio)) -> sample_pw_meta_tax
+  
+  #### -------------  
+  
+  sample_pw_meta_tax %>% 
+    dplyr::filter(is.finite(log10_ratio)) %>% 
+    group_by(Period_A, Reactor_A, Treatment_A, OTU_A) %>% 
+    add_count() %>% # select(n, OTU_A) 
+    filter(n() >= n_filter) %>% # keeping only OTU (Genus, ...) with at least n_filter pairwise comparaisons
+    ungroup() -> sample_pw_meta_tax_filt
+  
+  #### -------- plot
+  if(plot == TRUE){
+    
+    boxplot_ratio <- sample_pw_meta_tax_filt %>% 
+      ggplot(., aes(x = OTU_A, y = log10(ratio))) +
+      geom_boxplot(aes(color = Treatment_A, fill = Treatment_A),
+                   outlier.shape = NA,
+                   outlier.colour = NA,
+                   alpha = 0.4, position = position_dodge2(preserve = "single")) +
+      geom_point(aes(color = Treatment_A, shape = Period_A),
+                 alpha = 0.3, size  = 1.25,  position = position_jitterdodge(dodge.width = 0.8)) +
+      # facet_grid(. ~ OTU_A  , scales = "free") +
+      ylab(paste0("log10 ratio Treat/Stab")) + xlab(NULL) + #ylim(c(0,1)) +
+      theme_light() + #theme(legtheme(legend.position = "none") + 
+      ggpubr::rotate_x_text(45)  
+    
+    out <- list("df" = sample_pw_meta_tax,
+                "df_filtered" = sample_pw_meta_tax_filt,
+                "plot" = boxplot_ratio)
+  }
+  
+  #### -------- Stats
+  if(stats == TRUE){
+    
+    sample_pw_meta_tax_filt %>%
+      group_by(OTU_A, Period_A) %>%
+      rstatix::wilcox_test(log10_ratio ~ Treatment_A,
+                           data = . ) %>%  #,
+      # ref.group = "Control") %>% 
+      filter(group1 == !!ref_group_stat) %>% 
+      rstatix::adjust_pvalue(method = "fdr") %>%
+      rstatix::add_significance("p.adj") -> boxplot_ratio_stats
+    
+    out <- list("df" = sample_pw_meta_tax,
+                "df_filtered" = sample_pw_meta_tax_filt,
+                "plot" = boxplot_ratio,
+                "stats" = stats)
+  }
+  if(stats == FALSE & plot == FALSE){
+    out <- list("df" = sample_pw_meta_tax,
+                "df_filtered" = sample_pw_meta_tax_filt)
+  }
+  
+  
+  return(out)
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
+
+plot_ratio_Stab_Treat_meta <- function(ps_new,
+                                       meta_sel = c("sample_name","Stab_Treat", "Period", "Reactor","Timepoint", "Treatment","Period"), 
+                                       meta_plot = "Clostridium.perfringens",
+                                       plot = TRUE,
+                                       stats = FALSE,
+                                       ref_group_stat = "NA"){
+  
+  #### ------------- get pairwise sample combinations
+  
+  ps_new %>%  
+    sample_names() %>% 
+    as.vector() -> samples_names
+  
+  tibble::tibble(Sample_A = samples_names,
+                 Sample_B = samples_names) %>% 
+    tidyr::expand(Sample_A, Sample_B) %>% 
+    dplyr::filter(Sample_A != Sample_B) -> sample_pw  # remove self comparaisons 
+  
+  #### ------------- Extracting metadata based on meta_sel parameter
+  
+  ps_new %>%
+    sample_data() %>% 
+    data.frame() %>% 
+    dplyr::select(one_of(meta_sel, meta_plot)) %>% 
+    dplyr::rename(meta_plot = all_of(meta_plot)) -> meta_data
+  
+  meta_data_A <- meta_data
+  meta_data_B <- meta_data
+  
+  names(meta_data_A) <- paste0(names(meta_data), "_A")
+  names(meta_data_B) <- paste0(names(meta_data), "_B")
+  
+  #### ------------- Joining metadata with pairwise sample comparaisons
+  
+  sample_pw %>% 
+    left_join(meta_data_A,
+              by = c("Sample_A" = "sample_name_A")) %>% 
+    left_join(meta_data_B,
+              by = c("Sample_B" = "sample_name_B")) %>% 
+    filter(Stab_Treat_A  %in% "STAB" & # Sample_A has to be STAB  (Stab_Treat_A colum)
+             Stab_Treat_B == "TREAT" & # and Sample_B has to be TREAT (Stab_Treat_B colum)
+             Period_A == Period_B, # and Period_A (of Sample_A has to be the same as the period of Sample_B - no between period ratios)
+           Treatment_A == Treatment_B) -> sample_pw_meta # only within treatment ratios 
+  
+  #### ------------- Joining OTU abundance with pairwise sample comparisons + metadata already filter above
+  sample_pw_meta %>% 
+    dplyr::mutate(ratio = meta_plot_A / meta_plot_B) %>%  # computing ratio
+    dplyr::mutate(log10_ratio = log10(ratio)) -> sample_pw_meta
+  
+  #### -------------  
+  
+  # sample_pw_meta %>%
+  #   dplyr::filter(is.finite(log10_ratio)) %>%
+  #   group_by(Period_A, Reactor_A, Treatment_A, meta_plot_A) %>%
+  #   add_count() %>% # select(n, OTU_A)
+  #   filter(n() >= n_filter) %>% # keeping only OTU (Genus, ...) with at least n_filter pairwise comparaisons
+  #   ungroup() -> sample_pw_meta_filt
+  
+  #### -------- plot
+  if(plot == TRUE){
+    
+    boxplot_ratio <- sample_pw_meta %>% 
+      ggplot(., aes(x = Treatment_A, y = log10(ratio))) +
+      geom_boxplot(aes(color = Treatment_A, fill = Treatment_A),
+                   outlier.shape = NA,
+                   outlier.colour = NA,
+                   alpha = 0.4, position = position_dodge2(preserve = "single")) +
+      geom_point(aes(color = Treatment_A, shape = Period_A),
+                 alpha = 0.3, size  = 1.25,  position = position_jitterdodge(dodge.width = 0.8)) +
+      # facet_grid(. ~ OTU_A  , scales = "free") +
+      ylab(paste0("log10 ratio Treat/Stab ", meta_plot)) + xlab(NULL) + #ylim(c(0,1)) +
+      theme_light() + #theme(legtheme(legend.position = "none") + 
+      ggpubr::rotate_x_text(45)  
+    
+    out <- list("df" = sample_pw_meta,
+                "plot" = boxplot_ratio)
+  }
+  
+  #### -------- Stats
+  if(stats == TRUE){
+    
+    sample_pw_meta %>%
+      group_by(meta_plot_A, Period_A) %>%
+      rstatix::wilcox_test(log10_ratio ~ Treatment_A,
+                           data = . ) %>%  #,
+      # ref.group = "Control") %>% 
+      filter(group1 == !!ref_group_stat) %>% 
+      rstatix::adjust_pvalue(method = "fdr") %>%
+      rstatix::add_significance("p.adj") -> boxplot_ratio_stats
+    
+    out <- list("df" = sample_pw_meta,
+                "plot" = boxplot_ratio,
+                "stats" = stats)
+  }
+  if(stats == FALSE & plot == FALSE){
+    out <- list("df" = sample_pw_meta)
+  }
+  
+  
+  return(out)
+}
