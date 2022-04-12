@@ -1,7 +1,7 @@
 ---
-title: ' Test dataset preparation 2022-03-22'
+title: ' Test dataset preparation 2022-04-12'
 author: "Florentin CONSTANCIAS"
-date: "2022-03-22"
+date: "2022-04-12"
 output:
   html_document: 
     toc: yes
@@ -38,14 +38,14 @@ require(tidyverse); packageVersion("tidyverse")
 ```
 
 ```
-## ── Attaching packages ────────────────────────────────── tidyverse 1.3.1.9000 ──
+## ── Attaching packages ─────────────────────────────────────── tidyverse 1.3.1 ──
 ```
 
 ```
 ## ✓ ggplot2 3.3.5     ✓ purrr   0.3.4
-## ✓ tibble  3.1.6     ✓ dplyr   1.0.8
-## ✓ tidyr   1.2.0     ✓ stringr 1.4.0
-## ✓ readr   2.1.2     ✓ forcats 0.5.1
+## ✓ tibble  3.1.6     ✓ dplyr   1.0.7
+## ✓ tidyr   1.1.4     ✓ stringr 1.4.0
+## ✓ readr   2.0.1     ✓ forcats 0.5.1
 ```
 
 ```
@@ -712,6 +712,7 @@ ps_poly %>%
 
 ```r
 ps_poly %>% 
+  filter_taxa(function(x) sum(x > 0) > 0, TRUE) %>% 
   saveRDS("~/Documents/GitHub/DivComAnalyses/data-raw/ps_PolyFermS.RDS")
 ```
 
@@ -10359,7 +10360,6 @@ ps_invivo %>%
                                     `Eubiotic` = "TreatA",
                                     `Dysbiotic` = "TreatB",
                                     `DSS` = "TreatC")) -> sample_data(ps_invivo)
-
 ps_invivo %>% 
   sample_data() %>% 
   data.frame()
@@ -10955,6 +10955,7 @@ ps_invivo %>%
 
 ```r
 ps_invivo %>% 
+    filter_taxa(function(x) sum(x > 0) > 0, TRUE) %>% 
   saveRDS("~/Documents/GitHub/DivComAnalyses/data-raw/ps_invivo.RDS")
 ```
 
@@ -10963,13 +10964,13 @@ sessionInfo()
 ```
 
 ```
-## R version 4.1.2 (2021-11-01)
+## R version 4.0.2 (2020-06-22)
 ## Platform: x86_64-apple-darwin17.0 (64-bit)
-## Running under: macOS Mojave 10.14.6
+## Running under: macOS High Sierra 10.13.6
 ## 
 ## Matrix products: default
-## BLAS:   /Library/Frameworks/R.framework/Versions/4.1/Resources/lib/libRblas.0.dylib
-## LAPACK: /Library/Frameworks/R.framework/Versions/4.1/Resources/lib/libRlapack.dylib
+## BLAS:   /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRblas.dylib
+## LAPACK: /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRlapack.dylib
 ## 
 ## locale:
 ## [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
@@ -10978,41 +10979,38 @@ sessionInfo()
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
 ## other attached packages:
-##  [1] phyloseq_1.36.0      forcats_0.5.1        stringr_1.4.0       
-##  [4] dplyr_1.0.8          purrr_0.3.4          readr_2.1.2         
-##  [7] tidyr_1.2.0          tibble_3.1.6         ggplot2_3.3.5       
-## [10] tidyverse_1.3.1.9000
+##  [1] phyloseq_1.34.0 forcats_0.5.1   stringr_1.4.0   dplyr_1.0.7    
+##  [5] purrr_0.3.4     readr_2.0.1     tidyr_1.1.4     tibble_3.1.6   
+##  [9] ggplot2_3.3.5   tidyverse_1.3.1
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] nlme_3.1-155           bitops_1.0-7           fs_1.5.2              
-##  [4] lubridate_1.8.0        httr_1.4.2             GenomeInfoDb_1.28.4   
-##  [7] tools_4.1.2            backports_1.4.1        bslib_0.3.1           
-## [10] vegan_2.5-7            utf8_1.2.2             R6_2.5.1              
-## [13] mgcv_1.8-38            DBI_1.1.2              BiocGenerics_0.38.0   
-## [16] colorspace_2.0-2       permute_0.9-7          rhdf5filters_1.4.0    
-## [19] ade4_1.7-18            withr_2.4.3            tidyselect_1.1.1      
-## [22] compiler_4.1.2         cli_3.2.0              rvest_1.0.2           
-## [25] Biobase_2.52.0         xml2_1.3.3             sass_0.4.0            
-## [28] scales_1.1.1           digest_0.6.29          rmarkdown_2.13        
-## [31] XVector_0.32.0         pkgconfig_2.0.3        htmltools_0.5.2       
-## [34] dbplyr_2.1.1           fastmap_1.1.0          rlang_1.0.1           
-## [37] readxl_1.3.1           rstudioapi_0.13        jquerylib_0.1.4       
-## [40] generics_0.1.2         jsonlite_1.7.3         RCurl_1.98-1.6        
-## [43] magrittr_2.0.2         GenomeInfoDbData_1.2.6 biomformat_1.20.0     
-## [46] Matrix_1.4-0           Rcpp_1.0.8             munsell_0.5.0         
-## [49] S4Vectors_0.30.2       Rhdf5lib_1.14.2        fansi_1.0.2           
-## [52] ape_5.6-1              lifecycle_1.0.1        stringi_1.7.6         
-## [55] yaml_2.2.2             MASS_7.3-55            zlibbioc_1.38.0       
-## [58] rhdf5_2.36.0           plyr_1.8.6             grid_4.1.2            
-## [61] parallel_4.1.2         crayon_1.5.0           lattice_0.20-45       
-## [64] splines_4.1.2          Biostrings_2.60.2      haven_2.4.3           
-## [67] multtest_2.48.0        hms_1.1.1              knitr_1.37            
-## [70] pillar_1.7.0           igraph_1.2.11          reshape2_1.4.4        
-## [73] codetools_0.2-18       stats4_4.1.2           reprex_2.0.1          
-## [76] glue_1.6.1             evaluate_0.14          data.table_1.14.2     
-## [79] modelr_0.1.8           vctrs_0.3.8            tzdb_0.2.0            
-## [82] foreach_1.5.2          cellranger_1.1.0       gtable_0.3.0          
-## [85] assertthat_0.2.1       xfun_0.30              broom_0.7.12          
-## [88] survival_3.2-13        iterators_1.0.14       IRanges_2.26.0        
-## [91] cluster_2.1.2          ellipsis_0.3.2
+##  [1] nlme_3.1-152        fs_1.5.2            lubridate_1.8.0    
+##  [4] httr_1.4.2          tools_4.0.2         backports_1.4.1    
+##  [7] bslib_0.2.5.1       vegan_2.5-7         utf8_1.2.2         
+## [10] R6_2.5.1            mgcv_1.8-36         DBI_1.1.1          
+## [13] BiocGenerics_0.34.0 colorspace_2.0-2    permute_0.9-5      
+## [16] ade4_1.7-17         withr_2.4.3         tidyselect_1.1.1   
+## [19] compiler_4.0.2      cli_3.1.0           rvest_1.0.1        
+## [22] Biobase_2.50.0      xml2_1.3.2          sass_0.4.1         
+## [25] scales_1.1.1        digest_0.6.29       rmarkdown_2.13     
+## [28] XVector_0.28.0      pkgconfig_2.0.3     htmltools_0.5.2    
+## [31] dbplyr_2.1.1        fastmap_1.1.0       rlang_1.0.2        
+## [34] readxl_1.3.1        rstudioapi_0.13     jquerylib_0.1.4    
+## [37] generics_0.1.1      jsonlite_1.8.0      magrittr_2.0.3     
+## [40] biomformat_1.16.0   Matrix_1.3-4        Rcpp_1.0.7         
+## [43] munsell_0.5.0       S4Vectors_0.26.1    Rhdf5lib_1.10.1    
+## [46] fansi_0.5.0         ape_5.5             lifecycle_1.0.1    
+## [49] stringi_1.7.6       yaml_2.3.5          MASS_7.3-54        
+## [52] zlibbioc_1.34.0     rhdf5_2.32.4        plyr_1.8.6         
+## [55] grid_4.0.2          parallel_4.0.2      crayon_1.4.2       
+## [58] lattice_0.20-44     splines_4.0.2       Biostrings_2.56.0  
+## [61] haven_2.4.3         multtest_2.44.0     hms_1.1.0          
+## [64] knitr_1.38          pillar_1.6.4        igraph_1.2.6       
+## [67] reshape2_1.4.4      codetools_0.2-18    stats4_4.0.2       
+## [70] reprex_2.0.1        glue_1.6.2          evaluate_0.14      
+## [73] data.table_1.14.2   modelr_0.1.8        vctrs_0.3.8        
+## [76] tzdb_0.1.2          foreach_1.5.1       cellranger_1.1.0   
+## [79] gtable_0.3.0        assertthat_0.2.1    xfun_0.30          
+## [82] broom_0.7.11        survival_3.2-13     iterators_1.0.13   
+## [85] IRanges_2.22.2      cluster_2.1.2       ellipsis_0.3.2
 ```

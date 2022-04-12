@@ -68,6 +68,7 @@ ps_poly %>%
 
 ```{r}
 ps_poly %>% 
+  filter_taxa(function(x) sum(x > 0) > 0, TRUE) %>% 
   saveRDS("~/Documents/GitHub/DivComAnalyses/data-raw/ps_PolyFermS.RDS")
 ```
 
@@ -174,13 +175,13 @@ ps_invivo %>%
                                     `Eubiotic` = "TreatA",
                                     `Dysbiotic` = "TreatB",
                                     `DSS` = "TreatC")) -> sample_data(ps_invivo)
-
 ps_invivo %>% 
   sample_data() %>% 
   data.frame()
 ```
 ```{r}
 ps_invivo %>% 
+    filter_taxa(function(x) sum(x > 0) > 0, TRUE) %>% 
   saveRDS("~/Documents/GitHub/DivComAnalyses/data-raw/ps_invivo.RDS")
 ```
 ```{r, message = FALSE, warning= FALSE}
