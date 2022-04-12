@@ -278,13 +278,13 @@ physeq_simplify_tax <- function(ps, tax_sel, round_otu = FALSE){
 #'
 #'#'library(phyloseq)
 #'data("GlobalPatterns")
-#'GlobalPatterns %>%  physeq_glom_rename(rename_ASV_highest = TRUE) %>%  taxa_names()
+#'GlobalPatterns %>%  physeq_glom_rename(taxrank = "Family") %>%  taxa_names()
 
 
 physeq_glom_rename <- function(phyloseq,
                                speedyseq = FALSE,
                                taxrank = FALSE,
-                               rename_ASV_highest = FALSE,
+                               rename_ASV = taxrank,
                                taxnames_rm = c("unknown", "Incertae Sedis")){
   
   ##---------------------------------------------
@@ -300,13 +300,13 @@ physeq_glom_rename <- function(phyloseq,
                  dplyr::filter(!get(taxrank) %in% taxnames_rm) %>% rownames(),
                phyloseq) -> phyloseq
     
-    taxa_names(phyloseq) <-  tax_table(phyloseq)[,taxrank]
+    # taxa_names(phyloseq) <-  tax_table(phyloseq)[,taxrank]
     
   }
   
-  if (rename_ASV_highest != FALSE){
+  if (rename_ASV != FALSE){
     
-    taxa_names(phyloseq) <-  tax_table(phyloseq)[,rank_names(phyloseq)[length(rank_names(phyloseq))]]
+    taxa_names(phyloseq) <-  tax_table(phyloseq)[,rename_ASV]
   }
   
   ##---------------------------------------------
