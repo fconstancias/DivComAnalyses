@@ -14,13 +14,18 @@ coverage](https://codecov.io/gh/fconstancias/DivComAnalyses/branch/master/graph/
 <!-- badges: end -->
 
 The goal of DivComAnalyses is to facilitate community analysis (e.g.,
-16S community metabarcoding, metaphlan taxonomic profiles from
+16S community metabarcoding, metaphlan taxonomic profiling from
 metagenomes). In data filtering (i.e., potential contaminants identified
-using decontam R package), help in normalizing data (i.e., 16S qPCR
-normalization), generate phylogenetic and taxonomic alpha-diversity
-metrics, visualize community composition and structure using ordination,
-facilitate statistical analysis based on DEseq2, ALDex, vegan R
-packages.
+using decontam R package), in normalizing data (i.e., 16S qPCR
+normalization), generate phylogenetic and taxonomic alpha and
+beta-diversity metrics, visualize community composition and structure
+using unconstrained and constrained ordination, facilitate statistical
+analysis based on DEseq2, ALDex2, vegan R packages.
+
+## Tutorial
+
+You can find the latest version of the tutorial
+[here](http://htmlpreview.github.io/?https://github.com/fconstancias/DivComAnalyses/blob/master/Tutorial/Microbiome_R_tutorial.html).
 
 ## Installation
 
