@@ -25,7 +25,7 @@ analysis based on DEseq2, ALDex2, vegan R packages.
 ## Tutorial
 
 You can find the latest version of the tutorial
-[here](http://htmlpreview.github.io/?https://github.com/fconstancias/DivComAnalyses/blob/cb5589a6b9dd4b054ddfdadb24445b799638e8d5/SOP/community_analyses/Microbiome_R_tutorial.html).
+[here](http://htmlpreview.github.io/?https://github.com/fconstancias/DivComAnalyses/blob/master/SOP/community_analyses/Microbiome_R_tutorial.html).
 
 ## Installation
 
@@ -34,6 +34,6 @@ You will need to source the `R` files where the functions are defined -
 see Tutorial.
 
 ``` r
-# install.packages("devtools")
-devtools::install_github("fconstancias/DivComAnalyses")
+## install.packages("devtools")
+#devtools::install_github("fconstancias/DivComAnalyses")
 ```
