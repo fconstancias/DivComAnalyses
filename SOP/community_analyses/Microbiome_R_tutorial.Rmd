@@ -1,0 +1,2237 @@
+
+---
+title: "Microbial community analysis using R and phyloseq"
+author: "Florentin Constancias"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    self_contained: true
+    thumbnails: true
+    lightbox: true
+    gallery: true
+    use_bookdown: false
+    highlight: haddock
+    toc_depth: 4
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+This document is a guideline for community analysis using `R`, [Phyloseq](https://joey711.github.io/phyloseq/), [microbiome](http://microbiome.github.io/microbiome/), [vegan](https://cran.r-project.org/web/packages/vegan/vignettes/intro-vegan.pdf), [ggplot2](http://ggplot2.org/), [tidyverse](https://www.tidyverse.org/) and custom made functions to facilitate the analyses and visualization stored under the [DivComAnalyses](https://github.com/fconstancias/DivComAnalyses) repository.
+
+We recommend using post-clustering approach for processing raw metabarcoding data and developed an `R` friendly pipeline named [metabaRpipe](https://github.com/fconstancias/metabaRpipe). 
+
+The learning curve of `R` might be a bit steep but analyzing your metabarcoding data will give you access to state-of-the art approaches - developed in `R` before getting integrated into user friendly pipelines. Moreover, you will be then able to apply your R skills to any other type of data.
+
+```{r, include=FALSE, eval=TRUE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(eval = TRUE)
+knitr::opts_chunk$set(fig.align='center')
+
+# require(tidyverse)
+rm(list = ls())
+```
+# Resources:
+
+## Commnuity ecology:
+* [Lecture from Mahendra Mariadassou](https://www.gdc-docs.ethz.ch/MDA/handouts/MDA20_PhyloseqFormation_Mahendra_Mariadassou.pdf) including `phyloseq` R package (`slides 4 - 61`) and community ecology concepts (`slides 62 to 156`) 
+* [GustaMe website](https://mb3is.megx.net/gustame)
+* [Ramette A. Multivariate analyses in microbial ecology. FEMS Microbiol Ecol. 2007 Nov;62(2):142-60. doi: 10.1111/j.1574-6941.2007.00375.x. Epub 2007 Sep 20. PMID: 17892477; PMCID: PMC2121141.](https://pubmed.ncbi.nlm.nih.gov/17892477/)
+* This tutorial.
+
+## R:
+
+* [installing R packages](https://r-coder.com/install-r-packages/)
+* [R introduction](https://datacarpentry.org/R-ecology-lesson/01-intro-to-r.html)
+* [R and the tidyverse](https://datacarpentry.org/R-ecology-lesson/03-dplyr.html)
+* [R and the ggplot2 gramar of graphics](https://datacarpentry.org/R-ecology-lesson/04-visualization-ggplot2.html)
+
+
+# Getting ready:
+
+## Install R/ Rstudio:
+
+Install R/ Rstudio from the ETH AppV Kiosk or following the instructions [here](https://rstudio-education.github.io/hopr/starting.html). It is *important* to start with an up to date `R` version otherwise you will likely not been able to install the necessary packages and use the functions. 
+
+## Install the required packages:
+
+### MAC:
+
+Mac: Install Xcode from the Mac App Store.
+
+```{r, eval=FALSE}
+#devtools
+install.packages("devtools")
+devtools::install_github("hadley/devtools")
+
+#tidyverse
+devtools::install_github("tidyverse/tidyverse")
+
+#phyloseq
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+BiocManager::install("phyloseq")
+```
+
+### Windows:
+
+Windows: Install [Rtools](https://cran.r-project.org/bin/windows/Rtools/)
+```{r, eval=FALSE}
+# devtools
+install.packages("devtools")
+devtools::install_github("hadley/devtools")
+
+#tidyverse
+devtools::install_github("tidyverse/tidyverse")
+
+#phyloseq
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+BiocManager::install("phyloseq")
+```
+
+## Load the necessary packages:
+
+`Tidyverse` and `phyloseq` are the two main packages we are going to use but the functions we will source later will require additional packages you would need to install.
+
+```{r, warning= FALSE}
+library(tidyverse); packageVersion("tidyverse")
+library(phyloseq); packageVersion("phyloseq")
+```
+
+# Getting familiar with `R` & `phyloseq`:
+
+## Data import:
+
+We are going to illustrate some functions using two different datasets generated in the group and processed with the `metabaRpipe` pipeline. Those files are located under the [Github repository](https://github.com/fconstancias/DivComAnalyses/tree/master/data-raw). You can download those directly https://github.com/fconstancias/DivComAnalyses/raw/master/data-raw/ps_invivo.RDS.
+
+
+Mice were subjected with different treatments and 16S metabarcoding was use to describe feces level changes in the microbiota `ps_invivo.RDS`.
+
+Define the phyloseq object's location: 
+
+```{r}
+ps1 = "../../data-raw/ps_invivo.RDS"
+```
+
+Load the phyloseq object:
+
+```{r}
+ps1 %>% # ps object wich is path of our physeq file on our computer
+  readRDS() -> physeq_1  # the readRDS function and then it is directed/stored to a R object we named physeq
+```
+
+### The different facets of the phyloseq object:
+
+Call the phyloseq object:
+
+```{r}
+physeq_1
+```
+
+
+The dataset contains 3704 taxa, ASV and recorded in 116 samples `otu_table()` and 26 variables as metadata `sample_data()`. There are 7 levels in the taxonomic path of those ASV and `tax_table()` an ASV phylogenetic tree is stored `phy_tree()` in addition to the sequences `refseq()`
+
+The different facets of the data can be easily access:
+
+OTU/ASV table:
+
+```{r}
+
+physeq_1 %>%
+  otu_table() %>%
+  head() # print only the first few rows
+
+```
+
+N.B.: OTU (Operational Taxonomic Unit)can cover a lot of things including bands on a DGGE profile to OTU based on sequence similarity threshold or ASV. ASV (Amplicon Sequence Variant) is an type of OTU generated using post clustering approaches. See [here](https://www.nature.com/articles/ismej2017119), [here](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0264443) or [there](https://github.com/benjjneb/dada2/issues/62) for more details.
+
+Check the tax table:
+
+```{r}
+
+physeq_1 %>%
+  tax_table() %>%
+  head() # print only the first few rows
+
+```
+
+Our phyloseq object has a 'Strain' taxonomic information we created - know taxonomical information at highest level + ASV id
+
+```{r}
+
+physeq_1 %>%
+  tax_table() %>%
+  head()# print only the first few rows
+
+```
+
+N.B.: I prefer to use tydiverse's pipe: %>% which makes the code more readable as compared to classical R.
+For more info: <https://dplyr.tidyverse.org/> & <https://rstudio.com/resources/cheatsheets/>
+
+Which is similar to:
+
+```{r}
+head(tax_table(physeq_1))
+```
+
+Check nucleotide sequences of the ASV:
+
+```{r}
+physeq_1 %>%
+  refseq()
+```
+
+
+Check the metadata:
+
+```{r}
+physeq_1 %>%
+  sample_variables()
+```
+
+
+```{r}
+physeq_1 %>%
+  sample_data() %>%
+  head() # print only the first few rows
+```
+
+The `phyloseq` package has also some useful functions:
+
+For instance to access sample names:
+
+```{r}
+physeq_1 %>%
+  sample_names() %>%
+  head() # print only the first few rows
+```
+
+which is similar to:
+
+```{r}
+physeq_1 %>%
+  otu_table() %>%
+  colnames() %>%
+  head() # print only the first few rows
+```
+
+Some checks:
+
+First top samples with highest highest total number of reads.
+
+```{r}
+physeq_1 %>%
+  sample_sums() %>%
+  sort(decreasing = TRUE) %>%
+  head()
+```
+
+First top ASV with highest highest total number of reads:
+
+```{r}
+physeq_1 %>%
+  taxa_sums() %>%
+  sort(decreasing = TRUE) %>%
+  head()
+```
+
+Getting help on a particular function:
+
+```{r, eval=FALSE}
+?taxa_sums() 
+taxa_sums
+# then google
+# then R package manual
+# then ... colleague/ researchgate
+```
+
+## Manipulating a phyloseq object:
+
+Filtering, subseting samples or OTU based on metadata, taxonomy, abundance and prevalence is very easy in phyloseq:
+
+## Filtering:
+### prune_taxa() prune_samples():
+
+Two functions which prunes unwanted taxa/samples from a phyloseq object based on a vector of taxa to keep:
+
+```{r}
+#Create a logical vector answering the logical question: does the ASV represent more than 10 reads in total?
+
+physeq_1 %>%
+  taxa_sums() > 10 -> taxa_top
+
+#taxa_top is indeed a logical vector
+
+taxa_top %>%
+  head()
+```
+
+```{r}
+#filter the physeq object based on that vector
+
+physeq_1 %>%
+  prune_taxa(taxa = taxa_top) -> physeq_1_filtered
+```
+
+Note that all the data in our physeq_filtered object has been filtered: `otu_table()`, `tax_table()`, `refseq()`, ...
+
+```{r}
+physeq_1
+```
+
+```{r}
+physeq_1_filtered
+```
+
+It is also possible to filter based on mean proportion, prevalence, variation coefficient:
+
+```{r}
+sum_filter = 10
+prev_filter = 1
+varcoef_filter = 2
+mean_filter = 10
+
+physeq_1  %>%
+  filter_taxa(., function(x){mean(x) > mean_filter}, TRUE)
+
+physeq_1  %>%
+  filter_taxa(., function(x){sum(x > sum_filter) > 1}, prune = TRUE)
+
+physeq_1  %>%
+  filter_taxa(function(x) sd(x)/mean(x) > varcoef_filter, TRUE)
+```
+
+### subset_taxa() subset_samples()
+
+Those functions subsets unwanted taxa/samples from a phyloseq object based on conditions that must be met:
+
+Keep only OTU belonging to Firmicutes Phyla:
+
+```{r}
+physeq_1 %>%
+  subset_taxa(Phylum == "Firmicutes")
+```
+
+Keep only samples from treatment A and no treatment to our metadata:
+
+```{r}
+physeq_1 %>%
+  subset_samples(treatment_invivo %in% c("TreatA"))
+```
+
+Keep only samples from treatment A and no treatment to our metadata:
+
+```{r}
+physeq_1 %>%
+  subset_samples(treatment_invivo %in% c("TreatA", "none"))
+```
+
+Keep only samples which are not defined by "none" in the "treatment_invivo" metadata:
+
+```{r}
+physeq_1 %>%
+  subset_samples(treatment_invivo != "none") # != different from
+```
+
+Keep only samples which are not defined by "none" in the "treatment_invivo" metadata and with samples with BW values > 20:
+
+```{r}
+physeq_1 %>%
+  subset_samples(treatment_invivo != "none" &  BW  > 20 ) # | = or, & = AND
+```
+
+## updating the metadata:
+
+Most of the time we fine tune the metadata along the analysis process, `physeq_add_metadata()` helps to quickly change the metadata of a phyloseq object. Below an example using an excel file directly. The `sample_column` defines the column in the external file to be use to link with the `sample_names()` of the phyloseq object.
+
+```{r}
+source("https://raw.githubusercontent.com/fconstancias/metabaRpipe/master/Rscripts/functions.R")
+
+physeq_1 %>%
+  physeq_add_metadata(physeq = .,
+                      metadata = "../../data-raw/ps_invivo_meta.xlsx" %>%
+                        readxl::read_xlsx(),
+                      sample_column = "Sample") -> physeq_1_new_meta
+
+physeq_1_new_meta %>% 
+  sample_data() %>% 
+  data.frame() %>% 
+  DT::datatable()
+```
+
+## Smoothing taxonomical information:
+### ASV taxonomic agglomeration:
+
+ASV obtained 16S V4 metabarcoding are mostly defined from a taxonomic perspective at the Family/ Genus. 
+
+```{r}
+tax_table(physeq_1)[,c("Family","Genus","Species")] %>% 
+  head()
+```
+
+The function `tax_glom()` agglomerates ASV at a given taxonomic level. Finer taxonomic information is lost even if ASV id `e.g., ASV0002` is maintained.
+
+Agglomerate taxonomy at the Family level:
+
+```{r}
+physeq_1 %>%
+  tax_glom(taxrank = "Family") %>% 
+  tax_table() %>% 
+  head()
+```
+
+### Maxiumum ASV resolution taxonomic assignments:
+
+Agglomerated dataset at a particular taxonomic rank might be of interest for specific analysis or also to summarize the taxonomic profile at a broader level. It is also meaningful to know the highest taxonomic definition of the ASV. We can do that using the function `phyloseq_get_strains()`
+
+We first need to source the function from the `DivComAnalyses` repository. Those function can be accessed from your [internet browser](https://github.com/fconstancias/DivComAnalyses/blob/adeebb2f575cd3c033b88268a5827fabee717e7a/R/phyloseq_taxa_tests.R).
+
+```{r, warning = FALSE, message = FALSE}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_normalisation.R") 
+```
+
+Apply the function:
+
+```{r}
+physeq_1 %>% 
+  phyloseq_get_strains()  -> physeq_1_st
+```
+
+We now have the a new `Strain` taxonomic rank which summarizes the taxonomic path:
+
+```{r}
+physeq_1_st %>% 
+  tax_table() %>% 
+  head()
+```
+
+### Additional functions related to taxonomic information:
+
+`physeq_glom_rename()` agglomerate the table at a specific level and rename taxa id accordingly while keeping the rest of the table:
+
+```{r, warning=FALSE, message=FALSE}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_varia.R")  # source the functions from github.
+
+physeq_1_st %>% 
+  physeq_glom_rename(taxrank = "Family") %>%
+  tax_table() %>% 
+  head()
+```
+
+`speedyseq` R package can be used to speed the process:
+
+```{r, warning=FALSE, message=FALSE}
+physeq_1_st %>% 
+  physeq_glom_rename(taxrank = "Strain", 
+                     speedyseq = TRUE) -> physeq_1_st
+
+physeq_1_st %>% # uses speedyseq R package which significantly speeds up some steps.
+  tax_table() %>% 
+  head()
+```
+
+This so-called 'Strain' level allows to pinpoint ASV assigned to the same species, or ASV potentially playing an important role in the community without high-level taxonomic assignments.
+
+## Count transformation:
+
+Metabarcoding data are count data with two important properties: `sparcitiy` (i.e., there are usually a lot of 0) and `compositionality` (i.e., number of sequences assigned to taxa/ASV are linked to the total number of sequences per sample which is arbitrary: imposed by the instrument and the library preparation method but do not indicate any density) - see [here]() or [there]() for more details. 
+
+The information stored in the `otu_table()` is counts data.
+
+```{r}
+physeq_1 %>% 
+  otu_table() %>% 
+  head()
+```
+
+And the total number of sequences per samples varies and is not an indication of any absolute quantification.
+
+```{r}
+physeq_1 %>% 
+  sample_sums() %>% 
+  head()
+```
+
+We can transform the count data in the `otu_table()` into other type of data.
+
+```{r}
+physeq_1 %>% 
+  transform_sample_counts(function(x) x/sum(x) * 100) -> physeq_1_pc # transform as percentage - total is 100%
+
+
+physeq_1_pc %>% 
+  otu_table() %>% 
+  head()
+
+```
+
+```{r}
+physeq_1_pc %>% 
+  sample_sums() %>% 
+  head()
+
+```
+
+#### using `microbiome::transform` function:
+
+```{r, eval=FALSE}
+?microbiome::transform()
+
+# compositional' (ie relative abundance), 'Z', 'log10', 'log10p', 'hellinger', 'identity', 'clr'
+```
+
+The log10p transformation refers to log10(1 + x):
+
+```{r}
+physeq_1 %>% 
+  microbiome::transform("log10p") %>% 
+  otu_table() %>% 
+  head()
+```
+
+Centered-Log-Ratio (CLR) transform - see [here](https://www.frontiersin.org/articles/10.3389/fmicb.2017.02224/full):
+
+```{r}
+physeq_1 %>% 
+  microbiome::transform("clr") %>% 
+  otu_table() %>% 
+  head()
+```
+
+compositional transformation - proportion scaled to 1:
+
+```{r}
+physeq_1 %>% 
+  microbiome::transform("compositional") %>% 
+  otu_table() %>% 
+  head()
+```
+
+sqrt transform:
+
+```{r}
+physeq_1 %>% 
+  transform_sample_counts(., sqrt) %>% 
+  otu_table() %>% 
+  head()
+```
+
+## Rarefaction:
+
+The `rarefy_evendepth()` function down all samples to the same sequencing depth (a.k.a., Library Size) and prunes ASV that disappear from all samples as well as samples with a lower sequencing depth as a result.
+
+```{r}
+physeq_1 %>%
+  rarefy_even_depth(rngseed = 123) %>% # important to specify rngseed: random number generator for reproducibility
+  sample_sums() %>%
+  head()
+```
+
+```{r}
+physeq_1 %>%
+  sample_sums() %>%
+  min()
+```
+
+In this example, we rarefied all the dataset to 15459 sequences per sample because it is the minumum in the dataset. You might not want to do that if some of the samples are Negative Controls (with likely low PCR amplification and therefore low reads after sequencing) or samples which failed to amplify. In those case you can specify the the `sample.size` argument.
+
+```{r}
+physeq_1 %>%
+  rarefy_even_depth(rngseed = 123,
+                    sample.size = 20000) -> physeq_1_rare # important to specify rngseed: random number generator for reproducibility
+
+physeq_1_rare
+```
+
+A warning message specify that 2 samples were removed because of lower Library size. Altough in that case 2070 ASV were removed because they are no longer present. As you can imagine they are low abundant and low prevalent. We will come back to this a bit later.
+
+Should you rarefy your data ? This question is still under 'debate': see [here](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003531) and [there](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5335496/). It depend on the type of analysis you are going to do, the shape of your rarefaction curves, ... but to make it short for alpha-diversity and beta diversity rarefaction is advised for standard analysis, not much for differential abundance testing. Again if you have a decent sequencing depth it should not matter. It also depends how the rarefaction curves look like, which nicely brings us to the next topic. Most of the case it does not impact much the alpha and beta diversity patterns if the sequencing depth is high enough to allow an exhaustive characterization of the diversity of the samples.
+
+Since sequencing depth is important, `phyloseq_check_lib_size()` function allows to summarize the sequencing depth per sample. The function returns two objects a data.frame `df` and a plot `plot` stored in the output.
+
+
+```{r}
+physeq_1_st %>% 
+  phyloseq_check_lib_size(data_color = "treatment_invivo",
+                          data_facet = NULL,
+                          nreads_display = 30000,
+                          first_n = nsamples(physeq_1_st)) -> lib
+
+lib$df %>% 
+  DT::datatable()
+```
+
+The `DT::datatable()` function allows to generate interactive table using `marqdown`.
+
+We can easily customize the plot using `ggplot2` grammar:
+
+```{r}
+lib$plot + 
+  scale_y_log10() + 
+  theme_classic() -> p_lib
+
+p_lib
+```
+
+We can also use `tidyverse` to select a few columns from the dataframe output:
+
+```{r}
+lib$df %>% 
+  select(Sample, mouse_label, day_num, treatment_invivo, LibrarySize, Index) %>% 
+  DT::datatable()
+```
+## Rarefaction curves:
+
+Rarefaction curves depict the relationship between sequencing depth (*i.e.*,  Library Size) and the observed richness (*i.e.*, number of different ASV) and ultimately allow to estimate if the sequencing effort seems sufficient to characterize the richness of the samples. We can use the function `phyloseq_rarefaction_curves()`:
+
+```{r, warning= FALSE, message= FALSE}
+physeq_1_st %>%
+  phyloseq_rarefaction_curves(stepsize = 500, 
+                              color_data = NULL, 
+                              facet_data = NULL) -> p
+
+p
+```
+
+You are now familiar with ggplot objects and can easily customize the plot, faceting with the level of `treatment_invivo()` and adding a vertical line with the minimum sequencing depth.
+
+```{r, warning= FALSE, message= FALSE}
+physeq_1_st %>%  sample_sums() %>%  min() -> min_lib
+
+p + geom_vline(xintercept = min_lib,
+               color = "red",
+               linetype = "dashed", size=0.25) +
+  facet_wrap(~ treatment_invivo) + ylab("ASV Richness") -> plot
+
+plot + theme(legend.position = "none")
+```
+
+Those curves look nice.
+
+We are going to rarefy the samples to  `15459` the minimum library size from our dataset.
+
+```{r}
+
+physeq_1_st %>%
+  rarefy_even_depth(rngseed = 123,
+                    sample.size = min_lib) -> physeq_1_rare # important to specify rngseed: random number generator for reproducibility
+
+physeq_1_rare
+```
+
+Let's now extract the ASV which were removed to see whether.
+
+Extract ASV id from the initial / unrarefied dataset:
+
+```{r}
+physeq_1_st %>% 
+  filter_taxa(function(x) sum(x > 0) > 0, TRUE) %>%  # to remove any ASV kept but with only 0 from the dataset
+  taxa_names() -> asv_raw
+```
+
+Extract ASV id from the rarefied dataset:
+
+```{r}
+physeq_1_rare %>% 
+  filter_taxa(function(x) sum(x > 0) > 0, TRUE) %>%  # to remove any ASV kept but with only 0 from the dataset
+  taxa_names() -> asv_rare
+```
+
+Get the ASV id which were removed:
+
+```{r}
+setdiff(asv_raw,
+        asv_rare) %>% 
+  as.vector() -> rm_rare_asv
+
+rm_rare_asv %>% 
+  length()
+```
+
+260 were removed.
+
+Generate a heatmap with the proportion of those 260 ASV in the initial dataset.
+
+```{r message=FALSE, warning=FALSE, fig.width= 16, fig.height=30}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_heatmap.R")
+
+physeq_1_st %>%
+  transform_sample_counts(function(x) x/sum(x) * 1000) %>% # transform as percentage before filtering
+  prune_taxa(rm_rare_asv, .) %>% # keep only the ASV with id matching the rm_rare_asv vector from the phyloseq object
+  phyloseq_ampvis_heatmap(physeq = .,
+                          transform = FALSE, # extract only the taxa to display - after percentage normalisation
+                          facet_by = "treatment_invivo",
+                          group_by = "SampleID",
+                          ntax =  Inf) + ggtitle("ASV removed during rarefaction ‰") -> heat_rm_rare_asv
+
+heat_rm_rare_asv
+```
+
+So we see that those ASV were quite low abundant and very sparse in the full dataset.
+
+```{r, warning =  FALSE}
+
+physeq_1_st %>%
+  transform_sample_counts(function(x) x/sum(x) * 1000) %>% # transform as percentage before filtering
+  prune_taxa(rm_rare_asv, .) %>% # keep only the ASV with id matching the rm_rare_asv vector from the phyloseq object
+  plot_bar(fill = "OTU") +
+  facet_grid(~ treatment_invivo, scales = "free", space = "free") +
+  ggtitle("Bar plot colored by ASV ") +
+  ylab("Proportion - ‰") +
+  theme_light() +
+  theme(legend.position = "none") + 
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+
+```
+You should not worry too much regarding the ASV removed during the rarefaction step. What if we had rarefy the dataset to  1000 sequences per samples?
+
+
+```{r, warning = FALSE, message = FALSE}
+physeq_1_rare %>% 
+  phyloseq_rarefaction_curves(stepsize = 500, 
+                              color_data = "treatment_invivo", 
+                              facet_data = NULL)
+```
+
+Looks good!
+
+
+```{r}
+physeq_1_st %>%
+  transform_sample_counts(function(x) x/sum(x) * 1000) %>% # transform as percentage before filtering
+  prune_taxa(rm_rare_asv, .) %>% # keep only the ASV with id matching the rm_rare_asv vector from the 
+microbiomeutilities::plot_abund_prev(.,
+                                     label.core = TRUE,
+                                     color = "Class", # NA or "blue"
+                                     mean.abund.thres = 0.01,
+                                     mean.prev.thres = 0.95,
+                                     dot.opacity = 0.7,
+                                     label.size = 3,
+                                     label.opacity = 1.0,
+                                     nudge.label=-0.15,
+                                     bs.iter=999, # increase for actual analysis e.g. 999
+                                     size = length(rm_rare_asv), # increase to match your nsamples(asv_ps)
+                                     replace = TRUE,
+                                     label.color="#5f0f40") +
+  geom_vline(xintercept = 0.95, lty="dashed", alpha=0.7) +
+  geom_hline(yintercept = 0.01,lty="dashed", alpha=0.7)  -> pv
+
+pv
+```
+
+This plot displays the mean prevalence and relative abundance (0-100%) of the ASV we removed. We clearly see those taxa are very low prevalent and abundant in propotion.
+
+## Normalisation with total bacterial density:
+
+See [here](https://pubmed.ncbi.nlm.nih.gov/29143816/). This function multiplies the proportion of ASV with absolute density values (*i.e.*, as qPCR16S of flow cytometry) allowing to esimate the density of each ASV.
+
+```{r}
+physeq_1_new_meta %>%
+  phyloseq_density_normalize(value_idx = "qPCR16S") %>% 
+  otu_table()
+```
+
+# Community analysis:
+
+There are three main dimension of community analysis using metbarcoding data: `alpha diversity`, `beta diversity` and `ASV/ taxa centric appraoch`
+
+## Alpha-diversity:
+
+Alpha diversity is often defined as univariate within sample community characteristic, for more information please refer to slides 63, 66 to 79 [Mahendra Mariadassou's Lecture](https://www.gdc-docs.ethz.ch/MDA/handouts/MDA20_PhyloseqFormation_Mahendra_Mariadassou.pdf) Chao1 and ACE are richness estimator trying to extrapolate the total richness observed + not detected due to unsufficient sequencing depth.
+
+
+### `phyloseq::plot_richness()`
+
+Using the rarefied `physeq_1_rare` object we are going to visualize alpha-diversity metrics:
+
+```{r}
+physeq_1_rare %>%
+  plot_richness(measures = c("Observed", "Shannon", "ACE"),
+                shape = "treatment_invivo") + 
+  facet_grid(variable ~ treatment_invivo, scale = "free",  space = "fixed", drop = TRUE) -> alpha_plot
+
+alpha_plot %>%
+  print()
+```
+
+The function `plot_richness()` actually use e`stimate_richness()` and then `ggplot()` to plot alpha_diversity values. alpha_plot is the ggplot and data are stored in `alpha_plot$data`:
+
+
+```{r}
+alpha_plot$data %>%
+  DT::datatable()
+```
+
+Let's modify the plot removing ACE values, and a one sample (for demonstration purpose):
+
+```{r}
+alpha_plot$data %>%
+  filter(variable != "ACE", samples != "S_234") %>% # we can filter anything, metadata, alphadiversity metric
+  ggplot(aes(treatment_invivo,
+             value,
+             colour = treatment_invivo,
+             fill = treatment_invivo,
+             shape = treatment_invivo)) +
+  facet_grid(variable ~ treatment_invivo ,scale="free",space="fixed") +
+  geom_boxplot(outlier.colour = NA, alpha = 0.2) +
+  geom_point(size=2,position=position_jitterdodge(dodge.width = 0.2)) +
+  ylab("Diversity indices") + xlab(NULL) + theme_bw()
+```
+
+### Perform statistical evaluation:
+
+The data are stored in long format:
+
+```{r}
+alpha_plot$data %>%
+  head() %>% 
+  DT::datatable()
+```
+You can transform in wide format and export your data to a tsv file and run statistical tests outside of `R`:
+
+```{r}
+alpha_plot$data %>%
+  filter(variable != "ACE", samples != "S_234") %>% # we can filter anything, metadata, alphadiversity metric
+  pivot_wider(names_from = variable, values_from = value) -> alpha_wide
+
+alpha_wide %>% 
+  head() %>% 
+  DT::datatable()
+```
+
+```{r}
+alpha_wide %>% 
+  write_tsv("alphadiv.tsv") # check the path
+```
+
+Or you can do it in `R` using an anova `aov`:
+
+```{r}
+aov(Observed ~  treatment_invivo, alpha_wide) %>%
+  summary()
+```
+
+`ggpubr::compare_means()` function allows to nicely compare among multiple groups for all the variables.
+
+```{r}
+alpha_plot$data %>%
+  filter(variable != "ACE", samples != "S_234") %>%  
+  ggpubr::compare_means(value ~ treatment_invivo, 
+                        group.by = "variable", 
+                        data = ., # . indicates that the object is coming from the pipe above.
+                        method = "wilcox.test")
+```
+
+### Compute alpha-diversity indices.
+
+`phyloseq_alphas()` function compute all kind of alpha diversity metrics. If `phylo = TRUE,` it will also compute phylogenetic metrics -if you have a phylogenetic tree included in your phyloseq object - **but** could take **quite some** time.
+The idea is not to loose too much time exploring many indices, but on the other hand it can help to better understand the pattern and guide the analysis (phylogeny, richness, evenness).
+
+```{r, message = FALSE, warnings = FALSE, include = TRUE}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_alpha.R")
+
+physeq_1_rare %>%
+  phyloseq_alphas(phylo = FALSE) -> alphas
+```
+
+
+Let's check the colanmes and the computed indices:
+
+```{r, message = FALSE, warnings = FALSE, include = TRUE}
+alphas %>% 
+  colnames()
+```
+
+
+```{r, message = FALSE, warnings = FALSE, include = TRUE}
+alphas %>% 
+  head() %>% 
+  DT::datatable()
+```
+
+### Plot the data and run basic stats:
+
+`plot_alphas()` function takes as an input the output from p`hyloseq_alphas()`. As always, the alphas dataframe can be manipulated/filtered and plot as you wish with ggplot2.
+
+
+```{r, message = FALSE, warnings = FALSE}
+alphas %>%
+  plot_alphas(measure = c("Observed", "diversity_shannon", "evenness_pielou", "dominance_gini"),
+              x_group = "treatment_invivo",
+              colour_group = "treatment_invivo",
+              fill_group = "treatment_invivo",
+              shape_group = NULL,
+              facet_group = ".",
+              test_group = "treatment_invivo",
+              test_group_2 = NULL) -> out
+```
+
+The function generates two outputs. The first is a plot stored in the `$plot` object.
+
+```{r }
+out$plot %>%
+  print()
+```
+
+The second is a data frame of pairwise non parametric tests for all indices. We can check the significant comparisons. We will use adjusted p values [here]().
+
+```{r }
+out$stat %>%
+  filter(p.adj <= 0.05) %>% 
+  arrange(p.adj) %>%
+  DT::datatable()
+```
+
+We can also try to correlate alpha-diversity metrics with metadata - here Body Weight -  using `correlate_alpha()` function.
+
+```{r, warning = FALSE, message= FALSE}
+alphas %>%
+  correlate_alpha(colnums_to_plot = c("Observed", "diversity_shannon",
+                                      "BW"),
+                  method = "spearman") -> alpha_corr
+
+alpha_corr
+```
+
+*N.B.*: correlations between alpha-diversity metrics are also included here.
+
+
+## Beta-diversity:
+
+Beta-diversity is often defined as multidimensional between sample community characteristic, for more information please refer to slides 63, 80 to 92 of [Mahendra Mariadassou's Lecture](https://www.gdc-docs.ethz.ch/MDA/handouts/MDA20_PhyloseqFormation_Mahendra_Mariadassou.pdf). This type of data is multidimensional and we need specific multidimensional approaches to visualize analyze such data. Beta-diversity depict similarity between samples based on a synthetic matrix which contains pairwise similarity/dissimilarity values for all the samples combinations. There are phylogenetic / non phylogenetic beta-diversity metrics and abundance or presence based metrics. The most used are Bray-Curtis and Binary-Jaccard: non-phylogenetic abundance and presence based metrics, respectively as well as weighted and unweighted unifrac metrics: phylogenetic abundance and presence based metrics, respectively. The use of phylogenetic metrics was introduced at a time when clustering was apply to analyze metabarcoding data. This led to noisy OTU and the use of phylogenetic metric allowed to lower the influence of very similar OTU sequences see [here](https://www.drive5.com/usearch/manual/unifrac_comments.html). I now prefer to use binary and weigthed jaccard metrics when exploring a dataset. Aitchinson distance is now popular [again](https://www.frontiersin.org/articles/10.3389/fmicb.2017.02224/full) but is usually very corelated with weighted jaccard. 
+
+
+First, we generate a distance matrix from the phyloseq_object:
+
+```{r, message = TRUE}
+physeq_1_rare %>%
+  phyloseq::distance(method = "bray") -> bc
+```
+
+### Visualisation:
+
+#### Heatmap:
+
+We can visualize the distance matrix using `heatmap()` function: 
+
+```{r, message = TRUE}
+bc %>%
+  as.matrix() %>%
+  heatmap()
+```
+
+As you can see it is a symetric matrix: the diagonal are 0 values dissimilarity or distance between same sample = 0. Difficult to identify patterns from there.
+
+### PCoA/NMDS:
+
+PCoA and NMDS are unconstrained ordination techniques in order to visualize data with high dimensions. They are similar as a PCA but the input distance matrix can be specified (PCA is based only on euclidean distance.). More information on  [PCoA](https://mb3is.megx.net/gustame/dissimilarity-based-methods/principal-coordinates-analysis) or [NMDS](https://mb3is.megx.net/gustame/dissimilarity-based-methods/nmds)
+
+```{r, message = TRUE}
+physeq_1_rare %>%
+  ordinate(method = "PCoA",
+           distance = bc) -> ord
+```
+
+Samples coordinate on the PCoA axis are stored in but plot_ordination can make use of ord object we have just created easily.
+
+```{r, message = TRUE}
+ord$vectors[c(1:10), c(1,2)]
+```
+
+Plot ordination can be then used to plot the ordination object:
+
+```{r, message = TRUE}
+physeq_1_rare %>% 
+  plot_ordination(physeq = ., 
+                  ordination = ord,
+                  color = "BW", 
+                  shape = "treatment_invivo", 
+                  title = "PCoA Bray-Curtis", 
+                  label= "Sample") + 
+  theme_bw()
+```
+
+#### Dendrogram:
+
+```{r, message = TRUE}
+source("https://raw.githubusercontent.com/mahendra-mariadassou/phyloseq-extended/415075fb7f690f6ac39eab18f62aeb4e4967ef84/R/graphical_methods.R")
+
+require(ape)
+
+physeq_1_rare %>% 
+  plot_clust(physeq = ., 
+             dist = bc, 
+             # label = "desc01",
+             color = "treatment_invivo")
+
+```
+
+Similar patterns as we saw on the PCoA. Makes sense because the same distance object is an input ;)
+
+### Distance boxplot:
+
+Another way to visualize pairwise distance comparaison is to plot them as boxplot. The `phyloseq_distance_boxplot()`  performs all pairwise distance comparisons between the group in the facet header, with all of the other groups (including itself). Each boxplot is shown twice, once in each group. For example, "Mock" in the "Soil" facet has the same data has "Soil" in the "Mock" facet.
+
+Red is the within group comparisons, which is why it is typically lower distance compared to the black boxplots. There are some within group comparisons that are actually more distant than comparing across groups.
+
+```{r, message = FALSE, warning = FALSE}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_beta.R")
+
+physeq_1_rare %>% 
+  phyloseq_distance_boxplot(p = ., # phyloseq object
+                            dist = bc, # distance matrix
+                            d = "treatment_invivo") -> out # column in metadata for comparaisons
+```
+
+The function generates the following plot:
+
+```{r, message = FALSE, warning = FALSE}
+out$plot + xlab(NULL) 
+```
+
+We can see samples from TreatA, B and C are mainly distant from the "none" group.
+
+As well as the distance matrix that can be used to customize distance boxplot.
+
+```{r, message = FALSE, warning = FALSE}
+out$matrix %>%
+  head()
+```
+
+### Statistical tests
+
+#### PERMANOVA:
+
+Let’s check if the observed patterns we visualized in PCoA, dendrogram are significant using PERMANOVA i.e., adonis function from vegan:
+
+```{r, message = FALSE}
+vegan::adonis2(bc ~ get_variable(physeq_1_rare, "treatment_invivo"))
+```
+
+Based on Bray-Curtis distance treatment_invivo is significant which means there is at least one group different from the others in terms ob beta-diversity/ community similarity.
+
+I have computed some functions to help with the process:
+
+```{r, message = FALSE, warning = FALSE}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_beta.R") 
+
+physeq_1_rare %>% 
+  phyloseq_adonis2(dm = bc,
+                   formula = "treatment_invivo")
+
+```
+The 'Pr..F.' is the pvalue - significant here - and the R2 indicates the strength or the % of explained variation. Here *treatment_invivo* explains 22% of the variations and is significant.
+
+When having more than two levels, it makes sense to run pairwise comparisons:
+
+```{r, message = FALSE, warning = FALSE}
+physeq_1_rare %>% 
+  physeq_pairwise_permanovas_adonis2(dm = bc,
+                                     compare_header = "treatment_invivo") %>% 
+  arrange(pvalFDR)
+
+```
+
+When running many statistical tests we increase the risk of false positive results and we need to correct the pvalues. Here we have the raw pvalues pval and the corrected ones using bonnferroni or FDR approaches. The results clearly showed mice from the group TreatA, B and C have different microbiota as compared to the non group (i.e., the Control). BTW it was already the case when we run the statistical test on the alpha-diversity metrics comparing different groups.
+
+
+We can also test the effect of the combinaition of different variables in explaining the variation of beta-diversity.
+
+
+```{r, message = FALSE, warning = FALSE}
+
+physeq_1_rare %>% 
+  phyloseq_adonis2(dm = bc,
+                   formula = " BW + treatment_invivo")
+
+```
+
+```{r, message = FALSE, warning = FALSE}
+
+physeq_1_rare %>% 
+  phyloseq_adonis2(dm = bc,
+                   formula = " treatment_invivo + BW")
+
+```
+
+Note that by default the order matters and the first variable will be fitted against the community distance. The residuals will be fed to the other variable. By default the `terms_margins` argument is set on "terms".
+
+We can also check the interaction between the two:
+
+```{r, message = FALSE, warning = FALSE}
+
+physeq_1_rare %>% 
+  phyloseq_adonis2(dm = bc,
+                   formula = " treatment_invivo * BW") # same as treatment_invivo + BW + treatment_invivo:BW
+
+```
+
+*treatment_invivo* variations explains most of the variations but *BW* Body Weight also explains some variations. Interestingly, the interaction between the 2:  *treatment_invivo:BW* is also significant meaning BW do not impact the communities in a similar way among the differnet treatments.
+
+We can also use `terms_margins = "margin" `which allows to test for the effect of the variables  after controlling the effect of the other.
+
+```{r, message = FALSE, warning = FALSE}
+
+physeq_1_rare %>% 
+  phyloseq_adonis2(dm = bc,
+                  formula = " treatment_invivo + BW",
+                  terms_margins = "margin")
+
+```
+
+More details [here](https://stats.stackexchange.com/questions/312302/adonis-in-vegan-order-of-variables-non-nested-with-one-degree-of-freedom-for).
+
+
+#### Beta Dispersion:
+
+In order to conclude we need to check PERMANOVA's main assumption: variance homoscedasticity.
+
+```{r, message = FALSE, warning= FALSE}
+physeq_1_rare %>% 
+  physeq_betadisper(dm = bc,
+                    variable = "treatment_invivo") -> betadisp
+
+betadisp$pval
+```
+
+Variation in communities among the different groups do not differ in terms of spread of beta diversity. More info [here](http://thebiobucket.blogspot.com/2011/04/assumptions-for-permanova-with-adonis.html).
+
+
+#### Multivariate Welch t-test:
+
+As an alternative to PERMANOVA (i.e., `vegan::adonis``) - and espacially in the case of unbalanced and heteroscedastic data we can use [distance multivariate Welch t-test](https://academic.oup.com/bioinformatics/article/32/23/3552/2525638).
+
+```{r, message = FALSE, warning= FALSE}
+physeq_1_rare %>%
+  phyloseq_TW(dm = bc, 
+              physeq = .,
+              variable = "treatment_invivo") -> out 
+
+out %>% 
+  DT::datatable()
+```
+
+Multivariate Welch t-test confirmed the patterns.
+
+#### db-RDA:
+
+Constrained ordination detects how much of community variations is explained / correlated with variables.
+See [here](https://sites.google.com/site/mb3gustame/constrained-analyses/rda/dbrda)
+
+`phyloseq_dbRDA()` takes a phyloseq object, a distance matrix and formula with the covariable(s) to test.
+
+
+```{r, warning = FALSE, message = FALSE}
+physeq_1 %>%
+  phyloseq_dbRDA(dm = bc,
+                 ps = .,
+                 group_plot = "treatment_invivo",
+                 forumla = paste0(c("BW", "DAI"), collapse=" + ")) -> out
+```
+
+The function generates four outputs:
+1- the classic vegan dbRDA:
+
+
+```{r, warning = FALSE, message = FALSE}
+
+out$dbRDA
+
+```
+
+2- the ordination plot:
+
+```{r, message = FALSE, warning= FALSE}
+out$plot2
+```
+
+3- the anova results to test the significance of the model overall:
+
+```{r, message = FALSE, warning= FALSE}
+out$anova_all %>%
+  DT::datatable()
+```
+4- the anova results testing the influence of each of the covaraibles:
+
+```{r, message = FALSE, warning= FALSE}
+out$anova_terms %>%
+  DT::datatable()
+```
+Here The analysis confirm that Body Weight is correlating with the differences in *BW* Body Weight. When coloring the samples by treatment group we see that treatment also impact body weight.
+
+
+#### partial db-RDA:
+
+This approach seeks to remove the effect of one or more explanatory variables on a set of response variables prior to a standard RDA. This may be useful when well-characterised variables with strong effects obscure the effects of more interesting explanatory variables. This can be achieved with `vegan::capscale` and the use of `Condition(variable)` in the formula. Here we can try to remove the effect of donor microbiota + fermentation and see constrained ordination plot as well as the statistics. See [here](https://mb3is.megx.net/gustame/constrained-analyses/rda/partial-redundancy-analysis)
+
+
+
+```{r, message = TRUE, warning = TRUE}
+physeq_1 %>% 
+  phyloseq_dbRDA(ps = .,
+                 dm = bc,
+                 forumla = " treatment_invivo + Condition(BW)",
+                 group_plot = "treatment_invivo",
+                 vec_ext = 0.4) -> dbRDA_test
+
+dbRDA_test$anova_all %>% 
+  mutate_if(is.numeric, round, 3) %>%
+  DT::datatable()
+
+```
+
+We can access the dbRDA object displaying constrained and unconstrained variations as well as conditioned:
+
+```{r, message = TRUE, warning = TRUE}
+dbRDA_test$dbRDA
+```
+
+We can access the constrained ordination plot:
+
+```{r, message = TRUE, warning = TRUE}
+dbRDA_test$plot2
+# can be fine tuned with ?ggord()
+```
+
+```{r, message = FALSE, warning = FALSE}
+dbRDA_test$anova_terms
+```
+
+Since treatment has an effect we can further investigate the pairwise comparisons accross levels of treatment:
+
+```{r, message = TRUE, warning = TRUE}
+
+# physeq_1 %>% 
+# phyloseq_pairwise_dbRDA(ps = .,
+#                         dm = dm,
+#                         RHS_formula = " treatment_invivo + Condition(BW)") -> pw_db_treat_cond
+# 
+# pw_db_treat_cond %>%
+#   mutate_if(is.numeric, round, 3) %>%
+#   DT::datatable()
+```
+
+
+
+#### Usefull functions:
+
+`phyloseq_compute_bdiv()` function compute all kind of beta diversity distances. If `phylo = TRUE,` it will also compute phylogenetic metrics -if you have a phylogenetic tree included in your phyloseq object - but will take **some** time.
+The idea is not to loose too much time exploring many distances, but on the other hand it can help to better understand the pattern and guide the analysis. The included distances are binary jaccard: bjaccard, weigthed jaccard: wjaccard, bray-curtis, un-weighted unifrac: uunifrac, wunifrac and d_0 and d_0.5 from the generalized unifrac.
+
+```{r}
+physeq_1_rare %>% 
+  phyloseq_compute_bdiv(phylo = TRUE) -> dlist
+
+dlist %>% 
+  summary()
+```
+
+We can remove some of those distance from the list:
+
+```{r}
+dlist$bray <- NULL
+dlist$d_0.5 <- NULL
+dlist$d_0 <- NULL
+```
+
+Compute ordinations:
+
+```{r, warning = FALSE, message = FALSE}
+physeq_1_rare %>% 
+  phyloseq_plot_bdiv(dlist = dlist, # list of distance computed from a phyloseq object
+                     ps_rare = ., # phyloseq object
+                     m = "PCoA", # PCoA or NMDS
+                     seed = 123, # for reproducibility
+                     axis1 = 1, # axis to plot
+                     axis2 = 2) -> plot_list
+```
+
+Explore all the ordination plots:
+
+```{r}
+plot_list %>%
+  phyloseq_plot_ordinations_facet(color_group = "BW",
+                                  shape_group = "treatment_invivo") -> pcoas
+
+pcoas
+```
+
+Check % of explained variance for all ordinations:
+
+`phyloseq_ordinations_expl_var()` generates:
+
+```{r, warning = FALSE,  message = FALSE}
+plot_list %>%
+  phyloseq_ordinations_expl_var() %>%
+  DT::datatable()
+```
+
+Perform PERMANOVA on all distances using lapply:
+
+A way to apply a function to a list is to use lapply. This is an example to run PERMANOVA (Adonis vegan function on a list of distances). We can test here if SampleType influences community distances:
+
+```{r, message = FALSE, warning = FALSE}
+lapply(
+  dlist,
+  FUN = phyloseq_adonis2,
+  physeq = physeq_1_rare,
+  formula = paste0(c("treatment_invivo"), collapse=" * "),
+  nrep = 999,
+  strata = FALSE
+) %>%
+  bind_rows(.id = "Distance") %>%
+  mutate_if(is.numeric, round, 3) %>%
+  # filter(! terms %in% (c("Residuals", "Total"))) %>%
+  DT::datatable()
+```
+
+Since it is significant, we can run pairwise comparisons to further investigate which groups are different from the other(s).
+
+
+```{r, message = FALSE, warning = FALSE}
+lapply(
+  dlist,
+  FUN = physeq_pairwise_permanovas_adonis2,
+  physeq = physeq_1_rare,
+  compare_header = "treatment_invivo",
+  n_perm = 999,
+  strat = FALSE
+) %>%
+  bind_rows(.id = "Distance") %>%
+  mutate_if(is.numeric, round, 3) %>%
+  # filter(! terms %in% (c("Residuals", "Total"))) %>%
+  DT::datatable()
+```
+
+We could do the same for betadisper:
+
+```{r, message = FALSE, warning = FALSE}
+lapply(
+  dlist,
+  FUN = physeq_betadisper,
+  physeq = physeq_1_rare,
+  variable = "treatment_invivo"
+)
+```
+
+3d PCoA:
+
+```{r, message= FALSE, warning= FALSE}
+physeq_1_rare %>% 
+  phyloseq_plot_PCoA_3d(ps_rare = .,
+                        dlist = dlist,
+                        shape = FALSE,
+                        color = "treatment_invivo")
+```
+
+
+adding taxa correlated with the ordination pattern: 
+
+First, generate a PCoA:
+
+```{r, message= FALSE, warning= FALSE}
+physeq_1_rare %>% 
+  plot_ordination(physeq = ., 
+                  ordination = ord,
+                  color = "treatment_invivo", 
+                  title = "PCoA Bray-Curtis", 
+                  label= NULL) + 
+  theme_bw()  -> pca
+
+pca
+```
+
+
+`phyloseq_add_taxa_vector()`:
+
+We can use then the function `phyloseq_add_taxa_vector()` to add top correlated taxa, here at the *Genus* level. The function uses `vegan::envfit()``.
+
+```{r}
+physeq_1 %>% 
+  phyloseq_add_taxa_vector(phyloseq = .,
+                           dist = bc,
+                           join_cbind = "join",
+                           tax_rank_plot = "Genus",
+                           figure_ord = pca, 
+                           fact = 0.25, pval_cutoff = 0.05,
+                           top_r = 10) -> out #top 10 correlated genera
+
+out$plot
+```
+
+We can export the data (correlation and taxa) of all the significant correlations:
+
+```{r}
+out$signenvfit
+```
+
+`phyloseq_add_metadata_vector()` allows to see correlation between ordination and metadata also using `vegan::envfit()`.
+
+
+```{r}
+physeq_1 %>% 
+  phyloseq_add_metadata_vector(dist = bc,
+                               phyloseq = .,
+                               figure_ord = out$plot,
+                               metadata_sel = c("BW_percent", "BW",  "colon_weight"),# , "histo_colo_total"),
+                               top_r = 10, fact = 0.6, na.rm = TRUE) -> out2
+
+out2$plot
+```
+
+`phyloseq_generate_pcoa_per_variables()` can be usefull to generate PCoA per variable levels. We can apply this on the list of distances.
+
+
+We will first reduce the distances to *wjaccard* and *bjaccard*:
+
+```{r}
+dlist$uunifrac <- NULL
+dlist$wunifrac <- NULL
+
+dlist %>% 
+  names()
+```
+
+
+```{r, message = FALSE, warning = FALSE}
+physeq_1 %>% 
+  phyloseq_generate_pcoa_per_variables(tmp = ,
+                                     group = "treatment_invivo",
+                                     dist = dlist) -> pcoa_group
+
+pcoa_group %>% 
+  phyloseq_plot_ordinations_facet(plot_list = ., 
+                                  return_eig_df = TRUE, 
+                                  color_group = "day")
+```
+
+
+## Taxa/ASV centric appraoches:
+
+
+```{r, eval = FALSE}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_taxa_tests.R") 
+
+phyloseq_run_DESeq2_pair_plots_formula
+
+phyloseq_Maaslin2
+
+phyloseq_boxplot_abundance
+
+phyloseq_A_B_ratio
+
+phyloseq_run_compare_means
+
+phyloseq_run_Deseq
+
+phyloseq_run_ALDEx2
+
+phyloseq_correlate_taxa
+
+
+```
+
+
+
+### Correlations with metadata:
+
+### Differential abundance tests:
+
+### Taxaonomic ratios:
+
+
+## Miscellaneous:
+
+#### physeq_simplify_tax():
+
+`physeq_simplify_tax()` agglomerate the table at a specific level and rename taxa id accordingly while removing the rest of the table:
+
+```{r}
+
+
+physeq_1_st %>% 
+  physeq_simplify_tax(tax_sel = c("Family")) -> physeq_1_st_fam
+
+physeq_1_st_fam %>% 
+  tax_table() %>% 
+  head()
+```
+
+#### Obtain unique features:
+
+`sample_variables()` allows to list the names of the columns from the sample_data:
+
+```{r}
+physeq_1_st %>% 
+  sample_variables()
+```
+
+`physeq_get_unique()` allows to list the different levels of the categorical metadata:
+
+```{r message=FALSE, warning=FALSE}
+physeq_1_st %>% 
+  physeq_get_unique("treatment_invivo") -> treatment
+
+treatment
+```
+
+The variable `treatment_invivo()` has 4 levels: none, TreatA, TreatB and TreatC.
+
+Same for another metadata variable:
+
+```{r message=FALSE, warning=FALSE}
+physeq_1_st %>% 
+  physeq_get_unique("mouse_label") -> mice
+
+mice
+```
+
+We can also apply this function to identify taxa. Below we extract the different *phyla*.
+
+```{r message=FALSE, warning=FALSE}
+physeq_1_st %>% 
+  physeq_get_unique("Phylum") -> phyla
+
+phyla
+```
+
+#### Getting top taxa per treatment levels:
+
+The function `phyloseq_ampvis_heatmap()` allows to generate taxonomic heatmaps and the parameter `ntax` controls the top taxa among the explored samples.
+
+```{r message=FALSE, warning=FALSE}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_heatmap.R")
+
+physeq_1_st %>% 
+  phyloseq_ampvis_heatmap(physeq = ., 
+                          facet_by = "treatment_invivo" , 
+                          group_by = "treatment_invivo",  
+                          ntax =  5) -> heat_overall
+
+heat_overall
+```
+
+We might be also interested in visualizing the 5 most abundant taxa per groups: per the levels of *treatment_invivo* i.e., "none", "TreatA", "TreatB", "TreatC". The function `physeq_most_abundant()` returns a vector of the most abundant taxa per levels.
+
+```{r message=FALSE, warning=FALSE}
+physeq_1_st %>% 
+  physeq_most_abundant("treatment_invivo", 
+                       tax_level = "Strain",
+                       ntax = 5) -> most_ab_treat
+
+most_ab_treat
+```
+
+There are 9 ASV when considering the most abundant among the 4 groups. We can visualize those using a heatmap. We will transform the data in proportion before subseting the taxa of interest and generating the heatmap omitting the transformation.
+
+```{r message=FALSE, warning=FALSE}
+physeq_1_st %>% 
+  transform_sample_counts(function(x) x/sum(x) * 100) %>% # transform as percentage before filtering
+  subset_taxa(Strain %in% most_ab_treat) %>% # extract only the taxa to display - after percentage normalisation
+  phyloseq_ampvis_heatmap(physeq = ., 
+                          transform = FALSE, # extract only the taxa to display - after percentage normalisation
+                          facet_by = "treatment_invivo" , 
+                          group_by = "treatment_invivo",  
+                          ntax =  Inf) -> heat_top_taxa_per_group
+
+heat_top_taxa_per_group
+```
+
+#### Generate color palette from metadata:
+
+
+Important aspect to keep homogeneity between plots in terms of colors - group assignments.
+
+```{r, warning=FALSE}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_varia.R") 
+
+physeq_1_st %>% 
+  generate_color_palette(var = "treatment_invivo",
+                         pal = "npg",
+                         print = FALSE) -> treat_pal
+
+treat_pal
+```
+
+We can use `show_col()` from the scales package to visualise the palette. Using `scales::show_col()` allows to run the function without loading the full package.
+
+```{r, warning=FALSE}
+treat_pal %>% 
+  scales::show_col(.,
+                   cex_label = 0.5)
+```
+
+Compare rarefied vs un-rarefied alpha-diversity metrics:
+
+This might be misleading when comparing *Observed* (i.e., number of observed ASV - ASV richness) since as we have seen rarefaction - with a decent sequencing depth i.e.,  when the the rarefaction curves starts saturating - removes some ASV which are very low abundant and prevalent. 
+We will use that function to illustrate how we can keep colors assigned to treatment levels homogeneous and how to combine plots.
+
+```{r, warning=FALSE, message=FALSE}
+physeq_1_st %>%
+  phyloseq_rarefied_unrarefied_richness(measure = "Observed", 
+                                        sample_size = physeq_1_st %>%  sample_sums() %>%  min(),
+                                        color_data = "treatment_invivo") -> p1
+
+p1
+```
+We can also specify the colors manually using the `treat_pal` vector we created which associates levels of treatments and colors:
+
+```{r}
+treat_pal
+```
+
+```{r, warning=FALSE, message=FALSE}
+p1 + scale_color_manual(values = treat_pal) -> p1
+
+p1
+```
+
+The colors will also be preserved if one of the level is filtered out:
+
+```{r}
+physeq_1_st %>%
+  subset_samples(treatment_invivo != "none") %>% 
+  phyloseq_rarefied_unrarefied_richness(measure = "Observed", 
+                                        sample_size = physeq_1_st %>%  sample_sums() %>%  min(),
+                                        color_data = "treatment_invivo") + scale_color_manual(values = treat_pal) # since the output of the function is a ggplot we can use + to finetune the graph
+```
+
+Using a richness estimator such as Chao1 or ACE might be more meaningfull.
+
+```{r, warning=FALSE, message=FALSE}
+physeq_1_st %>%
+  phyloseq_rarefied_unrarefied_richness(measure = "Chao1", 
+                                        sample_size = physeq_1_st %>%  sample_sums() %>%  min(),
+                                        color_data = "treatment_invivo") + scale_color_manual(values = treat_pal) -> p2
+
+p2
+```
+
+Using Shannon we see that the value does not change much - because Shannon metric is also impacted by proportion of taxa:
+
+```{r, warning=FALSE, message=FALSE}
+physeq_1_st %>%
+  phyloseq_rarefied_unrarefied_richness(measure = "Shannon", 
+                                        sample_size = physeq_1_st %>%  sample_sums() %>%  min(),
+                                        color_data = "treatment_invivo") + scale_color_manual(values = treat_pal) -> p3
+
+p3
+```
+Even rarefying with 2000 sequences will preserve the Shannon pattern:
+
+```{r, warning=FALSE, message=FALSE}
+physeq_1_st %>%
+  phyloseq_rarefied_unrarefied_richness(measure = "Shannon", 
+                                        sample_size = 2000,
+                                        color_data = "treatment_invivo") + scale_color_manual(values = treat_pal) 
+```
+
+We can combine the graphs using `ggarrange` from the `ggpubr` package:
+
+```{r, warning=FALSE, message=FALSE}
+ggpubr::ggarrange(p1,
+                  p2,
+                  p3,
+                  common.legend = TRUE)
+```
+
+```{r, eval = FALSE}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_normalisation.R") 
+phyloseq_filter_per_sample_OTU
+
+phyloseq_remove_chloro_mitho
+```
+
+
+#### Compare phyloseq taxonomy of two phyloseq objects:
+
+```{r}
+# source("https://raw.githubusercontent.com/fconstancias/metabaRpipe/master/Rscripts/functions.R")
+
+# physeq_1_rare %>% 
+  # phyloseq_DECIPHER_tax(physeq = ., 
+  #                       threshold = 60,
+  #                       db="~/db/DADA2/SILVA_SSU_r132_March2018.RData"  # check where you downloaded your database
+  #                       tryRC = TRUE,
+  #                       return = TRUE) -> physeq_1_rare_2
+```
+
+```{r}
+# compare_phyloseq_taxonomy(physeq_A = physeq_1_rare,
+#                           physeq_B = physeq_1_rare_2) %>% 
+#   head() %>% 
+#   DT::datatable()
+```
+
+#### Exporting plots:
+
+Please check [here](http://www.sthda.com/english/wiki/ggsave-save-a-ggplot-r-software-and-data-visualization)
+
+
+```{r}
+ggplot(mtcars, aes(mpg, wt)) +
+  geom_point() -> p
+
+p
+
+ggsave("mtcars.pdf", 
+       plot = p,
+       device = "pdf", width = 20, height = 20, units = "cm")
+```
+
+#### Exporting tables:
+
+as tsv.
+
+```{r}
+physeq_1 %>% 
+  sample_data() %>% 
+  write_tsv("my_sample_data.tsv")
+```
+
+as an excel file.
+
+```{r}
+# physeq_1 %>% 
+#   sample_data() %>% 
+#   xlsx::write.xlsx("my_sample_data.xlsx", 
+#                    sheetName = "sample_data",
+#                    append = TRUE)
+```
+
+Good opportunity to introduce the `phloseq_export_otu_tax()` function, it basically exports `otu_table()` and `tax_table()` of a phyloseq object.
+
+```{r}
+source("https://raw.githubusercontent.com/fconstancias/metabaRpipe/master/Rscripts/functions.R")
+
+physeq_1 %>% 
+  phloseq_export_otu_tax() %>% 
+  head() %>% 
+  DT::datatable()
+```
+
+We can use `write.xlsx` under another sheet from the same excel file:
+
+```{r}
+ # physeq_1 %>% 
+ #  phloseq_export_otu_tax() %>% 
+ #  xlsx::write.xlsx("my_sample_data.xlsx", 
+ #                   sheetName = "otu_tax",
+ #                   append = TRUE) # allows to add the new sheet to an existing file.
+
+
+```
+
+### To explore:
+
+
+```{r}
+physeq_1_rare %>% 
+  phyloseq_ntaxa_by_tax(TaxRank = "Genus",
+                        add_meta_data = FALSE) %>% 
+  arrange(-N.OTU) %>% 
+  DT::datatable()
+```
+
+```{r}
+physeq_1 %>% 
+  phyloseq_coverage(., 
+                    correct_singletons = FALSE, 
+                    add_attr = T) %>% 
+  arrange(-SampleCoverage) %>% 
+  DT::datatable()
+
+```
+
+```{r, eval = FALSE}
+physeq_1 %>%
+  phyloseq_coverage_raref(seeds = 123, multithread = TRUE)
+```
+
+```{r}
+# physeq_1 %>%
+#   phyloseq_effort_div()
+```
+
+```{r}
+# physeq_1 %>%
+#   phyloseq_effort_div_rangeplot(range = seq(from = 10, to = 100, by = 10),
+#                                 # range_type = "coverage",
+#                                 show_plot = TRUE)
+```
+
+```{r}
+# physeq_1 %>%
+#   metagMisc::phyloseq_mult_raref_dist(dissimilarity = "bray",
+#                            parallel = TRUE)
+```
+
+```{r}
+# physeq_1 %>%
+#   phyloseq_mult_raref_div(parallel = TRUE)
+```
+
+```{r, eval = FALSE}
+physeq_1 %>% 
+  phyloseq_phylo_div()
+```
+
+```{r, eval = FALSE}
+physeq_1 %>% 
+  phyloseq_phylo_ses()
+```
+
+
+
+```{r, eval = FALSE}
+physeq_1 %>% 
+  phyloseq_sep_samp()
+```
+
+```{r, eval = FALSE}
+physeq_1 %>% 
+  phyloseq_sep_tax()
+```
+
+```{r}
+# physeq_1 %>% 
+#   phyloseq_standardize_otu_abundance()
+```
+
+
+```{r}
+physeq_1 %>% 
+  phyloseq_summary(., physeq_1_rare, more_stats = TRUE)
+```
+
+
+```{r}
+# physeq_1 %>% 
+#   phyloseq_taxonomy_imputation()
+```
+
+```{r}
+# source("https://raw.githubusercontent.com/vmikk/metagMisc/master/R/phyloseq_taxonomic_resolution.R")
+# 
+# physeq_1 %>% 
+#   phyloseq_taxonomic_resolution()
+```
+
+```{r}
+# physeq_1 %>% 
+#   phyloseq_to_MetaCommunity() -> meta_out
+# 
+# meta_out %>% 
+#   str()
+```
+
+
+
+```{r}
+physeq_1 %>% 
+  phyloseq_get_strains() %>% 
+  physeq_glom_rename(rename_ASV = "Strain") %>% 
+  prevalence(count = TRUE, sort = TRUE) %>% 
+  head()
+
+physeq_1 %>% nsamples()
+```
+
+<https://cran.r-project.org/web/packages/iNEXT/vignettes/Introduction.html>
+
+```{r, message = FALSE, warning = FALSE}
+
+# physeq_1 %>% 
+#   phyloseq_get_strains() %>% 
+#   physeq_glom_rename(rename_ASV = "Strain") %>% 
+#   prepare_inext(., correct_singletons = F) -> inext
+# 
+# inext %>% 
+#   iNEXT::iNEXT(., q=c(0, 1, 2), 
+#                datatype = "incidence_freq",
+#                nboot = 2,
+#                se = FALSE) -> out
+# 
+# out %>% 
+#   iNEXT::ggiNEXT(., type=1, facet.var="site")
+```
+
+
+```{r}
+# physeq_1_st %>%
+#   # subset_samples(PCR_plate != "P3" | sample_number > 30) %>%
+#   prune_taxa(taxa =  taxa_sums(physeq_1_st) > 1000) %>%
+#   subset_taxa(Phylum != "unknown" & Order %in% c("Clostridiales", "Bacteroidales")) %>%
+#   # filter_taxa(function(x) sum(x) > 0, TRUE) %>%
+#   rarefy_even_depth(sample.size = 1000, rngseed = 123)  %>%
+#   tax_glom(taxrank = "Order") %>%
+#   transform_sample_counts(function(x) x/sum(x) * 100)
+```
+
+
+
+```{r}
+devtools::session_info()
+```
+
+
+
+
+
+
+### To implement:
+
+- [Predictive Index for Health Status using Species-level Gut Microbiome Profiling](https://github.com/jaeyunsung/GMHI_2020):
+
+- <https://mb3is.megx.net/gustame/constrained-analyses/variation-partitioning>
+
+- <https://github.com/tapj/biotyper>
+
+- 
+
+# Alternative analysis approaches using user-friendlier platformes:
+
+If you do not have experience with `R` and you do not want to invest time learning it or you want basic descriptions of your data, the easiest way to proceed is to use user friendly interfaces. 
+There are several options:
+
+## R-Shiny-interfaces:
+
+These are `R` based interactive interfaces enabling a smooth code free experience.
+
+* [easy16S](https://shiny.migale.inrae.fr/app/easy16S/)
+
+Select your data > RDS allows to directly load the phyloseq object.
+
+* [shiny-phyloseq](http://joey711.github.io/shiny-phyloseq/)
+
+
+## qiime2:
+
+QIIME™ (pronounced chime) stands for Quantitative Insights Into Microbial Ecology. It is a bioinformatic pipeline developed to ease the process of bioinformatic analysis of raw sequencing microbiome data - not explored here since we have processed the data using [metabaRpipe](https://github.com/fconstancias/metabaRpipe). It is also useful to visualize and analyze the processed data, in a user friendly experience:
+
+### Generate `qiime2` compatibles files from the phyloseq object:
+
+Check the metabaRpipe tutorial [here](https://github.com/fconstancias/metabaRpipe#7-export-qiime2-compatible-files) or [there](https://github.com/fconstancias/metabaRpipe#eth-fbt-users)
+
+```{bash, eval = FALSE}
+Rscript metabaRpipe/Rscripts/phyloseq_export_qiime.Rscript \
+-i dada2/physeq_phylo/phyloseq_phylo.RDS \
+-o qiime2 \
+-f metabaRpipe/Rscripts/functions.R 
+```
+
+Alternatively, this can also be run from R/Rstudio:
+
+```{r, eval = FALSE}
+require(tidyverse); source("https://raw.githubusercontent.com/fconstancias/metabaRpipe/master/Rscripts/functions.R")
+
+readRDS("dada2/phyloseq.RDS") %>%  
+  physeq_export_qiime(output_dir = "~/qiime2/")
+```
+
+This command will generate all the necessary processed files to analyze the metabarcoding data and as seen [here](https://github.com/fconstancias/metabaRpipe#exploring-the-outputs).
+
+```{bash, eval = FALSE}
+# List/ check the files are here:
+ls
+asv.fna			asv_neweek.qza		asv_rep_set.qza		qiime2_mapping_file.txt	qiime2_otu.qza		tax.txt
+asv_biom.biom		asv_neweek.tre		qiime1_mapping_file.txt	qiime2_metadata.qzv	qiime2_taxonomy.qza
+```
+
+We have generated:
+
+* A fasta file containing the sequence of the ASV: `asv.fna`. This corresponds to the `ps %>% refseq()` in `R`.
+* A text file with the metadata: `qiime2_mapping_file.txt`. This corresponds to the `ps %>% sample_data()` in `R`.
+* A text with the taxonomic path of the ASV: `tax.txt`. This corresponds to the `ps %>% sample_data()` in `R`.
+* A biom file with the sample wise ASV counts: `asv_biom.biom`. This to the `ps %>% otu_table()` in `R`.
+* A neweek ASV phylogenetic tree : `asv_neweek.tre`. This to the `ps %>% phy_tree()` in `R`.
+
+### Import the data in `qiime2`:
+
+* Install `qiime2` in a dedicated environment <https://docs.qiime2.org/2022.2/install/native/>
+
+```{bash, eval = FALSE}
+wget https://data.qiime2.org/distro/core/qiime2-2022.2-py38-osx-conda.yml
+conda env create -n qiime2-2022.2 --file qiime2-2022.2-py38-osx-conda.yml
+# OPTIONAL CLEANUP
+rm qiime2-2022.2-py38-osx-conda.yml
+# Activate the conda environment
+conda activate qiime2-2022.2
+# Test your installation
+qiime --help
+```
+
+* Activate the environment change directory:
+```{bash, eval = FALSE}
+# Activate the qiime conda environment
+
+conda activate qiime2-2022.2
+
+# Navigate were the output of phyloseq_export_qiime.Rscript were generated:
+
+cd qiime2/ 
+
+# List/ check the files are here:
+ls
+asv.fna			asv_biom.biom		asv_neweek.tre		qiime1_mapping_file.txt	qiime2_mapping_file.txt	tax.txt
+```
+
+* Import the data in `qiime2` compatible format:
+
+The following commands are required to import the files in `qza` `qiime2` specific format
+
+```{bash, eval = FALSE}
+# Import OTU/ASV table:
+qiime tools import   \
+--input-path asv_biom.biom \
+--type 'FeatureTable[Frequency]' \
+--input-format BIOMV100Format \
+--output-path qiime2_otu.qza
+
+# Import taxonomic table:
+qiime tools import \
+--type 'FeatureData[Taxonomy]' \
+--input-format HeaderlessTSVTaxonomyFormat \
+--input-path tax.txt \
+--output-path qiime2_taxonomy.qza
+
+# Import phylogenetic tree:
+qiime tools import \
+--input-path asv_neweek.tre \
+--output-path asv_neweek.qza \
+--type 'Phylogeny[Rooted]'
+
+# Import ASV sequences:
+qiime tools import \
+--input-path asv.fna \
+--output-path asv_rep_set.qza \
+--type 'FeatureData[Sequence]'
+
+# Import metadata:
+qiime metadata tabulate \
+--m-input-file qiime2_mapping_file.txt \
+--o-visualization qiime2_metadata.qzv
+```
+
+The import successfully generated .qza files we will then use to visualize/ analyze the data:
+```{bash, eval = FALSE}
+# List/ check the files are here:
+ls
+asv.fna			asv_neweek.qza		asv_rep_set.qza		qiime2_mapping_file.txt	qiime2_otu.qza		tax.txt
+asv_biom.biom		asv_neweek.tre		qiime1_mapping_file.txt	qiime2_metadata.qzv	qiime2_taxonomy.qza
+```
+
+### Diversity analyses:
+
+### Data summary:
+
+The first step is to summarize the ASV table using `qiime feature-table summarize`
+
+```{bash, eval = FALSE}
+qiime feature-table summarize \
+--i-table qiime2_otu.qza \
+--o-visualization  qiime2_otu.qzv \
+--m-sample-metadata-file qiime2_mapping_file.txt
+```
+
+This will generate a `qiime2_otu.qzv` which we can open using:
+
+```{bash, eval = FALSE}
+qiime tools view qiime2_otu.qzv
+```
+
+In addition to the `Overview`, the `Interactive Sample Detail` summaries the number of Features (*i.e.*, here ASV) among samples. We can adjust the  `Sampling Depth` from the `Plot Controls` panel to see how many samples would be discarded when considering a minimum sampling depth cutoff or a rarefaction threshold.
+
+An example of such summary can be found [here](https://view.qiime2.org/visualization/?type=html&src=https%3A%2F%2Fdocs.qiime2.org%2F2021.8%2Fdata%2Ftutorials%2Fmoving-pictures%2Ftable.qzv)
+
+### Rarafaction analysis:
+
+Another meaningful preliminary analysis is to perform rarefaction curves investigating the changes of alpha-diversity metrics (*e.g.*, Richness or Observed_features) as a function of the sequencing depth.
+
+```{bash, eval = FALSE}
+qiime diversity alpha-rarefaction \
+--i-phylogeny asv_neweek.qza \
+--i-table qiime2_otu.qza \
+--p-max-depth 5000 \
+--o-visualization CORE-METRICS-RESULTS/alpha-rarefaction.qzv
+```    
+
+```{bash, eval = FALSE}
+qiime tools view CORE-METRICS-RESULTS/alpha-rarefaction.qzv
+```
+
+An example of rarefaction curves can be found [here](https://view.qiime2.org/visualization/?type=html&src=https%3A%2F%2Fdocs.qiime2.org%2F2021.8%2Fdata%2Ftutorials%2Fmoving-pictures%2Falpha-rarefaction.qzv). Ideally they should reach a plateau meaning the sequencing effort allows an exhaustive description of the diversity.
+
+### Generating core-metrics for diversity analyses.
+
+An important parameter here is the `--p-sampling-depth` which is the sequencing depth at which all the samples will be `rarefied` in order to avoid biases due to uneven sequencing depth. 
+
+```{bash, eval = FALSE}
+qiime diversity core-metrics-phylogenetic \
+--i-phylogeny asv_neweek.qza \
+--i-table qiime2_otu.qza \
+--p-sampling-depth 3500 \
+--m-metadata-file qiime2_mapping_file.txt \
+--output-dir CORE-METRICS-RESULTS
+```
+
+This command generates a lot of `qza` files corresponding to different `alpha` (i.e., faith_pd, observed_features, shannon, evenness) and `beta` diversity metrics (i.e., unweighted_unifrac, weighted_unifrac, jaccard_distance, bray_curtis_distance) and including PCoA ordniations for beta diversity metrics. (e.g., jaccard_pcoa_results.qza).
+
+```{bash, eval = FALSE}
+Saved FeatureTable[Frequency] to: CORE-METRICS-RESULTS/rarefied_table.qza
+Saved SampleData[AlphaDiversity] to: CORE-METRICS-RESULTS/faith_pd_vector.qza
+Saved SampleData[AlphaDiversity] to: CORE-METRICS-RESULTS/observed_features_vector.qza
+Saved SampleData[AlphaDiversity] to: CORE-METRICS-RESULTS/shannon_vector.qza
+Saved SampleData[AlphaDiversity] to: CORE-METRICS-RESULTS/evenness_vector.qza
+Saved DistanceMatrix to: CORE-METRICS-RESULTS/unweighted_unifrac_distance_matrix.qza
+Saved DistanceMatrix to: CORE-METRICS-RESULTS/weighted_unifrac_distance_matrix.qza
+Saved DistanceMatrix to: CORE-METRICS-RESULTS/jaccard_distance_matrix.qza
+Saved DistanceMatrix to: CORE-METRICS-RESULTS/bray_curtis_distance_matrix.qza
+Saved PCoAResults to: CORE-METRICS-RESULTS/unweighted_unifrac_pcoa_results.qza
+Saved PCoAResults to: CORE-METRICS-RESULTS/weighted_unifrac_pcoa_results.qza
+Saved PCoAResults to: CORE-METRICS-RESULTS/jaccard_pcoa_results.qza
+Saved PCoAResults to: CORE-METRICS-RESULTS/bray_curtis_pcoa_results.qza
+Saved Visualization to: CORE-METRICS-RESULTS/unweighted_unifrac_emperor.qzv
+Saved Visualization to: CORE-METRICS-RESULTS/weighted_unifrac_emperor.qzv
+Saved Visualization to: CORE-METRICS-RESULTS/jaccard_emperor.qzv
+Saved Visualization to: CORE-METRICS-RESULTS/bray_curtis_emperor.qzv
+```
+
+#### Alpha-diversity:
+
+Alpha diversity is often defined as univariate within sample community characteristic, for more information please refer to slides 63, 66 to 79 [Mahendra Mariadassou's Lecture](https://www.gdc-docs.ethz.ch/MDA/handouts/MDA20_PhyloseqFormation_Mahendra_Mariadassou.pdf)
+Now we have generated different metrics, we can visualize and explore associations with the metadata.
+
+```{bash, eval = FALSE}
+qiime diversity alpha-group-significance \
+--i-alpha-diversity CORE-METRICS-RESULTS/faith_pd_vector.qza \
+--m-metadata-file qiime2_mapping_file.txt \
+--o-visualization CORE-METRICS-RESULTS/faith-pd-group-significance.qzv
+
+qiime diversity alpha-group-significance \
+--i-alpha-diversity CORE-METRICS-RESULTS/evenness_vector.qza \
+--m-metadata-file qiime2_mapping_file.txt \
+--o-visualization CORE-METRICS-RESULTS/evenness-group-significance.qzv
+```
+
+You will get errors related to the mapping file, we can quickly generate a new artificial mapping file linking samples to group A or B.
+```{bash, eval = FALSE}
+vim qiime2_mapping_file_2.txt
+sampleid        group
+R1F1-S66        A
+R1F2-S300       A
+R1F3-S90        B
+Y2A15-2M-06-S78 B
+Y2A15-2M-12-S77 B
+Y3-R1F4-S136    B
+```
+
+Let's run the functions again:
+
+```{bash, eval = FALSE}
+qiime diversity alpha-group-significance \
+--i-alpha-diversity CORE-METRICS-RESULTS/faith_pd_vector.qza \
+--m-metadata-file qiime2_mapping_file_2.txt \
+--o-visualization CORE-METRICS-RESULTS/faith-pd-group-significance.qzv
+
+qiime diversity alpha-group-significance \
+--i-alpha-diversity CORE-METRICS-RESULTS/evenness_vector.qza \
+--m-metadata-file qiime2_mapping_file_2.txt \
+--o-visualization CORE-METRICS-RESULTS/evenness-group-significance.qzv
+
+```
+
+And visualize the output, for instance for the evenness metric:
+
+```{bash, eval = FALSE}
+qiime tools view CORE-METRICS-RESULTS/evenness-group-significance.qzv
+```
+
+[Here](https://view.qiime2.org/visualization/?type=html&src=https%3A%2F%2Fdocs.qiime2.org%2F2021.8%2Fdata%2Ftutorials%2Fmoving-pictures%2Fcore-metrics-results%2Ffaith-pd-group-significance.qzv) and example of the output.
+
+If you want to explore the results for all the metrics you will have to open all the files and just considering one metadata covariate.
+
+
+```{bash, eval = FALSE}
+CORE-METRICS-RESULTS/evenness-group-significance.qzv				CORE-METRICS-RESULTS/unweighted-unifrac-group-significance.qzv
+CORE-METRICS-RESULTS/faith-pd-group-significance.qzv
+```
+
+#### Beta-diversity:
+
+Beta-diversity is often defined as multidimensional between sample community characteristic, for more information please refer to slides 63, 80 to 92 of [Mahendra Mariadassou's Lecture](https://www.gdc-docs.ethz.ch/MDA/handouts/MDA20_PhyloseqFormation_Mahendra_Mariadassou.pdf). This type of data is multidimensional and we need specific multidimensional approaches to visualize analyze such data.
+Now we have generated different metrics, we can visualize and explore associations with the metadata.
+
+##### PCoA ordination:
+
+Principal Coordinate analysis is and unconstrained ordination aiming at exploring the main variation in the data. It is similar as a PCA but can deal with any type of metric.
+
+Below are the commands to generate a PCoA using the `unweighted-unifrac` metric we generated using the `qiime diversity core-metrics-phylogenetic ` with the data rarefied at `3500` sequences per sample.
+
+```{bash, eval = FALSE}
+qiime emperor plot \
+--i-pcoa CORE-METRICS-RESULTS/unweighted_unifrac_pcoa_results.qza \
+--m-metadata-file qiime2_mapping_file_2.txt \
+--o-visualization CORE-METRICS-RESULTS/unweighted-unifrac-emperor.qzv
+```
+
+We can then visualize the 3 first axes of the PCoA using the following command:
+
+```{bash, eval = FALSE}
+qiime tools view CORE-METRICS-RESULTS/unweighted-unifrac-emperor.qzv
+```
+
+An example of ordination plot can be found [here](https://view.qiime2.org/visualization/?type=html&src=https%3A%2F%2Fdocs.qiime2.org%2F2021.8%2Fdata%2Ftutorials%2Fmoving-pictures%2Fcore-metrics-results%2Funweighted_unifrac_emperor.qzv)
+
+### Taxonomic visualisation:
+
+The diversity analyses we have explored are not incorporating any taxonomic information and are considering ASV (i.e., features in `qiime2`). We can visualize community composition in terms of taxa proportion among samples using `qiime taxa barplot`:
+
+```{bash, eval = FALSE}
+qiime taxa barplot \
+--i-table qiime2_otu.qza \
+--i-taxonomy qiime2_taxonomy.qza \
+--m-metadata-file qiime2_mapping_file_2.txt \
+--o-visualization tax-bar-plots.qzv
+```
+
+The function generates a `qzv` plot we can explore using `qiime tools view `:
+
+```{bash, eval = FALSE}
+qiime tools view tax-bar-plots.qzv
+```
+
+An example of the output can be found [here](https://view.qiime2.org/visualization/?type=html&src=https%3A%2F%2Fdocs.qiime2.org%2F2021.8%2Fdata%2Ftutorials%2Fmoving-pictures%2Ftaxa-bar-plots.qzv)
+
+
+### Filtering data:
+
+There are many ways to filter the data: the samples, the ASV based on metadata, proportions, taxonomic information... Below an example on sample filtering based on metadata.
+
+#### Based on metadata:
+
+```{bash, eval = FALSE}
+qiime feature-table filter-samples \
+--i-table qiime2_otu.qza \
+--m-metadata-file qiime2_mapping_file_2.txt \
+--p-where "[group]='B'" \
+--o-filtered-table qiime2_otu_groupB.qza
+```
+
+Analyzing the filtered dataset would require to start again with the beginning `qiime diversity core-metrics-phylogenetic` which will lead to loads of folders, outputs and makes it difficult to keep track of the code and analyses when things are getting a bit complex.
+
+#### More [details](https://docs.qiime2.org/2022.2/tutorials/filtering/) about the filtering options.
+
+A much more detailed `qiime2` tutorial can be found [here](https://curr-protoc-bioinformatics.qiime2.org/)
+
+# Additional ressources:
+
+<https://mibwurrepo.github.io/Microbial-bioinformatics-introductory-course-Material-2018/set-up-and-pre-processing.html#read-input-to-phyloseq-object>
+<https://microbiome.github.io/tutorials/>
+<https://microsud.github.io/microbiomeutilities/articles/microbiomeutilities.html>
+
