@@ -899,7 +899,6 @@ phyloseq_adonis_strata_perm <- function(dm,
 #'
 #'
 #'
-phyloseq_adonis <- phyloseq_adonis2
 
 phyloseq_adonis2 <- function(dm,
                             physeq = physeq,
@@ -944,6 +943,51 @@ phyloseq_adonis2 <- function(dm,
   detach("package:vegan", unload=TRUE)
   
 }
+
+phyloseq_adonis <- function(dm,
+                             physeq = physeq,
+                             formula = paste0(variables, collapse=" + "),
+                             nrep = 999,
+                             strata = "none",
+                             terms_margins = "terms"){
+  require(vegan)
+  
+  as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
+    as.dist() -> dm
+  
+  physeq %>%
+    sample_data() %>%
+    data.frame() -> df
+  
+  if (strata %in% colnames(df)){
+    
+    adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
+            strata = strata,
+            permutations = nrep,
+            data = df,
+            by = terms_margins) %>%
+      data.frame() %>%
+      rownames_to_column('terms') -> out
+    
+    
+    
+  }else{
+    adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
+            permutations = nrep,
+            data = df,
+            by = terms_margins) %>%
+      data.frame() %>%
+      rownames_to_column('terms') -> out
+  }
+  
+  
+  
+  return(out)
+  
+  detach("package:vegan", unload=TRUE)
+  
+}
+
 
 #' @title ...
 #' @param .
