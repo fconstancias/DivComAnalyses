@@ -59,7 +59,7 @@ Install R/ Rstudio from the ETH AppV Kiosk or following the instructions [here](
 
 ### MAC:
 
-Mac: Install Xcode from the Mac App Store.
+macOS users - might need to install xquartz for some of the function (to do this with homebrew, run the following command in your mac’s Terminal: `brew install --cask xquartz`)
 
 ```{r, eval=FALSE}
 #devtools
@@ -78,7 +78,8 @@ BiocManager::install("phyloseq")
 
 ### Windows:
 
-Windows: Install [Rtools](https://cran.r-project.org/bin/windows/Rtools/)
+Windows users - will need to have RTools installed so that your computer can build this package. Follow instructions [here](http://jtleek.com/modules/01_DataScientistToolbox/02_10_rtools/).
+
 ```{r, eval=FALSE}
 # devtools
 install.packages("devtools")
