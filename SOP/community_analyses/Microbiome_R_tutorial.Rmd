@@ -9,7 +9,7 @@ output:
     thumbnails: true
     lightbox: true
     gallery: true
-    use_bookdown: false
+    use_bookdown: true
     highlight: haddock
     toc_depth: 4
 ---
@@ -38,6 +38,7 @@ rm(list = ls())
 * [Lecture from Mahendra Mariadassou](https://www.gdc-docs.ethz.ch/MDA/handouts/MDA20_PhyloseqFormation_Mahendra_Mariadassou.pdf) including `phyloseq` R package (`slides 4 - 61`) and community ecology concepts (`slides 62 to 156`) 
 * [GustaMe website](https://mb3is.megx.net/gustame)
 * [Ramette A. Multivariate analyses in microbial ecology. FEMS Microbiol Ecol. 2007 Nov;62(2):142-60. doi: 10.1111/j.1574-6941.2007.00375.x. Epub 2007 Sep 20. PMID: 17892477; PMCID: PMC2121141.](https://pubmed.ncbi.nlm.nih.gov/17892477/)
+* Figures from inspiring papers.
 * This tutorial.
 
 ## R:
