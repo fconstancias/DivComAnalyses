@@ -17,6 +17,9 @@ This document is a guideline for community analysis using `R`, [Phyloseq](https:
 
 We recommend using post-clustering approach for processing raw metabarcoding data and developed an `R` friendly pipeline named [metabaRpipe](https://github.com/fconstancias/metabaRpipe).
 
+```{r, include=FALSE, eval=TRUE, message=FALSE, warning=FALSE}
+rm(list = ls())
+```
 
 # Resources:
 
@@ -649,6 +652,8 @@ rm_rare_asv %>%
 Generate a heatmap with the proportion of those 260 ASV in the initial dataset.
 
 ```{r message=FALSE, warning=FALSE, fig.width= 8, fig.height=14}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_heatmap.R")
+
 physeq_1_st %>%
   transform_sample_counts(function(x) x/sum(x) * 1000) %>% # transform as percentage before filtering
   prune_taxa(rm_rare_asv, .) %>% # keep only the ASV with id matching the rm_rare_asv vector from the phyloseq object
@@ -713,6 +718,7 @@ microbiomeutilities::plot_abund_prev(.,
 
 pv
 ```
+We confirm thos taxa are very low prevalent and low in proportion.
 
 ## Community analysis:
 
@@ -959,6 +965,8 @@ Another way to visualize pairwise distance comparaison is to plot them as boxplo
 Red is the within group comparisons, which is why it is typically lower distance compared to the black boxplots. There are some within group comparisons that are actually more distant than comparing across groups.
 
 ```{r, message = FALSE, warning = FALSE}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_beta.R")
+
 physeq_1_rare %>% 
   phyloseq_distance_boxplot(p = ., # phyloseq object
                             dist = dm, # distance matrix
@@ -987,7 +995,7 @@ out$matrix %>%
 Let’s check if the observed patterns we visualized in PCoA, dendrogram are significant using PERMANOVA i.e., adonis function from vegan:
 
 ```{r, message = FALSE}
-vegan::adonis(bc ~ get_variable(physeq_1_rare, "treatment_invivo"))$aov.tab
+vegan::adonis2(bc ~ get_variable(physeq_1_rare, "treatment_invivo"))
 ```
 
 Based on Bray-Curtis distance treatment_invivo is significant which means there is at least one group different from the others in terms ob beta-diversity/ community similarity.
@@ -1472,37 +1480,6 @@ treat_pal %>%
 ```
 
 
-```{r}
-physeq_1_st %>% 
-  phyloseq_check_lib_size(data_color = "treatment_invivo",
-                          data_facet = NULL,
-                          nreads_display = 10000,
-                          first_n = nsamples(physeq_1_st)) -> lib
-
-lib$df %>% 
-  DT::datatable()
-```
-
-```{r}
-lib$plot + scale_y_log10() + theme_classic() -> p_lib
-
-p_lib
-```
-
-```{r}
-physeq_1_st %>%
-  phyloseq_rarefaction_curves(stepsize = 500, 
-                              color_data = "treatment_invivo", 
-                              facet_data = NULL) -> p
-
-p + geom_vline(xintercept = physeq_1_st %>%  sample_sums() %>%  min(),
-               color="red",
-               linetype="dashed", size=0.25) +
-  facet_wrap(~ treatment_invivo) + ylab("ASV Richness") -> plot
-
-plot + theme(legend.position = "none")
-```
-
 ```{r, warning=FALSE, message=FALSE}
 physeq_1_st %>%
   phyloseq_rarefied_unrarefied_richness(measure = "Observed", 
@@ -1721,9 +1698,6 @@ phyloseq_density_normalize
 
 update metadata
 
-```{r}
-
-```
 
 ```{r}
 source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_taxa_tests.R") 
