@@ -25,47 +25,15 @@ analysis based on DEseq2, ALDex2, vegan R packages.
 ## Tutorial
 
 You can find the latest version of the tutorial
-[here](http://htmlpreview.github.io/?https://github.com/fconstancias/DivComAnalyses/blob/master/Tutorial/Microbiome_R_tutorial.html).
+[here](http://htmlpreview.github.io/?https://github.com/fconstancias/DivComAnalyses/blob/cb5589a6b9dd4b054ddfdadb24445b799638e8d5/SOP/community_analyses/Microbiome_R_tutorial.html).
 
 ## Installation
 
-You can install the development version from
-[GitHub](https://github.com/) with:
+You can’t install the package from [GitHub](https://github.com/) yet.
+You will need to source the `R` files where the functions are defined -
+see Tutorial.
 
 ``` r
 # install.packages("devtools")
 devtools::install_github("fconstancias/DivComAnalyses")
 ```
-
-## Example
-
-This is a basic example which shows you how to solve a common problem:
-
-``` r
-library(DivComAnalyses)
-## basic example code
-```
-
-What is special about using `README.Rmd` instead of just `README.md`?
-You can include R chunks like so:
-
-``` r
-summary(cars)
-#>      speed           dist       
-#>  Min.   : 4.0   Min.   :  2.00  
-#>  1st Qu.:12.0   1st Qu.: 26.00  
-#>  Median :15.0   Median : 36.00  
-#>  Mean   :15.4   Mean   : 42.98  
-#>  3rd Qu.:19.0   3rd Qu.: 56.00  
-#>  Max.   :25.0   Max.   :120.00
-```
-
-You’ll still need to render `README.Rmd` regularly, to keep `README.md`
-up-to-date.
-
-You can also embed plots, for example:
-
-<img src="man/figures/README-pressure-1.png" width="100%" />
-
-In that case, don’t forget to commit and push the resulting figure
-files, so they display on GitHub\!

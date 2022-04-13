@@ -25,38 +25,14 @@ The goal of DivComAnalyses is to facilitate community analysis (e.g., 16S commun
 
 ## Tutorial
 
-You can find the latest version of the tutorial [here](http://htmlpreview.github.io/?https://github.com/fconstancias/DivComAnalyses/blob/master/Tutorial/Microbiome_R_tutorial.html).
+You can find the latest version of the tutorial [here](http://htmlpreview.github.io/?https://github.com/fconstancias/DivComAnalyses/blob/cb5589a6b9dd4b054ddfdadb24445b799638e8d5/SOP/community_analyses/Microbiome_R_tutorial.html).
 
 
 ## Installation
 
-You can install the development version from [GitHub](https://github.com/) with:
+You can't install the package  from [GitHub](https://github.com/) yet. You will need to source the `R` files where the functions are defined - see Tutorial.
 
 ``` r
 # install.packages("devtools")
 devtools::install_github("fconstancias/DivComAnalyses")
 ```
-## Example
-
-This is a basic example which shows you how to solve a common problem:
-
-```{r example}
-library(DivComAnalyses)
-## basic example code
-```
-
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
-
-```{r cars}
-summary(cars)
-```
-
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date.
-
-You can also embed plots, for example:
-
-```{r pressure, echo = FALSE}
-plot(pressure)
-```
-
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub!
