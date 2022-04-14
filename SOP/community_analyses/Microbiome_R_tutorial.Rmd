@@ -1912,6 +1912,18 @@ Select your data > RDS allows to directly load the phyloseq object.
 * [shiny-phyloseq](http://joey711.github.io/shiny-phyloseq/)
 
 
+* [microViz](https://david-barnett.github.io/microViz/): microViz provides a Shiny app for an easy way to start exploring your microbiome data: all you need is a phyloseq object!
+
+```{r}
+library(microViz)
+
+pseq <- readRDS("../../data-raw/ps_invivo.RDS") %>%
+  microViz::tax_fix() %>%
+  microViz::phyloseq_validate()
+
+ord_explore(pseq)
+```
+
 ## qiime2:
 
 QIIME™ (pronounced chime) stands for Quantitative Insights Into Microbial Ecology. It is a bioinformatic pipeline developed to ease the process of bioinformatic analysis of raw sequencing microbiome data - not explored here since we have processed the data using [metabaRpipe](https://github.com/fconstancias/metabaRpipe). It is also useful to visualize and analyze the processed data, in a user friendly experience:
