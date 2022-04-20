@@ -11,6 +11,9 @@ status](https://travis-ci.com/fconstancias/DivComAnalyses.svg?branch=master)](ht
 status](https://ci.appveyor.com/api/projects/status/github/fconstancias/DivComAnalyses?branch=master&svg=true)](https://ci.appveyor.com/project/fconstancias/DivComAnalyses)
 [![Codecov test
 coverage](https://codecov.io/gh/fconstancias/DivComAnalyses/branch/master/graph/badge.svg)](https://codecov.io/gh/fconstancias/DivComAnalyses?branch=master)
+
+[![DOI](https://zenodo.org/badge/299625681.svg)](https://zenodo.org/badge/latestdoi/299625681)
+
 <!-- badges: end -->
 
 The goal of DivComAnalyses is to facilitate community analysis (e.g.,

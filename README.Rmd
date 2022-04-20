@@ -19,6 +19,10 @@ knitr::opts_chunk$set(
 [![Travis build status](https://travis-ci.com/fconstancias/DivComAnalyses.svg?branch=master)](https://travis-ci.com/fconstancias/DivComAnalyses)
 [![AppVeyor build status](https://ci.appveyor.com/api/projects/status/github/fconstancias/DivComAnalyses?branch=master&svg=true)](https://ci.appveyor.com/project/fconstancias/DivComAnalyses)
 [![Codecov test coverage](https://codecov.io/gh/fconstancias/DivComAnalyses/branch/master/graph/badge.svg)](https://codecov.io/gh/fconstancias/DivComAnalyses?branch=master)
+
+[![DOI](https://zenodo.org/badge/299625681.svg)](https://zenodo.org/badge/latestdoi/299625681)
+
+
 <!-- badges: end -->
 
 The goal of DivComAnalyses is to facilitate community analysis (e.g., 16S community metabarcoding, metaphlan taxonomic profiling from metagenomes). In data filtering (i.e., potential contaminants identified using decontam R package), in normalizing data (i.e., 16S qPCR normalization), generate phylogenetic and taxonomic alpha and beta-diversity metrics, visualize community composition and structure using unconstrained and constrained ordination, facilitate statistical analysis based on DEseq2, ALDex2, vegan R packages.
