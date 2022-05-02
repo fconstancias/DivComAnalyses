@@ -567,14 +567,16 @@ physeq_pairwise_permanovas_adonis2 <- function(dm, physeq, compare_header, n_per
       adonis2(formula = as.formula(paste("dist_tmp", paste(compare_header), sep=" ~ ")),
               permutations = perm,
               by = terms_margins,
-              data = df_tmp)$aov  -> m
+              data = df_tmp) %>%  
+        as.data.frame() -> m
       
     }else{
       
       adonis2(formula = as.formula(paste("dist_tmp", paste(compare_header), sep=" ~ ")),
               permutations = n_perm,
               by = terms_margins,
-              data = df_tmp) -> m
+              data = df_tmp) %>%  
+        as.data.frame() -> m
     }
     pval = c(pval, m$`Pr(>F)`[1])
     R2 = c(R2, m$R2[1])
