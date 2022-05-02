@@ -562,7 +562,7 @@ physeq_pairwise_permanovas_adonis2 <- function(dm, physeq, compare_header, n_per
     if (strata %in% colnames(df)){
       
       perm <- how(nperm = n_perm)
-      setBlocks(perm) <- with(df_tmp, strata)      
+      setBlocks(perm) <- with(df_tmp, get(strata))     
       
       adonis2(formula = as.formula(paste("dist_tmp", paste(compare_header), sep=" ~ ")),
               permutations = perm,
@@ -850,7 +850,7 @@ phyloseq_adonis_strata_perm <- function(dm,
   if (strata %in% colnames(df)){
     
     perm <- how(nperm = nrep)
-    setBlocks(perm) <- with(df, strata)
+    setBlocks(perm) <- with(df, get(strata))
     
     adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
             # strata = strata,
