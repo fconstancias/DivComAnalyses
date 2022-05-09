@@ -561,8 +561,11 @@ physeq_pairwise_permanovas_adonis2 <- function(dm, physeq, compare_header, n_per
     
     if (strata %in% colnames(df)){
       
+      df_tmp %>% 
+        mutate("strata" = get(strata)) -> df_tmp
+      
       perm <- how(nperm = n_perm)
-      setBlocks(perm) <- with(df_tmp, get(strata))     
+      setBlocks(perm) <- with(df_tmp, strata)
       
       adonis2(formula = as.formula(paste("dist_tmp", paste(compare_header), sep=" ~ ")),
               permutations = perm,
@@ -851,8 +854,11 @@ phyloseq_adonis_strata_perm <- function(dm,
   
   if (strata %in% colnames(df)){
     
+    df %>% 
+      mutate("strata" = get(strata)) -> df
+    
     perm <- how(nperm = nrep)
-    setBlocks(perm) <- with(df, get(strata))
+    setBlocks(perm) <- with(df, strata)
     
     adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
             # strata = strata,
@@ -1016,6 +1022,7 @@ phyloseq_adonis <- function(dm,
 
 phyloseq_plot_ordinations_facet <- function(plot_list,
                                             color_group = "treatment_grouped",
+                                            alpha = 0.9,
                                             shape_group = NULL,
                                             axis_names = c("Axis.1", "Axis.2"),
                                             return_eig_df = FALSE)
@@ -1039,7 +1046,8 @@ phyloseq_plot_ordinations_facet <- function(plot_list,
     # tidyr::separate(group, into = c("gpA", "gpB"), sep = ".", fill= "left", remove = FALSE)
     p = p + geom_point(size=2,
                        aes_string(color= color_group, 
-                                  shape = shape_group))
+                                  shape = shape_group,
+                                  alpha = alpha))
     
     p = p + facet_wrap(b ~ a, scales="free")
     
@@ -1071,7 +1079,8 @@ phyloseq_plot_ordinations_facet <- function(plot_list,
     # tidyr::separate(group, into = c("gpA", "gpB"), sep = ".", fill= "left", remove = FALSE)
     p = p + geom_point(size=2,
                        aes_string(color= color_group, 
-                                  shape = shape_group))
+                                  shape = shape_group,
+                                  alpha = alpha))
     
     p = p + facet_wrap(distance ~. , scales="free")
     
@@ -1456,6 +1465,14 @@ phyloseq_dbRDA <- function(ps,
                            forumla = paste0(variables, collapse=" + "),
                            group_plot,
                            vec_ext = 0.2)
+  
+#TODO: https://rstudio-pubs-static.s3.amazonaws.com/694016_e2d53d65858d4a1985616fa3855d237f.html
+#   require(ggordiplots)
+# #  devtools::install_github("jfq3/ggordiplots")
+# 
+# gg_ordiplot(dbRDA, groups = metadata$Group, pt.size = 3)
+  
+  
 {
   ### ------
   require(ggvegan); require(ggord); require(vegan); 
