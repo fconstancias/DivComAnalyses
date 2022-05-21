@@ -608,7 +608,7 @@ phyloseq_filter_per_sample_OTU <- function(physeq,
   
   if (!is.null(physeq@refseq)){
     merge_phyloseq(phyloseq_filt,
-                    physeq %>% phy_tree()) ->  phyloseq_filt     
+                   physeq %>% phy_tree()) ->  phyloseq_filt     
   }
   
   out <- phyloseq_filt
@@ -808,8 +808,9 @@ phyloseq_get_strains_fast <- function(physeq, species = TRUE)
 phyloseq_remove_chloro_mitho <- function(physeq)
 {
   physeq %>%
-    subset_taxa(Order != "Chloroplast" |
-                  Family != "Mitochondria") -> your_phyloseq_clean
+    subset_taxa(Order != "Chloroplast") %>% 
+    subset_taxa(Family != "Mitochondria") -> your_phyloseq_clean
+  
   return(your_phyloseq_clean)
 }
 
@@ -1028,16 +1029,13 @@ physeq_remove_contaminants_crude <- function(physeq,
   
   require(phyloseq)
   require(tidyverse)
-  
-  
+
   #adding the strain level annotation to the asvs (ie. instead of ASV1,ASV2..,etc, we now have strain level annotation as taxa_names())
   
   
   if("Strain" %in% rank_names(physeq)  && Strain == TRUE)
   {
     taxa_names(physeq)  <- tax_table(physeq)[,"Strain"]
-    
-    
   }
   
   #defining an operator 'not in'
@@ -1051,7 +1049,6 @@ physeq_remove_contaminants_crude <- function(physeq,
     taxa_names(physeq)  <- tax_table(physeq)[,"Strain"]
     
   }
-  
   
   #create logical vector indicating whether sample is negative or not
   is.neg <- sample_data(physeq)[[sample_type]]==NTC_label
@@ -1118,7 +1115,6 @@ physeq_remove_contaminants_crude <- function(physeq,
 #'                                       detailed=TRUE)
 #'@note No need to normalize to frequencies before running function
 
-
 phyloseq_remove_contaminants_decontam <- function(physeq, 
                                                   sample_type, 
                                                   NTC_label,
@@ -1154,7 +1150,7 @@ phyloseq_remove_contaminants_decontam <- function(physeq,
   if("Strain" %!in% rank_names(physeq)  && Strain == TRUE)
   {
     physeq %>%
-      phyloseq_get_strains_fast() -> physeq
+      phyloseq_get_strains() -> physeq
     
     taxa_names(physeq)  <- tax_table(physeq)[,"Strain"]
     
@@ -1199,11 +1195,9 @@ phyloseq_remove_contaminants_decontam <- function(physeq,
     # xlim(0,1000) + ylim(0,1000) + coord_equal() +
     xlab("Prevalence (Negative Controls)") + ylab("Prevalence (True Samples)") -> p1.decontam
   
-  
   ## creating a temporary physeq object for use in plotting that is normalized to relative abundaces 
   physeq %>%
     transform_sample_counts(function(x) x/sum(x) *100)  -> physeq_tmp
-  
   
   prune_taxa(ASV_decontam_prev, physeq_tmp) %>%
     #subset_samples(Experiment == "Continuous") %>% 
@@ -1221,8 +1215,6 @@ phyloseq_remove_contaminants_decontam <- function(physeq,
               "diagnostic.plot2" = p2.decontam)
   
   return(out)
-  
-  
 }
 
 
@@ -1267,7 +1259,6 @@ phyloseq_remove_contaminants_decontam <- function(physeq,
 #' DON"T NORMALIZE READS BEFORE RUNNING FUNCTION
 
 #' 
-
 phyloseq_remove_contaminants_microDecon <- function(physeq,
                                                     grouping_var,
                                                     sample_type_var,
@@ -1338,7 +1329,7 @@ phyloseq_remove_contaminants_microDecon <- function(physeq,
       #formatting the otu table in the way required by microDecon
       otu.df<-otu.df %>% relocate(all_of(grouped_sample_ids),.after=OTU_ID)
       
-      NTC.df <- sample.data %>% filter(.data[[sample_type_var]] == "NTC")
+      NTC.df <- sample.data %>% filter(.data[[sample_type_var]] == NTC_label)
       
       NTC_samples<- NTC.df$Sample_ID
       
@@ -1348,7 +1339,7 @@ phyloseq_remove_contaminants_microDecon <- function(physeq,
       n.blanks = length(NTC_samples)
       
       #vector of numbers listing the number of individuals in each user-specified group
-      numb.ind<-sample.data %>% filter(.data[[sample_type_var]]!='NTC') %>% group_size()
+      numb.ind<-sample.data %>% filter(.data[[sample_type_var]]!=NTC_label) %>% group_size()
       
       #performing decontamination:
       
@@ -1427,7 +1418,7 @@ phyloseq_remove_contaminants_microDecon <- function(physeq,
     #formatting the otu table in the way required by microDecon
     otu.df<-otu.df %>% relocate(all_of(grouped_sample_ids),.after=OTU_ID)
     
-    NTC.df <- sample.data %>% filter(.data[[sample_type_var]] == "NTC")
+    NTC.df <- sample.data %>% filter(.data[[sample_type_var]] == NTC_label)
     
     NTC_samples<- NTC.df$Sample_ID
     
@@ -1437,7 +1428,7 @@ phyloseq_remove_contaminants_microDecon <- function(physeq,
     n.blanks = length(NTC_samples)
     
     #vector of numbers listing the number of individuals in each user-specified group
-    numb.ind<-sample.data %>% filter(.data[[sample_type_var]]!='NTC') %>% group_size()
+    numb.ind<-sample.data %>% filter(.data[[sample_type_var]]!=NTC_label) %>% group_size()
     
     #performing decontamination:
     
@@ -1484,13 +1475,7 @@ phyloseq_remove_contaminants_microDecon <- function(physeq,
   
   
 }
+## to add:
 
-# to add:
-
-# https://github.com/MBARI-BOG/BOG-Banzai-Dada2-Pipeline/blob/e40953dcb4980792d0320d6d1f4c815bfaa7484c/Pipeline_scripts/decon_std_outputs_v1.0.R
 # https://github.com/Mettetron/3Species/blob/c36ed383fa0d81aeeec76b8a04bba3c8b588f7c5/DADA2_filterAndNorm.R
 # https://github.com/zjgold/gruinard_decon/blob/3b1b2d076f9e74ed9c9c298f17f409621e62f44f/decontamination_utilities.R
-
-
-
-

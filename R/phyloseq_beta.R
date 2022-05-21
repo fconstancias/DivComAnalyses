@@ -30,13 +30,6 @@ phyloseq_compute_bdiv <- function(phylo_tmp,
   require(GUniFrac)
   
   set.seed(seed)
-  if(norm == "pc")
-  {
-    phylo_tmp %>%
-      transform_sample_counts(function(x) {x/sum(x)} * 100) -> phylo_tmp
-  } else{
-    phylo_tmp = phylo_tmp
-  }
   
   if (phylo == TRUE)
   {
@@ -134,17 +127,11 @@ phyloseq_plot_bdiv <- function(ps_rare,
                                m = "PCoA",
                                seed = 123,
                                axis1 = axis1,
-                               axis2 = axis2)
+                               axis2 = axis2,
+                               TSNE_per = 5)
 {
   if (m == "CoDa")
   {
-    # d.czm <- zCompositions::cmultRepl(t(otu_table(ps_rare)),  label=0, method="CZM")
-    # d.clr <- t(apply(d.czm, 1, function(x){log(x) - mean(log(x))})) %>% as.matrix()
-    # 
-    # ps_rare@otu_table = NULL
-    # 
-    # ps_rare@otu_table = otu_table((d.clr), taxa_are_rows = FALSE)
-    
     ps_rare <- microbiome::transform(ps_rare, "clr")
     
     ord_clr <- phyloseq::ordinate(ps_rare, "RDA")
@@ -179,7 +166,7 @@ phyloseq_plot_bdiv <- function(ps_rare,
         
         # https://microbiome.github.io/microbiome/Ordination.html
         # Run TSNE
-        tsne_out <- Rtsne::Rtsne(dlist[[i]], dims = 2, perplexity = 5, verbose = T)
+        tsne_out <- Rtsne::Rtsne(dlist[[i]], dims = 2, perplexity = TSNE_per, verbose = T)
         proj <- tsne_out$Y %>% data.frame()
         
         rownames(proj) <- rownames(t(otu_table(ps_rare)))
@@ -190,8 +177,8 @@ phyloseq_plot_bdiv <- function(ps_rare,
         
         # microbiome::plot_landscape(proj, legend = T, size = 1)
         p <- phyloseq::plot_ordination(ps_rare,
-                                       proj) + geom_point(data = proj2, aes_string(colour = "Oral_Site", shape = "Health_status"), size = 4) + theme_bw() #+
-        # scale_shape_manual(values=seq(0,15))
+                                       proj)
+        
         plot_list[[i]] = p
         
       }else{
@@ -210,11 +197,20 @@ phyloseq_plot_bdiv <- function(ps_rare,
         # Add title to each plot
         if(m == "NMDS")
         {
+          stress_list <- vector("list", length(dlist))
+          names(stress_list) =  names(dlist)
+          
+          stress = iMDS$grstress %>% round(2)
+          
           p <- p + ggtitle(paste0(m," using distance method ",   i, "\n",
-                                  " NMDS 2d stress = ", iMDS$grstress %>% round(2))) +
+                                  " NMDS 2d stress = ", stress)) +
             geom_point(size = 4) + theme_bw() #+
           # ggrepel::geom_text_repel(cex=2.5,aes(label=sample))
           plot_list[[i]] = p
+          
+          stress_list[[i]] = stress
+          
+          plot_list <- c(plot_list, stress_list)
         }
         if(m == "PCoA")
         {
@@ -633,7 +629,7 @@ physeq_betadisper <- function(dm,
                                      get_variable(physeq, variable)))$tab$`Pr(>F)`[1] -> pval
   
   boxplot(vegan::betadisper(dm, 
-                     get_variable(physeq, variable)),las=2, 
+                            get_variable(physeq, variable)),las=2, 
           main=paste0("Multivariate Dispersion Test "," pvalue = ", 
                       vegan::permutest(betadisper(bc, get_variable(physeq, variable)))$tab$`Pr(>F)`[1])) -> plot
   
@@ -909,11 +905,11 @@ phyloseq_adonis_strata_perm <- function(dm,
 #'
 
 phyloseq_adonis2 <- function(dm,
-                            physeq = physeq,
-                            formula = paste0(variables, collapse=" + "),
-                            nrep = 999,
-                            strata = "none",
-                            terms_margins = "terms"){
+                             physeq = physeq,
+                             formula = paste0(variables, collapse=" + "),
+                             nrep = 999,
+                             strata = "none",
+                             terms_margins = "terms"){
   require(vegan)
   
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
@@ -953,11 +949,11 @@ phyloseq_adonis2 <- function(dm,
 }
 
 phyloseq_adonis <- function(dm,
-                             physeq = physeq,
-                             formula = paste0(variables, collapse=" + "),
-                             nrep = 999,
-                             strata = "none",
-                             terms_margins = "terms"){
+                            physeq = physeq,
+                            formula = paste0(variables, collapse=" + "),
+                            nrep = 999,
+                            strata = "none",
+                            terms_margins = "terms"){
   require(vegan)
   
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
@@ -1147,7 +1143,7 @@ phyloseq_distance_boxplot <- function(p, dist = dlist$wjaccard, d = "SampleType"
   
   require("phyloseq")
   require("tidyverse")
-
+  
   as.matrix(dist)[sample_names(p),sample_names(p)] %>%
     as.dist() -> dist
   
@@ -1255,7 +1251,7 @@ phyloseq_add_taxa_vector <- function(dist,
   #   
   #   taxa_names(tmp1) <-  tax_table(tmp1)[,taxrank_glom]
   # }  
- 
+  
   if(taxrank_glom != FALSE) {
     tmp1 %>%
       speedyseq::tax_glom(taxrank_glom) %>%
@@ -1268,7 +1264,7 @@ phyloseq_add_taxa_vector <- function(dist,
       t() %>%
       data.frame() -> tmp 
   }
-
+  
   
   # Create plot, store as temp variable, p
   set.seed(seed)
@@ -1294,13 +1290,13 @@ phyloseq_add_taxa_vector <- function(dist,
     rownames_to_column('ASV') -> tax_table
   
   if(join_cbind == "join"){
-  left_join(sig.spp.scrs,
-            tax_table,
-            by = c("id" = id_taxa)) %>%
-    dplyr::rename(tax_rank_plot = all_of(tax_rank_plot)) %>% 
-    dplyr::filter(!tax_rank_plot %in% taxnames_rm,
+    left_join(sig.spp.scrs,
+              tax_table,
+              by = c("id" = id_taxa)) %>%
+      dplyr::rename(tax_rank_plot = all_of(tax_rank_plot)) %>% 
+      dplyr::filter(!tax_rank_plot %in% taxnames_rm,
                     pval<=pval_cutoff) %>% 
-    top_n(top_r, r) -> all
+      top_n(top_r, r) -> all
   } 
   if(join_cbind == "cbind"){
     cbind(sig.spp.scrs, tax_table) %>% 
@@ -1346,19 +1342,19 @@ phyloseq_add_taxa_vector <- function(dist,
 
 
 phyloseq_add_metadata_vector <- function(dist,
-                                     phyloseq,
-                                     figure_ord = figure_pca,
-                                     m = "PCoA",
-                                     pval_cutoff = 0.05,
-                                     top_r = 12,
-                                     metadata_sel = c("B24_Acetate", "B24_Propionate", "B24_Butyrate", "B24_Formate", "B24_Succinate", "B24_Lactate", "B24_BCFA"),
-                                     fact = 0.5,
-                                     seed = 123,
-                                     perm = 999,
-                                     norm_method = "center_scale",
-                                     color = "green",
-                                     linetype = "dashed",
-                                     na.rm = TRUE)
+                                         phyloseq,
+                                         figure_ord = figure_pca,
+                                         m = "PCoA",
+                                         pval_cutoff = 0.05,
+                                         top_r = 12,
+                                         metadata_sel = c("B24_Acetate", "B24_Propionate", "B24_Butyrate", "B24_Formate", "B24_Succinate", "B24_Lactate", "B24_BCFA"),
+                                         fact = 0.5,
+                                         seed = 123,
+                                         perm = 999,
+                                         norm_method = "center_scale",
+                                         color = "green",
+                                         linetype = "dashed",
+                                         na.rm = TRUE)
 {
   require(phyloseq); require(tidyverse); require(vegan)  
   
@@ -1395,52 +1391,52 @@ phyloseq_add_metadata_vector <- function(dist,
   
   if(nrow(tmp) == 0) {
     print ("No metadata were selected - or only NA.")}else{
-    
-
-     
-  if (norm_method == "center_scale")
-  {
-    tmp %>%
-      mutate_if(is.numeric, scale) -> tmp
-  }
-  
-  # Create plot, store as temp variable, p
-  set.seed(seed)
-  p <- phyloseq::plot_ordination(phyloseq, iMDS)
-  
-  
-  dune.spp.fit <- envfit(iMDS$vectors, tmp, permutations = perm, na.rm = na.rm) # this fits species vectors
-  
-  
-  spp.scrs <- as.data.frame(scores(dune.spp.fit, display = "vectors")) #save species intrinsic values into dataframe
-  spp.scrs <- cbind(spp.scrs, id = rownames(spp.scrs)) #add species names to dataframe
-  spp.scrs <- cbind(spp.scrs, pval = dune.spp.fit$vectors$pvals, r = dune.spp.fit$vectors$r) #add pvalues to dataframe so you can select species which are significant
-  #spp.scrs<- cbind(spp.scrs, abrev = abbreviate(spp.scrs$Species, minlength = 6)) #abbreviate species names
-  # sig.spp.scrs <- filter(spp.scrs, pval<=pval_cutoff ) %>% top_n(top_r, r) #subset data to show species significant at 0.05
-  sig.spp.scrs <- spp.scrs
-  
-  
-  sig.spp.scrs %>% 
-    rownames_to_column('label') %>% 
-    dplyr::filter(pval<=pval_cutoff) %>% 
-    top_n(top_r, r) -> all
-  
-
-  
-  # !!variable := name_of_col_from_df
-  
-  figure_ord  +
-    geom_segment(data = all, 
-                 aes(x = 0, xend=Axis.1* fact, y=0, yend=Axis.2 * fact), arrow = arrow(length = unit(0.25, "cm")),linetype= linetype, colour = color, lwd=0.3, inherit.aes = FALSE) + #add vector arrows of significant species
-    ggrepel::geom_text_repel(data = all, aes(x= Axis.1* fact, y=Axis.2*fact, label = label), cex = 3, direction = "both", colour = color, segment.size = 0.25, inherit.aes = FALSE) -> p2
-  
-  out <- list("plot" = p2,
-              "ord" = iMDS,
-              "envfit" = spp.scrs,
-              "signenvfit" = all)
-  
-  return(out)
-  }
+      
+      
+      
+      if (norm_method == "center_scale")
+      {
+        tmp %>%
+          mutate_if(is.numeric, scale) -> tmp
+      }
+      
+      # Create plot, store as temp variable, p
+      set.seed(seed)
+      p <- phyloseq::plot_ordination(phyloseq, iMDS)
+      
+      
+      dune.spp.fit <- envfit(iMDS$vectors, tmp, permutations = perm, na.rm = na.rm) # this fits species vectors
+      
+      
+      spp.scrs <- as.data.frame(scores(dune.spp.fit, display = "vectors")) #save species intrinsic values into dataframe
+      spp.scrs <- cbind(spp.scrs, id = rownames(spp.scrs)) #add species names to dataframe
+      spp.scrs <- cbind(spp.scrs, pval = dune.spp.fit$vectors$pvals, r = dune.spp.fit$vectors$r) #add pvalues to dataframe so you can select species which are significant
+      #spp.scrs<- cbind(spp.scrs, abrev = abbreviate(spp.scrs$Species, minlength = 6)) #abbreviate species names
+      # sig.spp.scrs <- filter(spp.scrs, pval<=pval_cutoff ) %>% top_n(top_r, r) #subset data to show species significant at 0.05
+      sig.spp.scrs <- spp.scrs
+      
+      
+      sig.spp.scrs %>% 
+        rownames_to_column('label') %>% 
+        dplyr::filter(pval<=pval_cutoff) %>% 
+        top_n(top_r, r) -> all
+      
+      
+      
+      # !!variable := name_of_col_from_df
+      
+      figure_ord  +
+        geom_segment(data = all, 
+                     aes(x = 0, xend=Axis.1* fact, y=0, yend=Axis.2 * fact), arrow = arrow(length = unit(0.25, "cm")),linetype= linetype, colour = color, lwd=0.3, inherit.aes = FALSE) + #add vector arrows of significant species
+        ggrepel::geom_text_repel(data = all, aes(x= Axis.1* fact, y=Axis.2*fact, label = label), cex = 3, direction = "both", colour = color, segment.size = 0.25, inherit.aes = FALSE) -> p2
+      
+      out <- list("plot" = p2,
+                  "ord" = iMDS,
+                  "envfit" = spp.scrs,
+                  "signenvfit" = all)
+      
+      return(out)
+    }
   
   detach("package:vegan", unload=TRUE)
   
@@ -1466,11 +1462,11 @@ phyloseq_dbRDA <- function(ps,
                            group_plot,
                            vec_ext = 0.2)
   
-#TODO: https://rstudio-pubs-static.s3.amazonaws.com/694016_e2d53d65858d4a1985616fa3855d237f.html
-#   require(ggordiplots)
-# #  devtools::install_github("jfq3/ggordiplots")
-# 
-# gg_ordiplot(dbRDA, groups = metadata$Group, pt.size = 3)
+  #TODO: https://rstudio-pubs-static.s3.amazonaws.com/694016_e2d53d65858d4a1985616fa3855d237f.html
+  #   require(ggordiplots)
+  # #  devtools::install_github("jfq3/ggordiplots")
+  # 
+  # gg_ordiplot(dbRDA, groups = metadata$Group, pt.size = 3)
   
   
 {
@@ -2448,7 +2444,7 @@ in_vitro_mIMT_STABvsTreat <- function(physeq,
     bind_rows(.id = "Distance") %>%
     filter(!Distance %in% c("bray", "d_0", "d_0.5")) -> adonis_tmp
   
-
+  
   ps %>%
     phyloseq_plot_bdiv(dlist,
                        m = m,
