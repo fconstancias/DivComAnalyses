@@ -457,9 +457,10 @@ test_filt_map = function(map, filter_cat, filter_vals, keep_vals){
 #'data(enterotype)
 #'phyloseq_compute_bdiv(enterotype) -> dist
 #'enterotype %>% 
-#'subset_samples(!is.na(Gender)) %>% 
-#'physeq_pairwise_permanovas(dm = dist$bray, physeq = ., compare_header = "Gender")
-#'
+#'subset_samples(!is.na(Nationality)) %>% 
+#'physeq_pairwise_permanovas(dm = dist$bray, physeq = ., compare_header = "Nationality")
+#'or
+#'physeq_pairwise_permanovas_adonis2(dm = dist$bray, physeq = ., compare_header = "Nationality")
 #'
 
 
