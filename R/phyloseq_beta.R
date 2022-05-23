@@ -898,14 +898,12 @@ phyloseq_adonis_strata_perm <- function(dm,
 #' @examples
 #'
 #'library(phyloseq)
-#'data(esophagus)
-#'phyloseq_compute_bdiv(esophagus, 100) -> dist
-#'
-#'
-#'
-#'
-#'
-#'
+#'data(enterotype)
+#'phyloseq_compute_bdiv(enterotype) -> dist
+#'enterotype %>% 
+#'subset_samples(!is.na(Gender)) %>% 
+#'phyloseq_adonis2(dm = dist$bray, physeq = ., formula = "Gender")
+
 
 phyloseq_adonis2 <- function(dm,
                              physeq = physeq,
@@ -940,7 +938,8 @@ phyloseq_adonis2 <- function(dm,
             data = df,
             by = terms_margins) %>%
       data.frame() %>%
-      rownames_to_column('terms') -> out
+      rownames_to_column('terms') %>% 
+      rename('Pr(>F)' = `Pr..F.` ) -> out
   }
   
   
@@ -2816,4 +2815,69 @@ plot_ratio_Stab_Treat_meta <- function(ps_new,
   
   
   return(out)
+}
+
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note https://github.com/USFOneHealthCodeathon2020/Team1_MicroPowerPlus/blob/master/PERMANOVA.Rmd
+#' @note https://htmlpreview.github.io/?https://github.com/USFOneHealthCodeathon2020/Team1_MicroPowerPlus/blob/master/PERMANOVA.html
+#' @note Expect the terms to be under the terms column and not as rownames.
+#' @return .
+#' @export
+#' @examples
+#'library(phyloseq)
+#'data(enterotype)
+#'phyloseq_compute_bdiv(enterotype) -> dist
+#'enterotype %>% 
+#'subset_samples(!is.na(Gender)) %>% 
+#'phyloseq_adonis2(dm = dist$bray, physeq = ., formula = "Gender") -> adonis2
+#'adonis2 %>% adonis_OmegaSq(partial = FALSE)
+
+adonis_OmegaSq <- function(aov_tab, partial = TRUE){
+  
+  # if(is.numeric(colSums(aov_tab, na.rm = TRUE)))
+  # aov_tab %>% 
+  #   rownames_to_column('terms') -> aov_tmp
+  
+    ####---------------------- Compute MeanSqs
+  
+  aov_tab %>% 
+    mutate(MeanSqs = SumOfSqs / Df) -> aov_tmp
+    
+  ####---------------------- Identify MS_res SS_tot and N
+  
+  aov_tmp %>% 
+    filter(.[[1]]  == "Residual") %>% 
+    pull(MeanSqs) -> MS_res
+
+  aov_tmp %>% 
+    filter(.[[1]]  == "Total") %>% 
+    pull(SumOfSqs) -> SS_tot
+  
+  aov_tmp %>% 
+    filter(.[[1]]  == "Total") %>% 
+    pull(Df) + 1 -> N
+  
+  ####---------------------- run (partial) Omega Square
+  
+  if(partial == TRUE){
+    omega <- apply(aov_tmp %>% column_to_rownames('terms'), 1, function(x) (x["Df"]*(x["MeanSqs"]-MS_res))/(x["Df"]*x["MeanSqs"]+(N-x["Df"])*MS_res))
+    aov_tmp$parOmegaSq <- c(omega[1:(length(omega)-2)], NA, NA)
+    cn_order <- c("Df", "SumOfSqs", "MeanSqs", "F", "R2", "parOmegaSq", "Pr(>F)")
+  } else {
+    omega <- apply(aov_tmp %>% column_to_rownames('terms'), 1, function(x) (x["SumsOfSqs"]-x["Df"]*MS_res)/(SS_tot+MS_res))
+    aov_tmp$OmegaSq <- c(omega[1:(length(omega)-2)], NA, NA)
+    cn_order <- c("Df", "SumOfSqs", "MeanSqs", "F", "R2", "OmegaSq", "Pr(>F)")
+  }
+  
+  ####---------------------- Reorder the table and return the output
+  
+  aov_tmp %>% 
+    select(terms, one_of(cn_order)) -> aov_tmp
+
+  return(aov_tmp)
 }
