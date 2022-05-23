@@ -1267,7 +1267,12 @@ phyloseq_remove_contaminants_microDecon <- function(physeq,
                                                     taxa_level,
                                                     facet_plot = NULL , 
                                                     taxa_plot,
-                                                    run_groupwise=FALSE){
+                                                    run_groupwise=FALSE,
+                                                    runs = 2,
+                                                    thresh = 0.7,
+                                                    prop.thresh = 0.00005,
+                                                    low.threshold = 40,
+                                                    up.threshold = 400){
   
   require(phyloseq)
   require(tidyverse)
@@ -1347,12 +1352,12 @@ phyloseq_remove_contaminants_microDecon <- function(physeq,
                     numb.blanks = n.blanks,
                     numb.ind = numb.ind,
                     taxa = T,
-                    runs=2,
-                    thresh = 0.7,
-                    prop.thresh = 0.00005,
+                    runs = runs,
+                    thresh = thresh,
+                    prop.thresh = prop.thresh,
                     regression = 0,
-                    low.threshold = 40,
-                    up.threshold = 400)
+                    low.threshold = low.threshold,
+                    up.threshold = up.threshold)
       
       #type ?decon() in the console for more info about other parameters and how the result is formatted
       
@@ -1436,12 +1441,12 @@ phyloseq_remove_contaminants_microDecon <- function(physeq,
                   numb.blanks = n.blanks,
                   numb.ind = numb.ind,
                   taxa = T,
-                  runs=2,
-                  thresh = 0.7,
-                  prop.thresh = 0.00005,
+                  runs = runs,
+                  thresh = thresh,
+                  prop.thresh = prop.thresh,
                   regression = 0,
-                  low.threshold = 40,
-                  up.threshold = 400)
+                  low.threshold = low.threshold,
+                  up.threshold = up.threshold)
     
     #type ?decon() in the console for more info about other parameters and how the result is formatted
     
