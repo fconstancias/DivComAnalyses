@@ -454,14 +454,16 @@ test_filt_map = function(map, filter_cat, filter_vals, keep_vals){
 #' @examples
 #'
 #'library(phyloseq)
-#'data(esophagus)
-#'phyloseq_compute_bdiv(esophagus, 100) -> dist
-#'
+#'data(enterotype)
+#'phyloseq_compute_bdiv(enterotype) -> dist
+#'enterotype %>% 
+#'subset_samples(!is.na(Gender)) %>% 
+#'physeq_pairwise_permanovas(dm = dist$bray, physeq = ., compare_header = "Gender")
 #'
 #'
 
 
-physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat, terms_margins = "terms") {
+physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat = FALSE, terms_margins = "terms") {
   require(vegan)
   
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
