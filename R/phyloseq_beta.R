@@ -2862,7 +2862,7 @@ adonis_OmegaSq <- function(aov_tab, partial = TRUE){
     filter(.[[1]]  == "Total") %>% 
     pull(Df) + 1 -> N
   
-  ####---------------------- run (partial) Omega Square
+  ####---------------------- Run (partial) Omega Square
   
   if(partial == TRUE){
     omega <- apply(aov_tmp %>% column_to_rownames('terms'), 1, function(x) (x["Df"]*(x["MeanSqs"]-MS_res))/(x["Df"]*x["MeanSqs"]+(N-x["Df"])*MS_res))
