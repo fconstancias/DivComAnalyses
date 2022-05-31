@@ -453,7 +453,8 @@ test_filt_map = function(map, filter_cat, filter_vals, keep_vals){
 #' @export
 #' @examples
 #'
-#'library(phyloseq)
+#'source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_beta.R")
+#'library(phyloseq); library(tidyverse)
 #'data(enterotype)
 #'phyloseq_compute_bdiv(enterotype) -> dist
 #'enterotype %>% 
@@ -475,12 +476,12 @@ physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat
     data.frame() -> metadata_map
   
   comp_var = as.factor(metadata_map[, compare_header])
-  comp_pairs = combn(levels(comp_var), 2)
+  comp_pairs = utils::combn(levels(comp_var), 2)
   pval = c()
   R2 = c()
   for (i in 1:ncol(comp_pairs)) {
     pair = comp_pairs[, i]
-    dm_w_map = list(dm_loaded = dm, map_loaded = metadata_map)
+    dm_w_map = base::list(dm_loaded = dm, map_loaded = metadata_map)
     dm_w_map$map_loaded$in_pair = comp_var %in% pair
     dm_w_map_filt = filter_dm(dm_w_map, filter_cat = "in_pair",
                               keep_vals = TRUE)
@@ -525,6 +526,7 @@ physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat
   
   return(results)
   
+    
   
   detach("package:vegan", unload=TRUE)
   
@@ -597,6 +599,45 @@ physeq_pairwise_permanovas_adonis2 <- function(dm, physeq, compare_header, n_per
   
 }
 
+
+filter_dm <- function (input_dm, filter_cat, filter_vals, keep_vals)
+{
+  map_filt = test_filt_map(input_dm$map_loaded, filter_cat, filter_vals,
+                           keep_vals)
+  dm = as.matrix(input_dm$dm_loaded)
+  samplesToUse = intersect(colnames(dm), row.names(map_filt))
+  dm_use = as.dist(dm[match(samplesToUse, colnames(dm)), match(samplesToUse,
+                                                               colnames(dm))])
+  map_use = map_filt[match(samplesToUse, row.names(map_filt)),
+  ]
+  list(dm_loaded = dm_use, map_loaded = map_use)
+}
+
+test_filt_map = function(map, filter_cat, filter_vals, keep_vals){
+  if(!missing(filter_vals) & !missing(keep_vals)){
+    stop('Can only handle filter_vals or keep_vals, not both.')
+  }
+  if(!filter_cat %in% names(map)){
+    stop('filter_cat not found in mapping file headers. Check spelling.')
+  }
+  # filter out values within mapping category
+  else if(!missing(filter_cat) & !missing(filter_vals)){
+    map_f = map[!map[, filter_cat] %in% filter_vals, , drop = FALSE]
+    map_f = droplevels(map_f)
+    if(nrow(map_f) == 0){
+      stop('All rows filtered out. Check spelling of filter parameters.')
+    }
+  }
+  # keep certain values with mapping category
+  else if(!missing(filter_cat) & !missing(keep_vals)){
+    map_f = map[map[,filter_cat] %in% keep_vals, , drop = FALSE]
+    map_f = droplevels(map_f)
+    if(nrow(map_f) == 0){
+      stop('All rows filtered out. Check spelling of filter parameters.')
+    }
+  }
+  map_f
+}
 
 #' @title ...
 #' @param .
