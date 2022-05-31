@@ -604,12 +604,12 @@ filter_dm <- function (input_dm, filter_cat, filter_vals, keep_vals){
   map_filt = test_filt_map(input_dm$map_loaded, filter_cat, filter_vals,
                            keep_vals)
   dm = as.matrix(input_dm$dm_loaded)
-  samplesToUse = intersect(colnames(dm), row.names(map_filt))
+  samplesToUse = base::intersect(colnames(dm), row.names(map_filt))
   dm_use = as.dist(dm[match(samplesToUse, colnames(dm)), match(samplesToUse,
                                                                colnames(dm))])
   map_use = map_filt[match(samplesToUse, row.names(map_filt)),
   ]
-  list(dm_loaded = dm_use, map_loaded = map_use)
+  base::list(dm_loaded = dm_use, map_loaded = map_use)
 }
 
 test_filt_map = function(map, filter_cat, filter_vals, keep_vals){
@@ -622,7 +622,7 @@ test_filt_map = function(map, filter_cat, filter_vals, keep_vals){
   # filter out values within mapping category
   else if(!missing(filter_cat) & !missing(filter_vals)){
     map_f = map[!map[, filter_cat] %in% filter_vals, , drop = FALSE]
-    map_f = droplevels(map_f)
+    map_f = base::droplevels(map_f)
     if(nrow(map_f) == 0){
       stop('All rows filtered out. Check spelling of filter parameters.')
     }
@@ -630,7 +630,7 @@ test_filt_map = function(map, filter_cat, filter_vals, keep_vals){
   # keep certain values with mapping category
   else if(!missing(filter_cat) & !missing(keep_vals)){
     map_f = map[map[,filter_cat] %in% keep_vals, , drop = FALSE]
-    map_f = droplevels(map_f)
+    map_f = base::droplevels(map_f)
     if(nrow(map_f) == 0){
       stop('All rows filtered out. Check spelling of filter parameters.')
     }
