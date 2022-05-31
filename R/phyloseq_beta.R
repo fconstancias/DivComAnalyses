@@ -600,8 +600,7 @@ physeq_pairwise_permanovas_adonis2 <- function(dm, physeq, compare_header, n_per
 }
 
 
-filter_dm <- function (input_dm, filter_cat, filter_vals, keep_vals)
-{
+filter_dm <- function (input_dm, filter_cat, filter_vals, keep_vals){
   map_filt = test_filt_map(input_dm$map_loaded, filter_cat, filter_vals,
                            keep_vals)
   dm = as.matrix(input_dm$dm_loaded)
