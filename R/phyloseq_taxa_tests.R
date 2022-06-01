@@ -27,6 +27,8 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
                                                    boxplot_colors = NULL)
 {
   require(tidyverse);require(DESeq2)
+  
+  ############ ----------------------------
   ps %>%
     filter_taxa(function(x) sum(x > 0) > 0, TRUE)  %>% 
     speedyseq::tax_glom(taxrank = taxrank) -> ps_temp
@@ -36,6 +38,7 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
                ntaxa(ps_temp)," were kept after removing features with 0 abundances and  taxa agglomeration"))
   
   
+  ############ ----------------------------
   
   if (taxrank != "Strain"){
     prune_taxa(data.frame(tax_table(ps_temp)[,taxrank])  %>%
@@ -45,8 +48,7 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
   }  
   
   
-  # ps_temp %>% 
-  #   microbiome::core(detection = sumfilter, prevalence = prevfilter) -> ps_filtered
+  ############ ----------------------------
   
   ps_temp %>%
     filter_taxa(function(x){sum(x > sumfilter) >  prevfilter*nsamples(ps_temp)}, prune = TRUE) -> ps_filtered
@@ -56,15 +58,7 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
   
   print(paste0("from ", ntaxa(ps_temp)," features, ", ntaxa(ps_filtered)," were kept after taxa agglomeration, sum filter and prevalence filtering"))
   
-  if(gm_mean)
-  {
-    gm_mean = function(x, na.rm = TRUE) {
-      exp(sum(log(x[x > 0]), na.rm = na.rm)/length(x))
-    }
-    geoMeans = apply(counts(cds), 1, gm_mean)
-    cds = estimateSizeFactors(cds, geoMeans = geoMeans)
-  }
-  
+  ############ ----------------------------
   
   if(gm_mean)
   {
@@ -75,7 +69,9 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
     cds = estimateSizeFactors(cds, geoMeans = geoMeans)
   }
   
-  # run DESeq function
+  
+  ############ ----------------------------run DESeq function
+  
   cds %>%
     DESeq(fitType = fittype) -> dds
   
@@ -91,6 +87,8 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
     filter(padj < 0.05) %>%
     pull(ASV) -> da_otus
   
+  ############ ----------------------------
+  
   results %>%
     mutate(abs_log2FoldChange = abs(log2FoldChange)) %>% # create new column abs_log2FoldChange absolute values of log2FoldChange column.
     mutate(SIGN  = ifelse(padj <=0.05 & abs_log2FoldChange > 0 , "SIGN", "NS")) %>% # create new column SIGN for each ASV SIGN is added if padj is <=0.05  and abs_log2FoldChange >1.
@@ -98,6 +96,8 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
     drop_na(SIGN, # remove NA values for SIGN, log2FoldChange and padj columns.
             log2FoldChange,
             padj) -> resuls_complete
+  
+  ############ ----------------------------
   
   if(length(da_otus)>0)
   {
@@ -114,6 +114,24 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
                            na.value = "transparent", #trans = scales::log_trans(2),
                            midpoint = 0) + 
       theme_classic() + theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 8)) -> heatmap
+    
+    ############ ----------------------------
+    
+    phyloseq::prune_taxa(da_otus,
+                         ps_temp ) %>%
+      transform_sample_counts(function(x) x/sum(x) * 100) %>% 
+      plot_heatmap(taxa.label = taxrank,
+                   taxa.order = resuls_complete %>% arrange(sign) %>% pull(ASV)      ## ordered according to fold-change
+      ) +
+      facet_grid(as.formula(paste0(level_facet," ~ ",Group)), scales = "free", space = "free") +
+      # scale_fill_gradientn(colours = c("cyan", "black", "red"),
+      #                        values = scales::rescale(c(-10, -5, -2, -1, -0.5, -0.05, 0, 0.05, 0.5, 1, 2, 5, 10))) + theme_classic() +
+      scale_fill_gradient2(name = "Z-score", low = "#d73027" , mid = "#ffffbf", high = "#1a9850",
+                           na.value = "transparent", #trans = scales::log_trans(2),
+                           midpoint = 0) + 
+      theme_classic() + theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 8)) -> heatmap_prop
+    
+    ############ ----------------------------
     
     resuls_complete %>%
       ggplot(aes(x = log2FoldChange, y = -log10(padj))) + # tell ggplot that we are going to plot -log10(padj) as a function of log2FoldChange
@@ -171,13 +189,14 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
                 "boxplots"=boxplots,
                 "volcano_plot"=volcano_plot,
                 "heatmap" =heatmap,
+                "heatmap_prop" = heatmap_prop,
                 "results"=resuls_complete)
     
   }else{
     print("No singinifcant features found")
     
     out <- list("ps_filtered" = ps_filtered,
-                "results"=resuls_complete)
+                "results"= resuls_complete)
   }
   return(out)
   detach("package:DESeq2", unload = TRUE)
