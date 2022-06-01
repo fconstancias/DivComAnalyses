@@ -126,9 +126,8 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
       facet_grid(as.formula(paste0(level_facet," ~ ",Group)), scales = "free", space = "free") +
       # scale_fill_gradientn(colours = c("cyan", "black", "red"),
       #                        values = scales::rescale(c(-10, -5, -2, -1, -0.5, -0.05, 0, 0.05, 0.5, 1, 2, 5, 10))) + theme_classic() +
-      scale_fill_gradient2(name = "Z-score", low = "#d73027" , mid = "#ffffbf", high = "#1a9850",
-                           na.value = "transparent", #trans = scales::log_trans(2),
-                           midpoint = 0) + 
+      scale_fill_gradient(name = "Proportion - %", low = "#d73027" , mid = "#ffffbf", high = "#1a9850",
+                           na.value = "transparent") + 
       theme_classic() + theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 8)) -> heatmap_prop
     
     ############ ----------------------------
