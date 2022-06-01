@@ -345,15 +345,6 @@ phyloseq_run_DESeq2_pair_plots <- function(ps,
   }
   
   
-  if(gm_mean)
-  {
-    gm_mean = function(x, na.rm = TRUE) {
-      exp(sum(log(x[x > 0]), na.rm = na.rm)/length(x))
-    }
-    geoMeans = apply(counts(cds), 1, gm_mean)
-    cds = estimateSizeFactors(cds, geoMeans = geoMeans)
-  }
-  
   # run DESeq function
   cds %>%
     DESeq(fitType = fittype) -> dds
@@ -393,6 +384,20 @@ phyloseq_run_DESeq2_pair_plots <- function(ps,
                            na.value = "transparent", #trans = scales::log_trans(2),
                            midpoint = 0) + 
       theme_classic() + theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 8)) -> heatmap
+    
+    
+    phyloseq::prune_taxa(da_otus,
+                         ps_temp ) %>%
+      transform_sample_counts(function(x) x/sum(x) * 100) %>% 
+      plot_heatmap(taxa.label = taxrank,
+                   taxa.order = resuls_complete %>% arrange(sign) %>% pull(ASV)      ## ordered according to fold-change
+      ) +
+      facet_grid(as.formula(paste0(level_facet," ~ ",Group)), scales = "free", space = "free") +
+      # scale_fill_gradientn(colours = c("cyan", "black", "red"),
+      #                        values = scales::rescale(c(-10, -5, -2, -1, -0.5, -0.05, 0, 0.05, 0.5, 1, 2, 5, 10))) + theme_classic() +
+      scale_fill_gradient(name = "Proportion - %", low = "#d73027" , mid = "#ffffbf", high = "#1a9850",
+                          na.value = "transparent") + 
+      theme_classic() + theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 8)) -> heatmap_prop
     
     resuls_complete %>%
       ggplot(aes(x = log2FoldChange, y = -log10(padj))) + # tell ggplot that we are going to plot -log10(padj) as a function of log2FoldChange
@@ -450,6 +455,7 @@ phyloseq_run_DESeq2_pair_plots <- function(ps,
                 "boxplots"=boxplots,
                 "volcano_plot"=volcano_plot,
                 "heatmap" =heatmap,
+                "heatmap_prop" = heatmap_prop,
                 "results"=resuls_complete)
     
   }else{
