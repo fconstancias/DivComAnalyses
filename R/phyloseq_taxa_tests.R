@@ -630,7 +630,6 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
 
 
 phyloseq_Maaslin2 <- function(phyloseq,
-                              taxnames_rm = c("unknown, Incertae Sedis"),
                               min_abundance = 0, 
                               min_prevalence = 0.1 ,
                               min_variance = 0,
@@ -647,7 +646,8 @@ phyloseq_Maaslin2 <- function(phyloseq,
                               plot_heatmap = FALSE,
                               plot_scatter = TRUE,
                               heatmap_first_n = 50,
-                              output_dir = "~/test_masslin2/"){
+                              output_dir = "~/test_masslin2/",
+                              add_ASV_taxonomy = TRUE){
   
   ##---------------------------------------------
   require(tidyverse); require(Maaslin2); require(phyloseq)
@@ -674,6 +674,19 @@ phyloseq_Maaslin2 <- function(phyloseq,
            plot_heatmap = plot_heatmap,
            plot_scatter = plot_scatter) -> out
   
+  if(add_ASV_taxonomy == TRUE){
+    
+    phyloseq %>%
+      tax_table() %>%
+      as.data.frame()%>%
+      rownames_to_column(var = "feature") -> tax_table
+    
+    left_join(out$results,
+              tax_table, by="feature") -> out$results_ASV_tax
+    
+    write_tsv(out$results_ASV_tax, file=paste0(output_dir, "results_tax_info.tsv"))
+    
+  }
   ##---------------------------------------------
   
   # gc()
