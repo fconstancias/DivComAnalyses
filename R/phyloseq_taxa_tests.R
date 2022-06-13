@@ -794,8 +794,7 @@ phyloseq_run_DESeq2_pair_plots <- function(ps,
     
     
     phyloseq::prune_taxa(da_otus,
-                         ps_temp ) %>%
-      transform_sample_counts(function(x) x/sum(x) * 100) %>% 
+                         ps_temp %>%  transform_sample_counts(function(x) x/sum(x) * 100)) %>%
       plot_heatmap(taxa.label = taxrank,
                    taxa.order = resuls_complete %>% arrange(sign) %>% pull(ASV)      ## ordered according to fold-change
       ) +
