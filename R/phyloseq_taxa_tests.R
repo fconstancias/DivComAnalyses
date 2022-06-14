@@ -511,7 +511,7 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
       microbiome::transform("Z") %>%
       plot_heatmap(taxa.label = taxrank,
                    taxa.order = resuls_complete %>% arrange(sign) %>% pull(ASV),
-                   method = "PCoA", distance = "euclidean") +
+                   method = "MDS", distance = "euclidean") +
       facet_grid(as.formula(paste0(level_facet," ~ ",Group)), scales = "free", space = "free") +
       # scale_fill_gradientn(colours = c("cyan", "black", "red"),
       #                        values = scales::rescale(c(-10, -5, -2, -1, -0.5, -0.05, 0, 0.05, 0.5, 1, 2, 5, 10))) + theme_classic() +
@@ -527,7 +527,7 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
       transform_sample_counts(function(x) x/sum(x) * 100) %>%
       plot_heatmap(taxa.label = taxrank,
                    taxa.order = resuls_complete %>% arrange(sign) %>% pull(ASV),
-                   method = "PCoA", distance = "euclidean") +
+                   method = "MDS", distance = "euclidean") +
       facet_grid(as.formula(paste0(level_facet," ~ ",Group)), scales = "free", space = "free") +
       # scale_fill_gradientn(colours = c("cyan", "black", "red"),
       #                        values = scales::rescale(c(-10, -5, -2, -1, -0.5, -0.05, 0, 0.05, 0.5, 1, 2, 5, 10))) + theme_classic() +
@@ -798,7 +798,7 @@ phyloseq_run_DESeq2_pair_plots <- function(ps,
       microbiome::transform("Z") %>%
       plot_heatmap(taxa.label = taxrank,
                    taxa.order = resuls_complete %>% arrange(sign) %>% pull(ASV),
-                   method = "PCoA", distance = "euclidean") +
+                   method = "MDS", distance = "euclidean") +
       facet_grid(as.formula(paste0(level_facet," ~ ",Group)), scales = "free", space = "free") +
       # scale_fill_gradientn(colours = c("cyan", "black", "red"),
       #                        values = scales::rescale(c(-10, -5, -2, -1, -0.5, -0.05, 0, 0.05, 0.5, 1, 2, 5, 10))) + theme_classic() +
@@ -813,7 +813,7 @@ phyloseq_run_DESeq2_pair_plots <- function(ps,
       transform_sample_counts(function(x) x/sum(x) * 100) %>%
       plot_heatmap(taxa.label = taxrank,
                    taxa.order = resuls_complete %>% arrange(sign) %>% pull(ASV),
-                   method = "PCoA", distance = "euclidean") +
+                   method = "MDS", distance = "euclidean") +
       facet_grid(as.formula(paste0(level_facet," ~ ",Group)), scales = "free", space = "free") +
       # scale_fill_gradientn(colours = c("cyan", "black", "red"),
       #                        values = scales::rescale(c(-10, -5, -2, -1, -0.5, -0.05, 0, 0.05, 0.5, 1, 2, 5, 10))) + theme_classic() +
@@ -935,7 +935,7 @@ phyloseq_heatmap_boxplots <- function(physeq_mIMT1,
 
     phyloseq::prune_taxa(da_otu,
                          ps) %>%
-      plot_heatmap(taxa.label = taxrank, method = "PCoA", distance = "euclidean") +
+      plot_heatmap(taxa.label = taxrank, method = "MDS", distance = "euclidean") +
       facet_grid(as.formula(paste0(level_facet," ~ ",var)), scales = "free", space = "free") +
       theme_classic() + theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 7)) + xlab(NULL) + ylab(NULL) -> heatmap
 
