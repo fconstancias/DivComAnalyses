@@ -935,7 +935,7 @@ phyloseq_heatmap_boxplots <- function(physeq_mIMT1,
 
     phyloseq::prune_taxa(da_otu,
                          ps) %>%
-      plot_heatmap(taxa.label = taxrank) +
+      plot_heatmap(taxa.label = taxrank, method = "PCoA", distance = "euclidean") +
       facet_grid(as.formula(paste0(level_facet," ~ ",var)), scales = "free", space = "free") +
       theme_classic() + theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 7)) + xlab(NULL) + ylab(NULL) -> heatmap
 
