@@ -510,8 +510,8 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
                          ps_temp ) %>%
       microbiome::transform("Z") %>%
       plot_heatmap(taxa.label = taxrank,
-                   taxa.order = resuls_complete %>% arrange(sign) %>% pull(ASV)      ## ordered according to fold-change
-      ) +
+                   taxa.order = resuls_complete %>% arrange(sign) %>% pull(ASV),
+                   method = "PCoA", distance = "euclidean") +
       facet_grid(as.formula(paste0(level_facet," ~ ",Group)), scales = "free", space = "free") +
       # scale_fill_gradientn(colours = c("cyan", "black", "red"),
       #                        values = scales::rescale(c(-10, -5, -2, -1, -0.5, -0.05, 0, 0.05, 0.5, 1, 2, 5, 10))) + theme_classic() +
@@ -526,8 +526,8 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
                          ps_temp ) %>%
       transform_sample_counts(function(x) x/sum(x) * 100) %>%
       plot_heatmap(taxa.label = taxrank,
-                   taxa.order = resuls_complete %>% arrange(sign) %>% pull(ASV)      ## ordered according to fold-change
-      ) +
+                   taxa.order = resuls_complete %>% arrange(sign) %>% pull(ASV),
+                   method = "PCoA", distance = "euclidean") +
       facet_grid(as.formula(paste0(level_facet," ~ ",Group)), scales = "free", space = "free") +
       # scale_fill_gradientn(colours = c("cyan", "black", "red"),
       #                        values = scales::rescale(c(-10, -5, -2, -1, -0.5, -0.05, 0, 0.05, 0.5, 1, 2, 5, 10))) + theme_classic() +
@@ -797,8 +797,8 @@ phyloseq_run_DESeq2_pair_plots <- function(ps,
                          ps_temp ) %>%
       microbiome::transform("Z") %>%
       plot_heatmap(taxa.label = taxrank,
-                   taxa.order = resuls_complete %>% arrange(sign) %>% pull(ASV)      ## ordered according to fold-change
-      ) +
+                   taxa.order = resuls_complete %>% arrange(sign) %>% pull(ASV),
+                   method = "PCoA", distance = "euclidean") +
       facet_grid(as.formula(paste0(level_facet," ~ ",Group)), scales = "free", space = "free") +
       # scale_fill_gradientn(colours = c("cyan", "black", "red"),
       #                        values = scales::rescale(c(-10, -5, -2, -1, -0.5, -0.05, 0, 0.05, 0.5, 1, 2, 5, 10))) + theme_classic() +
@@ -812,8 +812,8 @@ phyloseq_run_DESeq2_pair_plots <- function(ps,
                          ps_temp ) %>%
       transform_sample_counts(function(x) x/sum(x) * 100) %>%
       plot_heatmap(taxa.label = taxrank,
-                   taxa.order = resuls_complete %>% arrange(sign) %>% pull(ASV)      ## ordered according to fold-change
-      ) +
+                   taxa.order = resuls_complete %>% arrange(sign) %>% pull(ASV),
+                   method = "PCoA", distance = "euclidean") +
       facet_grid(as.formula(paste0(level_facet," ~ ",Group)), scales = "free", space = "free") +
       # scale_fill_gradientn(colours = c("cyan", "black", "red"),
       #                        values = scales::rescale(c(-10, -5, -2, -1, -0.5, -0.05, 0, 0.05, 0.5, 1, 2, 5, 10))) + theme_classic() +
