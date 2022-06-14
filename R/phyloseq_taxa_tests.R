@@ -952,7 +952,7 @@ phyloseq_heatmap_boxplots <- function(physeq_mIMT1,
 
     ####-------- generate boxplots
 
-    prune_taxa(da_otus,
+    prune_taxa(da_otu,
                ps %>% transform_sample_counts(function(x) x/sum(x) * 100)) -> ps_tmp #%>%
     # subset_taxa(Family != "unknown")-> ps_tmp
 
