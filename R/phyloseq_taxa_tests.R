@@ -37,28 +37,28 @@ phyloseq_ANCOM2 <- function(phyloseq,
                             rand_formula = NULL,
                             lme_control = NULL){
 
-#######------------------
+  #######------------------
 
   phyloseq %>% otu_table() %>% data.frame() -> feature_table
 
   phyloseq %>% sample_data() %>% data.frame() %>%
     rownames_to_column(sample_var) -> meta_data
 
-#######------------------
+  #######------------------
 
-   # otu_data = read_tsv("~/Documents/GitHub/ANCOM/data/moving-pics-table.tsv", skip = 1)
-   # otu_id = otu_data$`feature-id`
-   # otu_data = data.frame(otu_data[, -1], check.names = FALSE)
-   # rownames(otu_data) = otu_id
-   #
-   # meta_data = read_tsv("~/Documents/GitHub/ANCOM/data/moving-pics-sample-metadata.tsv")[-1, ]
-   # meta_data = meta_data %>%
-   #   rename(Sample.ID = SampleID)
-   #
-   # feature_table = otu_data; sample_var = "Sample.ID"; group_var = NULL
-   #
-   # main_var = "Subject"; p_adj_method = "BH"; alpha = 0.05
-   # adj_formula = NULL; rand_formula = NULL; lme_control = NULL
+  # otu_data = read_tsv("~/Documents/GitHub/ANCOM/data/moving-pics-table.tsv", skip = 1)
+  # otu_id = otu_data$`feature-id`
+  # otu_data = data.frame(otu_data[, -1], check.names = FALSE)
+  # rownames(otu_data) = otu_id
+  #
+  # meta_data = read_tsv("~/Documents/GitHub/ANCOM/data/moving-pics-sample-metadata.tsv")[-1, ]
+  # meta_data = meta_data %>%
+  #   rename(Sample.ID = SampleID)
+  #
+  # feature_table = otu_data; sample_var = "Sample.ID"; group_var = NULL
+  #
+  # main_var = "Subject"; p_adj_method = "BH"; alpha = 0.05
+  # adj_formula = NULL; rand_formula = NULL; lme_control = NULL
 
   #######------------------
 
@@ -70,12 +70,12 @@ phyloseq_ANCOM2 <- function(phyloseq,
   meta_data = prepro$meta_data # Preprocessed metadata
   struc_zero = prepro$structure_zeros # Structural zero info
 
-#######------------------
+  #######------------------
 
   res = ANCOM(feature_table, meta_data, struc_zero, main_var, p_adj_method,
               alpha, adj_formula, rand_formula, lme_control)
 
-#######------------------
+  #######------------------
 
   return(res)
 
@@ -532,7 +532,7 @@ phyloseq_run_DESeq2_pair_plots_formula <- function(ps,
       # scale_fill_gradientn(colours = c("cyan", "black", "red"),
       #                        values = scales::rescale(c(-10, -5, -2, -1, -0.5, -0.05, 0, 0.05, 0.5, 1, 2, 5, 10))) + theme_classic() +
       scale_fill_gradient(name = "Proportion - %", low = "#d73027" , mid = "#ffffbf", high = "#1a9850",
-                           na.value = "transparent") +
+                          na.value = "transparent") +
       theme_classic() + theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 8)) -> heatmap_prop
 
     ############ ----------------------------
@@ -906,30 +906,26 @@ phyloseq_run_DESeq2_pair_plots <- function(ps,
 #'
 
 
-phyloseq_diff_abundance_heatmap <- function(physeq_mIMT1,
-                             TOTtest,
-                             groups = c("mIMT_Dysbiotic", "mIMT_Eubiotic"),
-                             comp = "DysvsEub",
-                             var = "treatment",
-                             taxrank = "Strain",
-                             level_facet = "Class",
-                             trans = "Z"){
+phyloseq_heatmap_boxplots <- function(physeq_mIMT1,
+                                      da_otu,
+                                      groups = c("mIMT_Dysbiotic", "mIMT_Eubiotic"),
+                                      comp = "DysvsEub",
+                                      var = "treatment",
+                                      taxrank = "Strain",
+                                      level_facet = "Class",
+                                      trans = "Z",
+                                      Group_group = var,
+                                      boxplot_colors = NULL){
 
   ####-------- Extract sample belonging to groups of var
 
   prune_samples(get_variable(physeq_mIMT1, var) %in% groups,
                 physeq_mIMT1) -> ps
 
-  ####-------- Extract differentially abundant features based on the comp data from TOTtest
-
-  TOTtest %>%  filter(test == comp & SIGN2 == "SIGN") %>%
-    pull(ASV) -> da_otu
-
   ####-------- Continue if there as significant features
 
   if(length(da_otu)>0)
   {
-
 
     ####-------- transform phyloseq object before selecting features:
     ps %>%
@@ -954,10 +950,86 @@ phyloseq_diff_abundance_heatmap <- function(physeq_mIMT1,
                                     na.value = "transparent")  -> heatmap
     }
 
-    return(heatmap)
+    ####-------- generate boxplots
+
+    prune_taxa(da_otus,
+               ps %>% transform_sample_counts(function(x) x/sum(x) * 100)) -> ps_tmp #%>%
+    # subset_taxa(Family != "unknown")-> ps_tmp
+
+    taxa_names(ps_tmp) <- tax_table(ps_tmp)[, taxrank]
+
+    lapply(
+      as.list(taxa_names(ps_tmp)),
+      FUN = phyloseq_boxplot_abundance,
+      ps = ps_tmp,
+      x= var, color = Group_group, level = taxrank, line=NULL, violin = FALSE, show.points = TRUE, colors = boxplot_colors) -> boxplots
+
+    names(boxplots) <- taxa_names(ps_tmp)
+
   }else{
     print("No singinifcant features found")
   }
+
+  out <- list("heatmap" = heatmap,
+              "boxplots" = boxplots)
+}
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note columns must be padj, log2FoldChange, baseMean, SIGN
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
+
+
+plot_volcano <- function(resuls_complete,
+                         level_facet = "Class"){
+  ####-------- generate volcano plot
+
+  resuls_complete %>%
+  ggplot(aes(x = log2FoldChange, y = -log10(padj))) + # tell ggplot that we are going to plot -log10(padj) as a function of log2FoldChange
+  geom_point(aes(shape = SIGN, # points are foing to be ploted, shape is coded by SIGN column (SIGN or NS)
+                 size = SIGN, # size is coded by SIGN column (SIGN or NS)
+                 fill = get(level_facet), # filling colour and line color is coded by Class info of the ASV
+                 colour = get(level_facet),
+                 alpha = baseMean)) + # alpha = transparency reflects baseMean i.e., mean value of ASV among samples.
+  scale_shape_manual(values = c(4, 21)) + # We force the shape of the points to be 4 and 21.see : <http://www.sthda.com/sthda/RDoc/images/points-symbols.png>
+  scale_alpha_continuous(name = "baseMean",
+                         limits = c(0,1000),
+                         trans = "sqrt",
+                         range = c(0.6, 0.8)) + #  transparency values from 06 to 0.8
+  scale_colour_viridis_d(alpha = 0.7,
+                         begin = 0,
+                         end = 1,
+                         direction = 1) +
+  scale_fill_viridis_d() +
+  scale_size_manual(values=c(0.2, 2)) + # We force the size of the points: 0.2 for NS and 2 for SIGN
+  # geom_text_repel( # We use ggrepel to display Strain column for significant ASVs
+  #   data = resuls_complete %>%
+  #     drop_na(SIGN, log2FoldChange ,padj) %>%
+  #     subset(padj <= 0.001 & abs_log2FoldChange > 4),
+  #   aes(label = Genus),
+  #   size = 2,
+  #   force = 4,
+  # ) +
+  geom_hline( # adding horizontal line:
+    yintercept = -log10(0.05),
+    col = "red",
+    linetype = "dotted",
+    size = 0.5
+  ) + geom_vline( # adding vertical lines:
+    xintercept = c(-2, 2),
+    col = "red",
+    linetype = "dotted",
+    size = 0.5) -> volcano_plot
+
+return(volcano_plot)
 }
 
 
