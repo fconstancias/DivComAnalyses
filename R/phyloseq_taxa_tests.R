@@ -987,7 +987,6 @@ phyloseq_heatmap_boxplots <- function(physeq_mIMT1,
 #'
 #'
 
-
 plot_volcano <- function(resuls_complete,
                          level_facet = "Class"){
   ####-------- generate volcano plot
