@@ -904,6 +904,75 @@ phyloseq_run_DESeq2_pair_plots <- function(ps,
 #' @examples
 #'
 #'
+
+
+phyloseq_diff_abundance_heatmap <- function(physeq_mIMT1,
+                             TOTtest,
+                             groups = c("mIMT_Dysbiotic", "mIMT_Eubiotic"),
+                             comp = "DysvsEub",
+                             var = "treatment",
+                             taxrank = "Strain",
+                             level_facet = "Class",
+                             trans = "Z"){
+
+  ####-------- Extract sample belonging to groups of var
+
+  prune_samples(get_variable(physeq_mIMT1, var) %in% groups,
+                physeq_mIMT1) -> ps
+
+  ####-------- Extract differentially abundant features based on the comp data from TOTtest
+
+  TOTtest %>%  filter(test == comp & SIGN2 == "SIGN") %>%
+    pull(ASV) -> da_otu
+
+  ####-------- Continue if there as significant features
+
+  if(length(da_otu)>0)
+  {
+
+
+    ####-------- transform phyloseq object before selecting features:
+    ps %>%
+      microbiome::transform(transform = trans) -> ps
+
+    ####-------- generate heatmap of those
+
+    phyloseq::prune_taxa(da_otu,
+                         ps) %>%
+      plot_heatmap(taxa.label = taxrank) +
+      facet_grid(as.formula(paste0(level_facet," ~ ",var)), scales = "free", space = "free") +
+      theme_classic() + theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 7)) + xlab(NULL) + ylab(NULL) -> heatmap
+
+
+    if(trans == "Z"){
+      heatmap + scale_fill_gradient2(name = "Z-score", low = "#d73027" , mid = "#ffffbf", high = "#1a9850",
+                                     na.value = "transparent", #trans = scales::log_trans(2),
+                                     midpoint = 0) -> heatmap
+    }
+    if(trans == "compositional"){
+      heatmap + scale_fill_gradient(name = "Proportion - %", low = "#d73027" , high = "#1a9850",
+                                    na.value = "transparent")  -> heatmap
+    }
+
+    return(heatmap)
+  }else{
+    print("No singinifcant features found")
+  }
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
 #'library(phyloseq);library(tidyverse)
 #'data(GlobalPatterns)
 #'GlobalPatterns %>% phyloseq_get_strains() -> ps2
