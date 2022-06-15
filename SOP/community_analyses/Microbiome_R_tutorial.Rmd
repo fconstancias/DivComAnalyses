@@ -1415,11 +1415,174 @@ pcoa_group %>%
 
 ## Taxa/ASV centric appraoches:
 
+There are various approaches to identify differential abundant features from metabarcoding data see: https://www.nature.com/articles/s41467-022-28034-z.
+
+
+We will source the functions stored on the `DivComAnalyses` repository:
+
+```{r, eval = TRUE}
+source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_taxa_tests.R") 
+```
+
+Let's load a toy dataset from there as well and add the 'strain' taxonomic classification - as seen above.
+
+```{r, eval = TRUE}
+readRDS((url("https://github.com/fconstancias/DivComAnalyses/blob/9e6ebc69e0c5e136c910186a7136e51af4cecc13/data-raw/ps_PolyFermS.RDS?raw=true" ))) %>% 
+  phyloseq_get_strains() -> phyloseq_poly
+
+phyloseq_poly
+```
+
+
+### DESeq2:
+
+DESeq - based on negative binomial tests -has been initially developed for RNAseq data and has been validated on metabarcoding count data. We can run pairwise tests A vs B using the following function. Here we will compare samples define with the values `Antibiotic_A` vs `Control` from the `Treatment` column in the metadata. The `prevfilter` percentage only keep the features present at least x% of the samples subjected to the function.
+
+```{r, eval = TRUE}
+phyloseq_poly %>% 
+  subset_samples(Treatment %in% c("Antibiotic_A", "Control")) %>% # first subset the samples we are interested in
+  phyloseq_run_DESeq2_pair_plots(Group = "Treatment",
+                                 taxrank = "Strain",
+                                 contrast = c("Treatment", "Antibiotic_A", "Control")) -> desq_test1 # we will investigate differences between 
+
+```
+
+The function generates useful outputs:
+
+
+```{r, eval = TRUE}
+desq_test1 %>% 
+  names()
+```
+
+A table with the features log2FC, adjusted pvalues:
+
+```{r}
+desq_test1$results %>% 
+  DT::datatable()
+```
+
+A volcano plot:
+
+```{r}
+desq_test1$volcano_plot
+```
+
+Boxplots of the significant features:
+
+```{r}
+desq_test1$boxplots$`unknown Enterococcus (Genus) ASV0003`
+```
+As well as Z-score heatmap:
+
+```{r, fig.width= 14, fig.height= 12}
+desq_test1$heatmap
+
+# we can define the plot size using ```{r, fig.width= 16, fig.height= 20} which define the current R chunk
+# We can also use ggsave as seen before.
+```
+Let's now test for the effect of the `Antibiotic_B`  compared to the `Control` samples.
+
+```{r, eval = TRUE}
+phyloseq_poly %>%
+  subset_samples(Treatment %in% c("Antibiotic_B", "Control")) %>% 
+  phyloseq_run_DESeq2_pair_plots(Group = "Treatment",
+                                 taxrank = "Strain",
+                                 contrast = c("Treatment", "Antibiotic_B", "Control")) -> desq_test2 # we will investigate differences between 
+
+
+
+```
+
+
+It generated similar outputs.
+We would now like to combine those results, adjust the pvalue taking into account all the comparaisons and plot the log2FC as an heatmap. There is also a function for that! We need first to get all the data in the right format.
+
+
+We first add a comp column to the results:
+
+```{r}
+desq_test1$results %>% 
+  mutate(comp = "Antibiotic_AvsControl") -> desq_test1$results 
+
+desq_test2$results %>% 
+  mutate(comp = "Antibiotic_BvsControl") -> desq_test2$results 
+```
+
+Then, we combine those data, recompute the adjusted p.values for multiple comparaisons:
+
+```{r}
+rbind(desq_test1$results, desq_test2$results) %>% 
+  mutate(adj_pval_all = p.adjust(pvalue, method = "BH")) -> results_combined
+```
+
+We can also filter the data frame to keep only a subset based on log2foldchange, pvalues. Here I am keeping only highly significant identified features:
+
+```{r}
+results_combined %>% 
+  filter(adj_pval_all <= 0.001 & abs(log2FoldChange) > 6) -> results_combined
+```
+
+The data are stored in long format: one feature per row:
+
+```{r}
+head(results_combined)
+```
+
+We need a wide format table:
+
+```{r}
+results_combined %>% 
+  select(Strain, log2FoldChange, comp) %>% # select the columns of interest
+  pivot_wider(names_from = c("Strain"), values_from = log2FoldChange) %>%  # transform in wide format
+  mutate(comp = fct_relevel(.f = comp, c("Antibiotic_AvsControl", "Antibiotic_BvsControl"))) %>%  # if needed we can reorder to arrange the order of the columns in the heatmap
+  arrange(comp) %>% 
+  as.data.frame() -> df
+```
+
+As always we are free to save the output as a tsv file and continue exploring the data with another tool. This is how the table looks like:
+
+```{r}
+df %>% 
+  DT::datatable()
+```
+
+```{r}
+pheatmap_fold_change(df) -> heat
+
+heat
+```
+
+We can also annotate the heatmap. 
+
+With the taxonomy
+
+```{r}
+# extract tax_table mapping from the phyloseq object
+phyloseq_poly %>% 
+    phloseq_export_otu_tax() %>% 
+  select(ASV, Kingdom:Strain) -> tax_map
+```
+
+```{r}
+# select the taxa present in the heatmap - the data frame used to generate the heatmap
+tax_map %>% dplyr::filter(Strain %in% unique(colnames(df))) %>% 
+  column_to_rownames("Strain") %>% dplyr::select(all_of(c("Order", "Family"))) -> annot
+
+pheatmap_fold_change(df,
+                     annotation_row = annot) -> heat
+
+heat
+```
+
+
+### Maaslin2:
+
+
 
 ```{r, eval = FALSE}
 source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_taxa_tests.R") 
 
-phyloseq_run_DESeq2_pair_plots_formula
 
 phyloseq_Maaslin2
 
@@ -1437,8 +1600,6 @@ phyloseq_correlate_taxa
 
 
 ```
-
-
 
 ### Correlations with metadata:
 

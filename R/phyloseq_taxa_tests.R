@@ -1037,6 +1037,102 @@ return(volcano_plot)
 #' @param .
 #' @param ..
 #' @author Florentin Constancias
+#' @note
+#' @note .
+#' @note .df dataframe wide format levels of comp column are comparaisons and features (e.g., ASV) are the remaining colnames.
+#' @note tax_map tax_table so we can link taxonomy of the features at a lower resulution
+#' @note list(Order = Order_pal)
+#' @note  annotation_row = tax_map %>% dplyr::filter(Strain %in% unique(df_tmp$Strain)) %>% column_to_rownames("Strain") %>% dplyr::select(all_of(c("Order"))),
+#' @return .
+#' @export
+#' @examples
+#'
+#'
+pheatmap_fold_change <- function(df,
+                                 color = colorRampPalette(c("blue", "grey90", "red"))(range_value*2),
+                                 annotation_colors = NA,
+                                 annotation_row = NA,
+                                 annotation_col = NA,
+                                 max_value_scale = FALSE,
+                                 min_value_scale = FALSE,
+                                 fontsize = 6){
+  ########----------------
+  require(pheatmap); require(tidyverse)
+
+  ########----------------
+  df %>%
+    column_to_rownames("comp") %>%
+    replace(is.na(.), 0)  %>%
+    t() %>%
+    vegan::vegdist(na.rm = TRUE, method = "euclidean") %>%
+    hclust() -> clust_t
+
+  ########----------------
+
+  df %>%
+    column_to_rownames("comp") %>%
+    t() -> a
+
+  ########----------------
+  # get the range for the colorbar
+  max_value <- ceiling(max(a, na.rm = TRUE))
+  min_value <- ceiling(min(a, na.rm = TRUE))
+
+
+  if(min_value_scale != FALSE & max_value_scale!= FALSE){
+
+    max_value = max_value_scale
+    min_value = min_value_scale
+  }
+  range_value <- max(c(abs(max_value),abs(min_value)))
+  breaks <- seq(-1*range_value, range_value, by = 1)
+
+  ########----------------
+
+  a_no0 <- a %>%
+    replace(is.na(.), 0)
+
+
+  # physeq %>%
+  #   subset_taxa(Strain %in% tmp) %>%
+  #   add_phylogeny_to_phyloseq(nthreads = 8) -> ps_tree
+
+  #https://www.polarmicrobes.org/merging-a-phylogenetic-tree-with-a-heatmap-in-r/
+  #https://yulab-smu.top/treedata-book/chapter7.html
+
+  # require(ggtree)
+  # p <- ggtree(phy_tree(ps_tree)) + geom_tiplab(size=3)
+
+  ########----------------
+
+  a %>%
+    pheatmap::pheatmap(cluster_rows = clust_t, #as.hclust(phy_tree(ps_tree) %>%  ape::multi2di(., random=FALSE) ),
+                       cellwidth = 5,
+                       cellheight = 5,
+                       na_col = "transparent",
+                       scale = "none",
+                       border_color = "grey93",
+                       color = color,
+                       # color = colorRampPalette(c("blue", "grey90", "red"))(range_value*2),
+                       breaks = breaks,
+                       cluster_cols =  FALSE,#clust,
+                       # annotation_col =
+                       annotation_row = annotation_row,
+                       annotation_colors = annotation_colors,
+                       fontsize = fontsize,
+                       display_numbers = matrix(ifelse(
+                         a_no0 > 0.0, "+", ifelse(a_no0 < 0.0, "-", "")), nrow(a_no0)),
+                       silent = TRUE) -> heatmap
+
+  ########----------------
+  return(heatmap)
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
 #' @note .
 #' @note .
 #' @note .
