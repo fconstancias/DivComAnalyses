@@ -351,7 +351,7 @@ physeq_1 %>%
 Most of the time we fine tune the metadata along the analysis process, `physeq_add_metadata()` helps to quickly change the metadata of a phyloseq object. Below an example using an excel file directly. The `sample_column` defines the column in the external file to be use to link with the `sample_names()` of the phyloseq object.
 
 ```{r}
-source("https://raw.githubusercontent.com/fconstancias/metabaRpipe/master/Rscripts/functions.R")
+source("https://raw.githubusercontent.com/fconstancias/metabaRpipe-source/master/Rscripts/functions.R")
 
 physeq_1 %>%
   physeq_add_metadata(physeq = .,
@@ -716,7 +716,7 @@ microbiomeutilities::plot_abund_prev(.,
                                      label.size = 3,
                                      label.opacity = 1.0,
                                      nudge.label=-0.15,
-                                     bs.iter=999, # increase for actual analysis e.g. 999
+                                     bs.iter=2, # increase for actual analysis e.g. 999
                                      size = length(rm_rare_asv), # increase to match your nsamples(asv_ps)
                                      replace = TRUE,
                                      label.color="#5f0f40") +
@@ -1256,11 +1256,11 @@ physeq_1_rare %>%
 Explore all the ordination plots:
 
 ```{r}
-plot_list %>%
-  phyloseq_plot_ordinations_facet(color_group = "BW",
-                                  shape_group = "treatment_invivo") -> pcoas
-
-pcoas
+# plot_list %>%
+#   phyloseq_plot_ordinations_facet(color_group = "BW",
+#                                   shape_group = "treatment_invivo") -> pcoas
+# 
+# pcoas
 ```
 
 Check % of explained variance for all ordinations:
@@ -1544,6 +1544,59 @@ physeq_1_st %>%
 heat_top_taxa_per_group
 ```
 
+#### Reorder the grouping/ categorical variables in ggplot2:
+
+The order of the categorical variables is based on alphabetic order by default. You can control it by changing your metadata as a factor and definying the levels of your factor:
+
+
+Let's check the metadata: `treatment_invivo`:
+
+```{r message=FALSE, warning=FALSE}
+physeq_1_st_tmp <- physeq_1_st #saving the data in a new object
+
+
+sample_data(physeq_1_st_tmp)$treatment_invivo
+```
+
+
+We will now redefine the order of the levels:
+
+```{r message=FALSE, warning=FALSE}
+sample_data(physeq_1_st_tmp)$treatment_invivo <- factor(sample_data(physeq_1_st_tmp)$treatment_invivo,
+                                                       levels = c("TreatA", "TreatC", "none", "TreatB" ))
+```
+
+
+Running the previous function with the updated levels / order of `treatment_invivo` groups:
+
+```{r message=FALSE, warning=FALSE}
+physeq_1_st_tmp %>% 
+  transform_sample_counts(function(x) x/sum(x) * 100) %>% # transform as percentage before filtering
+  subset_taxa(Strain %in% most_ab_treat) %>% # extract only the taxa to display - after percentage normalisation
+  phyloseq_ampvis_heatmap(physeq = ., 
+                          transform = FALSE, # extract only the taxa to display - after percentage normalisation
+                          facet_by = "treatment_invivo" , 
+                          group_by = "treatment_invivo",  
+                          ntax =  Inf) -> heat_top_taxa_per_group
+
+heat_top_taxa_per_group
+```
+
+
+```{r message=FALSE, warning=FALSE}
+
+physeq_1_st %>% 
+  transform_sample_counts(function(x) x/sum(x) * 100) %>% # transform as percentage before filtering
+  subset_taxa(Strain %in% most_ab_treat) %>% # extract only the taxa to display - after percentage normalisation
+  phyloseq_ampvis_heatmap(physeq = ., 
+                          transform = FALSE, # extract only the taxa to display - after percentage normalisation
+                          facet_by = "treatment_invivo" , 
+                          group_by = "treatment_invivo",  
+                          ntax =  Inf) -> heat_top_taxa_per_group
+
+heat_top_taxa_per_group
+```
+
 #### Generate color palette from metadata:
 
 
@@ -1653,7 +1706,7 @@ phyloseq_remove_chloro_mitho
 #### Compare phyloseq taxonomy of two phyloseq objects:
 
 ```{r}
-# source("https://raw.githubusercontent.com/fconstancias/metabaRpipe/master/Rscripts/functions.R")
+# source("https://raw.githubusercontent.com/fconstancias/metabaRpipe-source/master/Rscripts/functions.R")
 
 # physeq_1_rare %>% 
   # phyloseq_DECIPHER_tax(physeq = ., 
@@ -1709,7 +1762,7 @@ as an excel file.
 Good opportunity to introduce the `phloseq_export_otu_tax()` function, it basically exports `otu_table()` and `tax_table()` of a phyloseq object.
 
 ```{r}
-source("https://raw.githubusercontent.com/fconstancias/metabaRpipe/master/Rscripts/functions.R")
+source("https://raw.githubusercontent.com/fconstancias/metabaRpipe-source/master/Rscripts/functions.R")
 
 physeq_1 %>% 
   phloseq_export_otu_tax() %>% 
@@ -1734,7 +1787,7 @@ We can use `write.xlsx` under another sheet from the same excel file:
 
 ```{r}
 physeq_1_rare %>% 
-  phyloseq_ntaxa_by_tax(TaxRank = "Genus",
+  metagMisc::phyloseq_ntaxa_by_tax(TaxRank = "Genus",
                         add_meta_data = FALSE) %>% 
   arrange(-N.OTU) %>% 
   DT::datatable()
@@ -1742,7 +1795,7 @@ physeq_1_rare %>%
 
 ```{r}
 physeq_1 %>% 
-  phyloseq_coverage(., 
+  metagMisc::phyloseq_coverage(., 
                     correct_singletons = FALSE, 
                     add_attr = T) %>% 
   arrange(-SampleCoverage) %>% 
@@ -1914,7 +1967,7 @@ Select your data > RDS allows to directly load the phyloseq object.
 
 * [microViz](https://david-barnett.github.io/microViz/): microViz provides a Shiny app for an easy way to start exploring your microbiome data: all you need is a phyloseq object!
 
-```{r}
+```{r, eval=FALSE}
 library(microViz)
 
 pseq <- readRDS("../../data-raw/ps_invivo.RDS") %>%
@@ -1942,7 +1995,7 @@ Rscript metabaRpipe/Rscripts/phyloseq_export_qiime.Rscript \
 Alternatively, this can also be run from R/Rstudio:
 
 ```{r, eval = FALSE}
-require(tidyverse); source("https://raw.githubusercontent.com/fconstancias/metabaRpipe/master/Rscripts/functions.R")
+require(tidyverse); source("https://raw.githubusercontent.com/fconstancias/metabaRpipe-source/master/Rscripts/functions.R")
 
 readRDS("dada2/phyloseq.RDS") %>%  
   physeq_export_qiime(output_dir = "~/qiime2/")
