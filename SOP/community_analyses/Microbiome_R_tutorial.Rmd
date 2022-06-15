@@ -113,17 +113,10 @@ We are going to illustrate some functions using two different datasets generated
 
 Mice were subjected with different treatments and 16S metabarcoding was use to describe feces level changes in the microbiota `ps_invivo.RDS`.
 
-Define the phyloseq object's location: 
-
-```{r}
-ps1 = "../../data-raw/ps_invivo.RDS"
-```
-
 Load the phyloseq object:
 
 ```{r}
-ps1 %>% # ps object wich is path of our physeq file on our computer
-  readRDS() -> physeq_1  # the readRDS function and then it is directed/stored to a R object we named physeq
+readRDS((url("https://github.com/fconstancias/DivComAnalyses/blob/9e6ebc69e0c5e136c910186a7136e51af4cecc13/data-raw/ps_invivo.RDS?raw=true" )))-> physeq_1  # the readRDS function and then it is directed/stored to a R object we named physeq
 ```
 
 ### The different facets of the phyloseq object:
