@@ -1431,7 +1431,7 @@ phyloseq_poly
 
 DESeq - based on negative binomial tests -has been initially developed for RNAseq data and has been validated on metabarcoding count data. We can run pairwise tests A vs B using the following function. Here we will compare samples define with the values `Antibiotic_A` vs `Control` from the `Treatment` column in the metadata. The `prevfilter` percentage only keep the features present at least x% of the samples subjected to the function.
 
-```{r, eval = TRUE}
+```{r message=FALSE, warning=FALSE}
 phyloseq_poly %>% 
   subset_samples(Treatment %in% c("Antibiotic_A", "Control")) %>% # first subset the samples we are interested in
   phyloseq_run_DESeq2_pair_plots(Group = "Treatment",
@@ -1476,7 +1476,7 @@ desq_test1$heatmap
 ```
 Let's now test for the effect of the `Antibiotic_B`  compared to the `Control` samples.
 
-```{r, eval = TRUE}
+```{r message=FALSE, warning=FALSE}
 phyloseq_poly %>%
   subset_samples(Treatment %in% c("Antibiotic_B", "Control")) %>% 
   phyloseq_run_DESeq2_pair_plots(Group = "Treatment",
