@@ -1522,7 +1522,7 @@ The data are stored in long format: one feature per row:
 head(results_combined)
 ```
 
-We need a wide format table:
+We need a wide format table for the heamp visualisation of the selected log2FoldChange:
 
 ```{r}
 results_combined %>% 
