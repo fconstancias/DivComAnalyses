@@ -339,8 +339,10 @@ physeq_sel_tax_table <- function(ps, tax_sel){
     tax_table() %>%
     data.frame() %>%
     rownames_to_column('tmp_id') %>%
-    dplyr::filter(all_of(tmp_id,tax_sel)) %>%
-    mutate_if(is.character,as.factor) -> tax_table(ps)
+    dplyr::select(c("tmp_id",tax_sel)) %>%
+    mutate_if(is.character,as.factor) %>%
+    column_to_rownames('tmp_id') %>%
+    as.matrix() -> tax_table(ps)
 
   return(ps)
 }
