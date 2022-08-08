@@ -1371,6 +1371,20 @@ phyloseq_add_taxa_vector_fix <- function(dist =NULL,
   detach("package:vegan", unload=TRUE)
 }
 
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'
+#'
 phyloseq_add_taxa_vector <- function(dist,
                                      phyloseq,
                                      figure_ord = figure_pca,
