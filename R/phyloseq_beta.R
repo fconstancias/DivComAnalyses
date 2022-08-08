@@ -1261,7 +1261,7 @@ phyloseq_add_taxa_vector_fix <- function(dist =NULL,
                                          top_r = 12,
                                          taxrank_glom = NULL,
                                          tax_rank_plot = taxrank_glom,
-                                         # id_taxa = "ASV",
+                                         vector_color = "grey10",
                                          taxnames_rm = c("unknown", "Unclassified"),
                                          fact = 3,
                                          seed = 123,
@@ -1346,12 +1346,22 @@ phyloseq_add_taxa_vector_fix <- function(dist =NULL,
 
   figure_ord  +
     geom_segment(data = all,
-                 aes(x = 0, xend=Axis.1* fact, y=0, yend=Axis.2 * fact), arrow = arrow(length = unit(0.25, "cm")), colour = "grey10", lwd=0.3, inherit.aes = FALSE) + #add vector arrows of significant species
+                 aes(x = 0, xend=Axis.1* fact, y=0, yend=Axis.2 * fact), arrow = arrow(length = unit(0.25, "cm")), colour = vector_color, lwd=0.3, inherit.aes = FALSE) + #add vector arrows of significant species
     ggrepel::geom_text_repel(data = all, aes(x= Axis.1* fact, y=Axis.2*fact, label = tax_rank_plot), cex = 3, direction = "both", segment.size = 0.25, inherit.aes = FALSE, force = ggrepel_force, segment.linetype = 2, segment.color = "gray70") -> p2
 
   ####----------------------
 
+
+  ggplot() + theme_void() +
+    geom_segment(data = all,
+                 aes(x = 0, xend=Axis.1* fact, y=0, yend=Axis.2 * fact), arrow = arrow(length = unit(0.25, "cm")), colour = vector_color, lwd=0.3, inherit.aes = FALSE) + #add vector arrows of significant species
+    ggrepel::geom_text_repel(data = all, aes(x= Axis.1* fact, y=Axis.2*fact, label = tax_rank_plot), cex = 3, direction = "both", segment.size = 0.25, inherit.aes = FALSE, force = ggrepel_force, segment.linetype = 2, segment.color = "gray70") -> p3
+
+
+  ####----------------------
+
   out <- list("plot" = p2,
+              "vectors" = p3,
               "ord" = iMDS,
               "envfit" = spp.scrs,
               "signenvfit" = all)
