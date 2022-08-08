@@ -1334,7 +1334,9 @@ phyloseq_add_taxa_vector_fix <- function(dist =NULL,
   cbind(sig.spp.scrs, tax_table) %>%
     rstatix::adjust_pvalue(p.col = "pval",
                            method = adj_method ) %>%
-    dplyr::rename(tax_rank_plot = all_of(tax_rank_plot)) %>%
+    dplyr::rename(tax_rank_plot = all_of(tax_rank_plot)) -> envfit_all
+
+  envfit_all %>%
     dplyr::filter(!tax_rank_plot %in% taxnames_rm,
                   pval.adj<=pval_cutoff) %>%
     top_n(top_r, r)  -> all
@@ -1363,7 +1365,7 @@ phyloseq_add_taxa_vector_fix <- function(dist =NULL,
   out <- list("plot" = p2,
               "vectors" = p3,
               "ord" = iMDS,
-              "envfit" = spp.scrs,
+              "envfit" = envfit_all,
               "signenvfit" = all)
 
   return(out)
