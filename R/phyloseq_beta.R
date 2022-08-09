@@ -1318,8 +1318,7 @@ phyloseq_add_taxa_vector_fix <- function(dist =NULL,
   ####----------------------
 
   as(tax_table(ps_glom), "matrix") %>%
-    as.data.frame() %>%
-    rownames_to_column('ASV') -> tax_table
+    as.data.frame() -> tax_table
 
   # if(join_cbind == "join"){
   #   left_join(sig.spp.scrs,
