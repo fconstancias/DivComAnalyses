@@ -3015,7 +3015,7 @@ adonis_OmegaSq <- function(aov_tab, partial = TRUE){
   # aov_tab %>%
   #   rownames_to_column('terms') -> aov_tmp
 
-    ####---------------------- Compute MeanSqs
+  ####---------------------- Compute MeanSqs
 
   aov_tab %>%
     mutate(MeanSqs = SumOfSqs / Df) -> aov_tmp
@@ -3052,4 +3052,633 @@ adonis_OmegaSq <- function(aov_tab, partial = TRUE){
     select(terms, one_of(cn_order)) -> aov_tmp
 
   return(aov_tmp)
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#' library(phyloseq);library(tidyverse);data("GlobalPatterns")
+#'
+#' phyloseq_comdistNTI_parallel(GlobalPatterns %>%  subset_samples(SampleType == "Skin") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE)) -> out
+#' https://rfunctions.blogspot.com/2012/07/standardized-effect-size-nearest.html
+
+
+phyloseq_comdistNTI_parallel <- function(physeq, abundance.weighted = FALSE, exclude.conspecifics = FALSE, cores = 1, progress = TRUE){
+
+  ####---------------------- Load R package
+  require(picante); require(doSNOW)
+
+  ####---------------------- Extract data
+  physeq %>%
+    microbiome::transform(transform = "compositional") -> physeq
+
+  as(otu_table(physeq), "matrix") %>%
+    t() %>%
+    as.data.frame() -> comm
+
+
+  physeq@phy_tree %>%
+    cophenetic() -> dis
+
+  ####----------------------
+
+  dat <- match.comm.dist(comm, dis)
+  comm <- dat$comm
+  dis <- dat$dist
+  N <- dim(comm)[1]
+
+  sppInSamples <- apply(comm,1,function(x) names(which(x > 0)))
+
+  if(progress){
+    pb <- txtProgressBar(max = (N-1), style = 3)
+    progress <- function(n) setTxtProgressBar(pb, n)
+    opts <- list(progress = progress)
+  } else {
+    opts <- NULL
+  }
+
+  if(cores == 1) {
+    registerDoSEQ() }
+  else {
+    cl <- makeCluster(cores)
+    registerDoSNOW(cl)
+  }
+
+  i <- NULL
+  comdisnt <- foreach (i = 1:(N-1),.combine = rbind, .options.snow = opts) %dopar% {
+
+    comdisnt.sub <- as.numeric(rep(NA,N))
+
+    for (j in (i + 1):N) {
+
+      sppInSample1 <- sppInSamples[[i]]
+      sppInSample2 <- sppInSamples[[j]]
+
+      if ((length(sppInSample1) >= 1) && (length(sppInSample2) >= 1)) {
+        sample.dis <- dis[sppInSample1, sppInSample2, drop = FALSE]
+        if (exclude.conspecifics) {
+          sample.dis[sample.dis == 0] <- NA
+        }
+        sample1NT <- apply(sample.dis, 1, min, na.rm = TRUE)
+        sample1NT[sample1NT == Inf] <- NA
+        sample2NT <- apply(sample.dis, 2, min, na.rm = TRUE)
+        sample2NT[sample2NT == Inf] <- NA
+
+        if (abundance.weighted) {
+          sample1.weights <- as.numeric(comm[i, sppInSample1])
+          sample2.weights <- as.numeric(comm[j, sppInSample2])
+          if (any(is.na(sample1NT))) {
+            miss <- which(is.na(sample1NT))
+            sample1NT <- sample1NT[-miss]
+            sample1.weights <- sample1.weights[-miss]
+            sample1.weights <- sample1.weights/sum(sample1.weights)
+          }
+          if (any(is.na(sample2NT))) {
+            miss <- which(is.na(sample2NT))
+            sample2NT <- sample2NT[-miss]
+            sample2.weights <- sample2.weights[-miss]
+            sample2.weights <- sample2.weights/sum(sample2.weights)
+          }
+          sampleNT <- c(sample1NT, sample2NT)
+          sample.weights <- c(sample1.weights, sample2.weights)
+          comdisnt.sub[j] <- weighted.mean(sampleNT, sample.weights,  na.rm = TRUE)
+        }
+        else {
+          comdisnt.sub[j] <- mean(c(sample1NT, sample2NT), na.rm = TRUE)
+        }
+      }
+      else {
+        comdisnt.sub[j] <- NA
+      }
+    }
+    return(comdisnt.sub)
+  }
+  if(cores != 1) stopCluster(cl)
+  comdisnt <- rbind(comdisnt,rep(NA,N))
+
+  rownames(comdisnt) <- colnames(comdisnt) <- rownames(comm)
+  return(as.dist(t(comdisnt)))
+
+  detach("package:picante", unload=TRUE); detach("package:doSNOW", unload=TRUE)
+
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note .
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#' library(phyloseq);library(tidyverse);data("GlobalPatterns")
+#'
+#' phyloseq_comdist_SES_NTI_parallel(GlobalPatterns %>%  subset_samples(SampleType == "Skin") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE),  runs = 1, cores = 4) -> out
+#' https://rfunctions.blogspot.com/2012/07/standardized-effect-size-nearest.html
+
+
+phyloseq_comdist2_SES_NTI_parallel <- function(physeq, method = "swap", fixedmar = "both", shuffle = "both", strata = NULL, mtype = "count", burnin = 0, thin = 1,
+                                               abundance.weighted = FALSE, exclude.conspecifics = FALSE, runs = 999, cores = 1){
+
+
+  ####---------------------- Load R package
+  require(picante); require(vegan)
+
+  ####---------------------- Extract data
+  # physeq %>%
+  #   microbiome::transform(transform = "compositional") -> physeq
+
+  as(otu_table(physeq), "matrix") %>%
+    t() %>%
+    as.data.frame() -> samp
+
+
+  physeq@phy_tree %>%
+    cophenetic() %>%
+    as.matrix() -> dis
+
+  ####----------------------
+
+  comdistnt.obs <- as.matrix(comdistnt.par(samp, dis, abundance.weighted = abundance.weighted, exclude.conspecifics = exclude.conspecifics, cores = cores, progress = FALSE))
+
+  if(is.null(method)) {
+    comdistnt.rand <- replicate(runs, as.matrix(MicEco::comdistnt.par(permatfull(samp, fixedmar = fixedmar, shuffle = shuffle, strata = strata, mtype = mtype, times = 1)$perm[[1]], dis, abundance.weighted, exclude.conspecifics, cores = cores, progress = FALSE)), simplify = FALSE)
+  } else {
+    comdistnt.rand <- replicate(runs, as.matrix(MicEco::comdistnt.par(permatswap(samp, method = method, fixedmar = fixedmar, shuffle = shuffle, strata = strata, mtype = mtype, burnin = burnin, thin = thin, times = 1)$perm[[1]], dis, abundance.weighted, exclude.conspecifics, cores = cores, progress = FALSE)), simplify = FALSE)
+  }
+
+  comdistnt.rand.mean <- apply(X = simplify2array(comdistnt.rand), MARGIN = 1:2, FUN = mean, na.rm = TRUE)
+
+  comdistnt.rand.sd <- apply(X = simplify2array(comdistnt.rand), MARGIN = 1:2, FUN = sd, na.rm = TRUE)
+
+  comdistnt.obs.z <- (comdistnt.obs - comdistnt.rand.mean)/comdistnt.rand.sd
+
+  comdistnt.obs.rank <- apply(X = simplify2array(c(list(comdistnt.obs),comdistnt.rand)), MARGIN = 1:2, FUN = rank)[1,,]
+  comdistnt.obs.rank <- ifelse(is.na(comdistnt.rand.mean), NA, comdistnt.obs.rank)
+  diag(comdistnt.obs.rank) <- NA
+
+  comdistnt.obs.p <- comdistnt.obs.rank/(runs + 1)
+
+  list(ntaxa = specnumber(samp), comdistnt.obs = comdistnt.obs, comdistnt.rand.mean = comdistnt.rand.mean,
+       comdistnt.rand.sd = comdistnt.rand.sd, comdistnt.obs.rank = comdistnt.obs.rank, comdistnt.obs.z = comdistnt.obs.z, comdistnt.obs.p = comdistnt.obs.p, runs = runs)
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note TO CHECK: https://search.r-project.org/CRAN/refmans/iCAMP/html/bNTIn.p.html & RC.pc with microeco::
+#' @note ... & https://docs.ropensci.org/phylocomr/reference/ph_comdist.html
+#' @return .
+#' @export
+#' @examples
+
+
+#' MicEco::ses.comdistnt()
+#' library(phyloseq);library(tidyverse);data("GlobalPatterns")
+#'
+#'GlobalPatterns %>%  subset_samples(SampleType == "Skin") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE) %>%
+#'phyloseq_comdist_SES_NTI_parallel(.,  runs = 99, null.model = "taxa.labels", iterations = 100, cores = 6) -> out
+#'
+#'$ntaxa
+#'M31Plmr M11Plmr F21Plmr
+#'1394    1394    1394
+#'
+#'$comdistnt.obs
+#'M31Plmr M11Plmr F21Plmr
+#'M31Plmr 0.00000 0.04100 0.65519
+#'M11Plmr 0.04100 0.00000 0.66457
+#'F21Plmr 0.65519 0.66457 0.00000
+#'
+#'$comdistnt.rand.mean
+#'M31Plmr   M11Plmr   F21Plmr
+#'M31Plmr 0.0000000 0.6778643 0.6341644
+#'M11Plmr 0.6778643 0.0000000 0.6173274
+#'F21Plmr 0.6341644 0.6173274 0.0000000
+#'
+#'$comdistnt.rand.sd
+#'M31Plmr   M11Plmr   F21Plmr
+#'M31Plmr 0.0000000 0.2682568 0.2363642
+#'M11Plmr 0.2682568 0.0000000 0.2369304
+#'F21Plmr 0.2363642 0.2369304 0.0000000
+#'
+#'$comdistnt.obs.rank
+#'M31Plmr M11Plmr F21Plmr
+#'M31Plmr      NA       1      54
+#'M11Plmr       1      NA      59
+#'F21Plmr      54      59      NA
+#'
+#'$comdistnt.obs.z
+#'M31Plmr    M11Plmr    F21Plmr
+#'M31Plmr         NaN -2.3740845 0.08895407
+#'M11Plmr -2.37408451        NaN 0.19939450
+#'F21Plmr  0.08895407  0.1993945        NaN
+#'
+#'$comdistnt.obs.p
+#'M31Plmr M11Plmr F21Plmr
+#'M31Plmr      NA    0.01    0.54
+#'M11Plmr    0.01      NA    0.59
+#'F21Plmr    0.54    0.59      NA
+#'
+#'$runs
+#'[1] 99
+
+phyloseq_comdist_SES_NTI_parallel <- function(physeq, null.model = c("taxa.labels", "richness",
+                                                                     "frequency", "sample.pool", "phylogeny.pool", "independentswap",
+                                                                     "trialswap"), abundance.weighted = FALSE, exclude.conspecifics = FALSE,
+                                              runs = 999, iterations = 1000, cores = 1)
+{
+
+
+  ####---------------------- Load R package
+  require(picante); require(vegan)
+
+  ####---------------------- Extract data
+  # physeq %>%
+  #   microbiome::transform(transform = "compositional") -> physeq
+
+  as(otu_table(physeq), "matrix") %>%
+    t() %>%
+    as.data.frame() -> samp
+
+
+  physeq@phy_tree %>%
+    cophenetic() %>%
+    as.matrix() -> dis
+
+  ####----------------------
+
+  comdistnt.obs <- as.matrix(MicEco::comdistnt.par(samp, dis, abundance.weighted = abundance.weighted,
+                                                   exclude.conspecifics = exclude.conspecifics, cores = cores,
+                                                   progress = FALSE))
+  null.model <- match.arg(null.model)
+  comdistnt.rand <- switch(null.model, taxa.labels = replicate(runs,
+                                                               as.matrix(comdistnt.par(samp, taxaShuffle(dis), abundance.weighted = abundance.weighted,
+                                                                                       exclude.conspecifics = exclude.conspecifics, cores = cores,
+                                                                                       progress = FALSE)), simplify = FALSE), richness = replicate(runs,
+                                                                                                                                                   as.matrix(comdistnt.par(randomizeMatrix(samp, null.model = "richness"),
+                                                                                                                                                                           dis, abundance.weighted, exclude.conspecifics = exclude.conspecifics,
+                                                                                                                                                                           cores = cores, progress = FALSE)), simplify = FALSE),
+                           frequency = replicate(runs, as.matrix(comdistnt.par(randomizeMatrix(samp,
+                                                                                               null.model = "frequency"), dis, abundance.weighted,
+                                                                               exclude.conspecifics = exclude.conspecifics, cores = cores,
+                                                                               progress = FALSE)), simplify = FALSE), sample.pool = replicate(runs,
+                                                                                                                                              as.matrix(comdistnt.par(randomizeMatrix(samp, null.model = "richness"),
+                                                                                                                                                                      dis, abundance.weighted, exclude.conspecifics = exclude.conspecifics,
+                                                                                                                                                                      cores = cores, progress = FALSE)), simplify = FALSE),
+                           phylogeny.pool = replicate(runs, as.matrix(comdistnt.par(randomizeMatrix(samp,
+                                                                                                    null.model = "richness"), taxaShuffle(dis), abundance.weighted,
+                                                                                    exclude.conspecifics = exclude.conspecifics, cores = cores,
+                                                                                    progress = FALSE)), simplify = FALSE), independentswap = replicate(runs,
+                                                                                                                                                       as.matrix(comdistnt.par(randomizeMatrix(samp, null.model = "independentswap",
+                                                                                                                                                                                               iterations), dis, abundance.weighted, exclude.conspecifics = exclude.conspecifics,
+                                                                                                                                                                               cores = cores, progress = FALSE)), simplify = FALSE),
+                           trialswap = replicate(runs, as.matrix(comdistnt.par(randomizeMatrix(samp,
+                                                                                               null.model = "trialswap", iterations), dis, abundance.weighted,
+                                                                               exclude.conspecifics = exclude.conspecifics, cores = cores,
+                                                                               progress = FALSE)), simplify = FALSE))
+  comdistnt.rand.mean <- apply(X = simplify2array(comdistnt.rand),
+                               MARGIN = 1:2, FUN = mean, na.rm = TRUE)
+  comdistnt.rand.sd <- apply(X = simplify2array(comdistnt.rand),
+                             MARGIN = 1:2, FUN = sd, na.rm = TRUE)
+  comdistnt.obs.z <- (comdistnt.obs - comdistnt.rand.mean)/comdistnt.rand.sd
+  comdistnt.obs.rank <- apply(X = simplify2array(c(list(comdistnt.obs),
+                                                   comdistnt.rand)), MARGIN = 1:2, FUN = rank)[1, , ]
+  comdistnt.obs.rank <- ifelse(is.na(comdistnt.rand.mean),
+                               NA, comdistnt.obs.rank)
+  diag(comdistnt.obs.rank) <- NA
+  comdistnt.obs.p <- comdistnt.obs.rank/(runs + 1)
+  list(ntaxa = specnumber(samp), comdistnt.obs = comdistnt.obs,
+       comdistnt.rand.mean = comdistnt.rand.mean, comdistnt.rand.sd = comdistnt.rand.sd,
+       comdistnt.obs.rank = comdistnt.obs.rank, comdistnt.obs.z = comdistnt.obs.z,
+       comdistnt.obs.p = comdistnt.obs.p, runs = runs)
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note TO CHECK: https://search.r-project.org/CRAN/refmans/iCAMP/html/bNTIn.p.html & RC.pc with microeco::
+#' @note ... & https://docs.ropensci.org/phylocomr/reference/ph_comdist.html
+#' @return .
+#' @export
+#' @examples
+#'
+#'library(phyloseq);library(tidyverse);data("GlobalPatterns")
+#'
+#'GlobalPatterns %>%  subset_samples(SampleType == "Skin") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE) %>% phyloseq_iCAMP_bNTIn_par(physeq = ., rand = 4) -> out_icamp
+#'
+#'require(iCAMP)
+#'data("example.data")
+#'comm=example.data$comm
+#'pd=example.data$pd
+#'nworker=2 # parallel computing thread number
+#'rand.time=4 # usually use 1000 for real data.
+#'bNTI=bNTIn.p(comm=comm, dis=pd, nworker = nworker, memo.size.GB = 50,
+#'             weighted = TRUE, exclude.consp = FALSE, rand = rand.time,
+#'             output.bMNTD = FALSE, sig.index = "SES", unit.sum = NULL,
+#'             correct.special = TRUE, detail.null = FALSE,
+#'             special.method = "MNTD")
+
+phyloseq_iCAMP_bNTIn_par <- function(physeq, nworker = 4, memo.size.GB = 50,
+                                     weighted = TRUE, exclude.consp = FALSE,
+                                     rand = 1000, output.bMNTD = FALSE,
+                                     sig.index=c("SES"),
+                                     unit.sum = NULL, correct.special = FALSE,
+                                     detail.null=TRUE,
+                                     special.method=c("MNTD"),
+                                     ses.cut=1.96,rc.cut=0.95,conf.cut=0.975,
+                                     dirichlet = FALSE){
+
+
+  ####---------------------- Load R package
+  require(iCAMP); require(vegan)
+
+  ####---------------------- Extract data
+  # physeq %>%
+  #   microbiome::transform(transform = "compositional") -> physeq
+
+  as(otu_table(physeq), "matrix") %>%
+    t() %>%
+    as.matrix() -> commps
+
+
+  physeq@phy_tree %>%
+    cophenetic() %>%
+    as.matrix() -> dis
+
+  ####----------------------
+
+
+  bNTIn.p(comm = commps, dis = dis, nworker = nworker, memo.size.GB = memo.size.GB,
+          weighted = weighted, exclude.consp = exclude.consp,
+          rand = rand, output.bMNTD = output.bMNTD,
+          sig.index=sig.index,
+          unit.sum = unit.sum, correct.special = correct.special,
+          detail.null=detail.null,
+          special.method=special.method,
+          ses.cut=ses.cut,rc.cut=rc.cut,conf.cut=conf.cut,
+          dirichlet = dirichlet) -> out_icamp
+
+
+  return(out_icamp)
+
+  detach("package:iCAMP", unload=TRUE)
+
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note
+#' @note from https://github.com/stegen/Stegen_etal_ISME_2013/blob/master/bNTI_Local_Machine.r
+#' @return .
+#' @export
+#' @examples
+#' library(phyloseq);library(tidyverse);data("GlobalPatterns")
+#' GlobalPatterns %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE) %>%  phyloseq_bNTI_stegen(beta.reps = 4)
+
+phyloseq_bNTI_stegen <- function(physeq, weighted = TRUE,exclude.conspecifics= FALSE, beta.reps = 999){
+
+
+  ####---------------------- Load R package
+  require(picante)
+
+  ####---------------------- Extract data
+  # physeq %>%
+  #   microbiome::transform(transform = "compositional") -> physeq
+
+  as(otu_table(physeq), "matrix") %>%
+    # t() %>%
+    as.matrix() -> otu
+
+
+  physeq@phy_tree %>%
+    cophenetic() %>%
+    as.matrix() -> dis
+
+  ####----------------------
+
+  ## calculate empirical betaMNTD
+
+  beta.mntd.weighted = as.matrix(picante::comdistnt(t(otu),dis,abundance.weighted=weighted))
+
+  # calculate randomized betaMNTD
+
+  # rand.weighted.bMNTD.comp = array(c(-beta.reps),dim=c(nrow(otu),nrow(otu),beta.reps))
+  rand.weighted.bMNTD.comp = array(c(-beta.reps),dim=c(ncol(otu),ncol(otu),beta.reps))
+  # dim(rand.weighted.bMNTD.comp)
+
+  for (rep in 1:beta.reps) {
+
+    # rand.weighted.bMNTD.comp[,,rep] = as.matrix(comdistnt(otu,taxaShuffle(dis),abundance.weighted=weighted,exclude.conspecifics = exclude.conspecifics))
+    rand.weighted.bMNTD.comp[,,rep] = as.matrix(comdistnt(t(otu),taxaShuffle(dis),abundance.weighted=weighted,exclude.conspecifics = exclude.conspecifics))
+    print(c(date(),rep))
+
+  }
+
+  weighted.bNTI = matrix(c(NA),nrow=ncol(otu),ncol=ncol(otu))
+
+
+  for (columns in 1:(ncol(otu)-1)) {
+    for (rows in (columns+1):ncol(otu)) {
+
+      rand.vals = rand.weighted.bMNTD.comp[rows,columns,]
+      weighted.bNTI[rows,columns] = (beta.mntd.weighted[rows,columns] - mean(rand.vals)) / sd(rand.vals)
+      rm("rand.vals")
+
+    }
+  }
+
+
+  rownames(weighted.bNTI) = colnames(otu)
+  colnames(weighted.bNTI) = colnames(otu)
+  # weighted.bNTI;
+  # write.csv(weighted.bNTI,"weighted_bNTI.csv",quote=F);
+
+  # pdf("weighted_bNTI_Histogram.pdf")
+  # hist(weighted.bNTI)
+  # dev.off()
+
+  return(weighted.bNTI)
+  # return(out = list("bNTI" = weighted.bNTI,
+  #                   "plot" = hist(weighted.bNTI))
+  # )
+}
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note from https://docs.ropensci.org/phylocomr/reference/ph_comdist.html
+#' @note species id (same as in the phylogeny, must begin with a letter, not a number or symbol)
+#' @note sample_id no spaces, must begin with a letter, not a number or symbol
+#' @return .
+#' @export
+#' @examples
+#' library(phyloseq);library(tidyverse);data("GlobalPatterns")
+#' GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE) -> physeq; taxa_names(physeq) <- paste0("OTU_", taxa_names(physeq) )
+#'
+
+phyloseq_bNTI_phylocomr <- function(physeq,
+                                    rand_test = FALSE,
+                                    null_model = 0,
+                                    randomizations = 999,
+                                    abundance = TRUE){
+
+  ####---------------------- Load R package
+  require("phylocomr")
+
+  ####---------------------- Extract data
+  # physeq %>%
+  #   microbiome::transform(transform = "compositional") -> physeq
+
+  as(otu_table(physeq), "matrix") %>%
+    t() %>%
+    as.data.frame() %>%
+    rownames_to_column('sample_id_temp') %>%
+    tidyr::pivot_longer(cols = taxa_names(physeq)) %>%
+    select(sample_id_temp, value, name) %>%
+    mutate(name = as.factor(name)) %>%
+    as.data.frame() -> otu
+
+
+  physeq@phy_tree -> phylo
+
+  ####----------------------
+
+  ph_comdistnt(
+    otu,
+    phylo,
+    rand_test = rand_test,
+    null_model = null_model,
+    randomizations = randomizations,
+    abundance = abundance
+  ) -> out
+
+  return(out)
+
+  detach("package:phylocomr", unload=TRUE)
+
+}
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note .
+#' @note
+#' @note from https://github.com/FranzKrah/raup_crick/blob/master/raup_crick_abu_par.r
+#' @return .
+#' @export
+#' @examples
+#'
+#'
+#'
+
+phyloseq_raup_crick_abu_par <- function(phyloseq, reps, ncore, classic_metric=FALSE, split_ties=TRUE){
+
+
+
+  ####---------------------- Load R package
+  require("parallel");  require("doSNOW")
+
+  ####---------------------- Extract data
+  # physeq %>%
+  #   microbiome::transform(transform = "compositional") -> physeq
+
+  as(otu_table(physeq), "matrix") %>%
+    t() %>%
+    as.matrix() -> com
+
+  ####----------------------
+
+
+  pb <- txtProgressBar(max =reps, style = 3)
+  progress <- function(n) setTxtProgressBar(pb, n)
+  opts <- list(progress = progress)
+  cl <- makeCluster(ncore)
+  registerDoSNOW(cl)
+
+  bray.rand <- foreach(randomize = 1:reps,
+                       .options.snow = opts,
+                       .packages = c("vegan", "picante")) %dopar% {
+
+
+                         null.dist <- com*0
+
+                         for(i in 1:nrow(com)){
+
+                           com.pa <- (com>0)*1
+                           gamma<-ncol(com)
+                           occur<-apply(com>0, MARGIN=2, FUN=sum)
+                           abundance<-apply(com, MARGIN=2, FUN=sum)
+                           com1 <- rep(0,gamma)
+
+                           com1[sample(1:gamma, sum(com.pa[i,]), replace=FALSE, prob=occur)]<-1
+                           com1.samp.sp = sample(which(com1>0), (sum(com[i,])-sum(com1)),
+                                                 replace=TRUE,prob=abundance[which(com1>0)]);
+                           com1.samp.sp = cbind(com1.samp.sp,1)
+                           com1.sp.counts = as.data.frame(tapply(com1.samp.sp[,2],com1.samp.sp[,1],FUN=sum))
+                           colnames(com1.sp.counts) = 'counts'
+                           com1.sp.counts$sp = as.numeric(rownames(com1.sp.counts))
+                           com1[com1.sp.counts$sp] = com1[com1.sp.counts$sp] + com1.sp.counts$counts
+                           x <- com1
+                           null.dist[i,] <- x
+                           rm('com1.samp.sp','com1.sp.counts')
+                         }
+                         as.matrix(vegdist(null.dist, "bray"))
+                       }
+  stopCluster(cl)
+
+  ## Calculate beta-diversity for obs metacommunity
+  bray.obs <- as.matrix(vegdist(com, "bray"))
+
+  ##how many null observations is the observed value tied with?
+  null_bray_curtis <- bray.rand
+  num_exact_matching_in_null <- lapply(null_bray_curtis, function(x) x==bray.obs)
+  num_exact_matching_in_null <- apply(simplify2array(num_exact_matching_in_null), 1:2, sum)
+
+  ##how many null values are smaller than the observed *dissimilarity*?
+  num_less_than_in_null <- lapply(null_bray_curtis, function(x) (x<bray.obs)*1)
+  num_less_than_in_null <- apply(simplify2array(num_less_than_in_null), 1:2, sum)
+
+
+  rc = (num_less_than_in_null)/reps; # rc;
+
+  if(split_ties){
+
+    rc = ((num_less_than_in_null +(num_exact_matching_in_null)/2)/reps)
+  };
+
+
+  if(!classic_metric){
+
+    ##our modification of raup crick standardizes the metric to range from -1 to 1 instead of 0 to 1
+
+    rc = (rc-.5)*2
+  };
+
+  return(rc)
+
+}
 }
