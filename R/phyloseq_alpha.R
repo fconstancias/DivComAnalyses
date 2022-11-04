@@ -11,31 +11,34 @@
 #' library(phyloseq);library(tidyverse);data("GlobalPatterns")
 #'
 #' phyloseq_alphas(GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 3, TRUE), phylo = TRUE ,compute_NTI = TRUE, return = "wide") -> out_NTI
+#' phyloseq_alphas(GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE), phylo = TRUE ,compute_NTI = TRUE, NTI_abundance_weighted = TRUE, return = "wide") -> out_NTI_ab
+#' phyloseq_alphas(GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE), phylo = TRUE ,compute_NTI = TRUE, NTI_abundance_weighted = FALSE, return = "wide") -> out_NTI_abFALSE
 #' phyloseq_alphas(GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 3, TRUE), phylo = FALSE ,export_hill = TRUE, return = "long") -> out_no_phy
 #' https://rfunctions.blogspot.com/2012/07/standardized-effect-size-nearest.html
 
 phyloseq_alphas <- function(physeq,
-                            phylo = FALSE, compute_NTI = FALSE,
                             est_rich_metrics = c("Observed", "Chao1", "Shannon", "InvSimpson"),
                             mic_alpha_metrics= c("evenness_pielou",
                                                  "diversity_coverage"),
-                            phylo_metrics = c("PD", "MPD", "MNTD", "SES.PD",
-                                              "SES.MPD", "SES.MNTD"),
                             export_hill = FALSE,
+                            phylo = FALSE,
+                            # phylo_metrics = c("PD", "MPD", "MNTD", "SES.PD",
+                            #                   "SES.MPD"),
+                            compute_NTI = FALSE,
                             NTI_abundance_weighted = TRUE,
+                            return = "wide",
                             NTI_package = "picante",
                             NTI_null_model = "taxa.labels",
                             NTI_nsim = 1000,
                             NTI_swapiter = 1000,
                             NTI_verbose = TRUE,
-                            return = "wide",
                             seed = 123456
 )
 {
 
   ####---------------------- Load R package
 
-  require(metagMisc);require(microbiome)
+  require(metagMisc);require(microbiome);require(tidyverse)
 
   ####---------------------- Extract metadata
 
@@ -65,15 +68,15 @@ phyloseq_alphas <- function(physeq,
 
   if (phylo == TRUE)
   {
-    physeq %>%
-      metagMisc::phyloseq_phylo_div(.,
-                                    measures = phylo_metrics,
-                                    seed = seed) %>%
-      rownames_to_column('sample_id_tmp') -> phylo_div_alpha
-
-    out %>%
-      left_join(phylo_div_alpha,
-                by = c("sample_id_tmp" = "sample_id_tmp")) -> out
+    # physeq %>%
+    #   metagMisc::phyloseq_phylo_div(.,
+    #                                 measures = phylo_metrics,
+    #                                 seed = seed) %>%
+    #   rownames_to_column('sample_id_tmp') -> phylo_div_alpha
+    #
+    # out %>%
+    #   left_join(phylo_div_alpha,
+    #             by = c("sample_id_tmp" = "sample_id_tmp")) -> out
 
     if (compute_NTI == TRUE)
     {
@@ -81,7 +84,7 @@ phyloseq_alphas <- function(physeq,
 
       physeq %>%
         metagMisc::phyloseq_phylo_ses(.,
-                                      measures = c("MNTD"),
+                                      measures = c("MNTD", "PD"),
                                       null_model = NTI_null_model, package = NTI_package,
                                       abundance_weighted = NTI_abundance_weighted,
                                       nsim = NTI_nsim, swapiter = NTI_swapiter, verbose = NTI_verbose) %>%
