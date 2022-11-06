@@ -3061,7 +3061,7 @@ adonis_OmegaSq <- function(aov_tab, partial = TRUE){
 #' @author Florentin Constancias
 #' @note .
 #' @note .
-#' @note .
+#' @note mntd.obs.z 	 Standardized effect size of MNTD vs. null communities (= (mntd.obs - mntd.rand.mean) / mntd.rand.sd, equivalent to -NTI)
 #' @return .
 #' @export
 #' @examples
@@ -3240,10 +3240,10 @@ phyloseq_comdist2_SES_NTI_parallel <- function(physeq, method = "swap", fixedmar
 #' @param .
 #' @param ..
 #' @author Florentin Constancias
-#' @note .
+#' @note mntd.obs.z 	 Standardized effect size of MNTD vs. null communities (= (mntd.obs - mntd.rand.mean) / mntd.rand.sd, equivalent to -NTI)
 #' @note TO CHECK: https://search.r-project.org/CRAN/refmans/iCAMP/html/bNTIn.p.html & RC.pc with microeco::
 #' @note ... & https://docs.ropensci.org/phylocomr/reference/ph_comdist.html
-#' @return .
+#' @return
 #' @export
 #' @examples
 
@@ -3254,9 +3254,9 @@ phyloseq_comdist2_SES_NTI_parallel <- function(physeq, method = "swap", fixedmar
 #'GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE) %>% phyloseq_bNTI_parallel(.,   abundance_weighted = TRUE, exclude_conspecifics = FALSE, runs = 4, null.model = "taxa.labels", iterations = 4, cores = 6) -> out_phyloseq_bNTI_parallel
 
 phyloseq_bNTI_parallel <- function(physeq, null.model = c("taxa.labels", "richness",
-                                                                     "frequency", "sample.pool", "phylogeny.pool", "independentswap",
-                                                                     "trialswap"), abundance_weighted = TRUE, exclude_conspecifics = FALSE,
-                                              runs = 999, iterations = 1000, cores = 1)
+                                                          "frequency", "sample.pool", "phylogeny.pool", "independentswap",
+                                                          "trialswap"), abundance_weighted = TRUE, exclude_conspecifics = FALSE,
+                                   runs = 999, iterations = 1000, cores = 1)
 {
 
 
@@ -3279,34 +3279,34 @@ phyloseq_bNTI_parallel <- function(physeq, null.model = c("taxa.labels", "richne
   ####----------------------
 
   comdistnt.obs <- as.matrix(comdist_nti_par(samp, dis, abundance_weighted = abundance_weighted,
-                                                   exclude_conspecifics = exclude_conspecifics, cores = cores,
-                                                   progress = FALSE))
+                                             exclude_conspecifics = exclude_conspecifics, cores = cores,
+                                             progress = FALSE))
   null.model <- match.arg(null.model)
   comdistnt.rand <- switch(null.model, taxa.labels = replicate(runs,
                                                                as.matrix(comdist_nti_par(samp, taxaShuffle(dis), abundance_weighted = abundance_weighted,
-                                                                                       exclude_conspecifics = exclude_conspecifics, cores = cores,
-                                                                                       progress = FALSE)), simplify = FALSE), richness = replicate(runs,
-                                                                                                                                                   as.matrix(comdist_nti_par(randomizeMatrix(samp, null.model = "richness"),
-                                                                                                                                                                           dis, abundance_weighted, exclude_conspecifics = exclude_conspecifics,
-                                                                                                                                                                           cores = cores, progress = FALSE)), simplify = FALSE),
-                           frequency = replicate(runs, as.matrix(comdist_nti_par(randomizeMatrix(samp,
-                                                                                               null.model = "frequency"), dis, abundance_weighted,
-                                                                               exclude_conspecifics = exclude_conspecifics, cores = cores,
-                                                                               progress = FALSE)), simplify = FALSE), sample.pool = replicate(runs,
-                                                                                                                                              as.matrix(comdist_nti_par(randomizeMatrix(samp, null.model = "richness"),
-                                                                                                                                                                      dis, abundance_weighted, exclude_conspecifics = exclude_conspecifics,
-                                                                                                                                                                      cores = cores, progress = FALSE)), simplify = FALSE),
-                           phylogeny.pool = replicate(runs, as.matrix(comdist_nti_par(randomizeMatrix(samp,
-                                                                                                    null.model = "richness"), taxaShuffle(dis), abundance_weighted,
-                                                                                    exclude_conspecifics = exclude_conspecifics, cores = cores,
-                                                                                    progress = FALSE)), simplify = FALSE), independentswap = replicate(runs,
-                                                                                                                                                       as.matrix(comdist_nti_par(randomizeMatrix(samp, null.model = "independentswap",
-                                                                                                                                                                                               iterations), dis, abundance_weighted, exclude_conspecifics = exclude_conspecifics,
+                                                                                         exclude_conspecifics = exclude_conspecifics, cores = cores,
+                                                                                         progress = FALSE)), simplify = FALSE), richness = replicate(runs,
+                                                                                                                                                     as.matrix(comdist_nti_par(randomizeMatrix(samp, null.model = "richness"),
+                                                                                                                                                                               dis, abundance_weighted, exclude_conspecifics = exclude_conspecifics,
                                                                                                                                                                                cores = cores, progress = FALSE)), simplify = FALSE),
+                           frequency = replicate(runs, as.matrix(comdist_nti_par(randomizeMatrix(samp,
+                                                                                                 null.model = "frequency"), dis, abundance_weighted,
+                                                                                 exclude_conspecifics = exclude_conspecifics, cores = cores,
+                                                                                 progress = FALSE)), simplify = FALSE), sample.pool = replicate(runs,
+                                                                                                                                                as.matrix(comdist_nti_par(randomizeMatrix(samp, null.model = "richness"),
+                                                                                                                                                                          dis, abundance_weighted, exclude_conspecifics = exclude_conspecifics,
+                                                                                                                                                                          cores = cores, progress = FALSE)), simplify = FALSE),
+                           phylogeny.pool = replicate(runs, as.matrix(comdist_nti_par(randomizeMatrix(samp,
+                                                                                                      null.model = "richness"), taxaShuffle(dis), abundance_weighted,
+                                                                                      exclude_conspecifics = exclude_conspecifics, cores = cores,
+                                                                                      progress = FALSE)), simplify = FALSE), independentswap = replicate(runs,
+                                                                                                                                                         as.matrix(comdist_nti_par(randomizeMatrix(samp, null.model = "independentswap",
+                                                                                                                                                                                                   iterations), dis, abundance_weighted, exclude_conspecifics = exclude_conspecifics,
+                                                                                                                                                                                   cores = cores, progress = FALSE)), simplify = FALSE),
                            trialswap = replicate(runs, as.matrix(comdist_nti_par(randomizeMatrix(samp,
-                                                                                               null.model = "trialswap", iterations), dis, abundance_weighted,
-                                                                               exclude_conspecifics = exclude_conspecifics, cores = cores,
-                                                                               progress = FALSE)), simplify = FALSE))
+                                                                                                 null.model = "trialswap", iterations), dis, abundance_weighted,
+                                                                                 exclude_conspecifics = exclude_conspecifics, cores = cores,
+                                                                                 progress = FALSE)), simplify = FALSE))
   comdistnt.rand.mean <- apply(X = simplify2array(comdistnt.rand),
                                MARGIN = 1:2, FUN = mean, na.rm = TRUE)
   comdistnt.rand.sd <- apply(X = simplify2array(comdistnt.rand),
@@ -3323,9 +3323,9 @@ phyloseq_bNTI_parallel <- function(physeq, null.model = c("taxa.labels", "richne
 
 
   out <- list(ntaxa = specnumber(samp), comdistnt_obs = comdistnt.obs,
-       comdistnt_rand.mean = comdistnt.rand.mean, comdistnt_rand_sd = comdistnt.rand.sd,
-       comdistnt_obs.rank = comdistnt.obs.rank, comdistnt_obs_z = comdistnt.obs.z,
-       comdistnt_obs.p = comdistnt.obs.p, runs = runs)
+              comdistnt_rand.mean = comdistnt.rand.mean, comdistnt_rand_sd = comdistnt.rand.sd,
+              comdistnt_obs.rank = comdistnt.obs.rank, comdistnt_obs_z = comdistnt.obs.z,
+              comdistnt_obs.p = comdistnt.obs.p, runs = runs)
 
 
   return(out)
@@ -3336,7 +3336,7 @@ phyloseq_bNTI_parallel <- function(physeq, null.model = c("taxa.labels", "richne
 
 
 comdist_nti_par <- function (comm, dis, abundance_weighted = FALSE, exclude_conspecifics = FALSE,
-          cores = 1, progress = TRUE)
+                             cores = 1, progress = TRUE)
 {
   dat <- match.comm.dist(comm, dis)
   comm <- dat$comm
@@ -3420,7 +3420,7 @@ comdist_nti_par <- function (comm, dis, abundance_weighted = FALSE, exclude_cons
 #' @param .
 #' @param ..
 #' @author Florentin Constancias
-#' @note .
+#' @note mntd.obs.z 	 Standardized effect size of MNTD vs. null communities (= (mntd.obs - mntd.rand.mean) / mntd.rand.sd, equivalent to -NTI)
 #' @note TO CHECK: https://search.r-project.org/CRAN/refmans/iCAMP/html/bNTIn.p.html & RC.pc with microeco::
 #' @note ... & https://docs.ropensci.org/phylocomr/reference/ph_comdist.html
 #' @return .
@@ -3495,7 +3495,7 @@ phyloseq_iCAMP_bNTIn_par <- function(physeq, nworker = 4, memo.size.GB = 50,
 #' @param .
 #' @param ..
 #' @author Florentin Constancias
-#' @note .
+#' @note mntd.obs.z 	 Standardized effect size of MNTD vs. null communities (= (mntd.obs - mntd.rand.mean) / mntd.rand.sd, equivalent to -NTI)
 #' @note
 #' @note from https://github.com/stegen/Stegen_etal_ISME_2013/blob/master/bNTI_Local_Machine.r
 #' @return .
@@ -3571,6 +3571,7 @@ phyloseq_bNTI_stegen <- function(physeq, weighted = TRUE,exclude.conspecifics= F
   #                   "plot" = hist(weighted.bNTI))
   # )
 }
+
 
 
 #' @title ...
@@ -3729,4 +3730,4 @@ phyloseq_raup_crick_abu_par <- function(phyloseq, reps, ncore, classic_metric=FA
   return(rc)
 
 }
-}
+

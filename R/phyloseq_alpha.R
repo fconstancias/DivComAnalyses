@@ -11,8 +11,8 @@
 #' library(phyloseq);library(tidyverse);data("GlobalPatterns")
 #'
 #' phyloseq_alphas(GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 3, TRUE), phylo = TRUE ,compute_NTI = TRUE, return = "wide") -> out_NTI
-#' phyloseq_alphas(GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE), phylo = TRUE ,compute_NTI = TRUE, NTI_abundance_weighted = TRUE, return = "wide") -> out_NTI_ab
-#' phyloseq_alphas(GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE), phylo = TRUE ,compute_NTI = TRUE, NTI_abundance_weighted = FALSE, return = "wide") -> out_NTI_abFALSE
+#' phyloseq_alphas(GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE), phylo = TRUE ,compute_NTI = TRUE, abundance_weighted = TRUE, return = "wide") -> out_NTI_ab
+#' phyloseq_alphas(GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE), phylo = TRUE ,compute_NTI = TRUE, abundance_weighted = FALSE, return = "wide") -> out_NTI_abFALSE
 #' phyloseq_alphas(GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 3, TRUE), phylo = FALSE ,export_hill = TRUE, return = "long") -> out_no_phy
 #' https://rfunctions.blogspot.com/2012/07/standardized-effect-size-nearest.html
 
@@ -25,9 +25,9 @@ phyloseq_alphas <- function(physeq,
                             # phylo_metrics = c("PD", "MPD", "MNTD", "SES.PD",
                             #                   "SES.MPD"),
                             compute_NTI = FALSE,
-                            NTI_abundance_weighted = TRUE,
+                            abundance_weighted = TRUE,
                             return = "wide",
-                            NTI_package = "picante",
+                            package = "picante",
                             NTI_null_model = "taxa.labels",
                             NTI_nsim = 1000,
                             NTI_swapiter = 1000,
@@ -85,8 +85,8 @@ phyloseq_alphas <- function(physeq,
       physeq %>%
         metagMisc::phyloseq_phylo_ses(.,
                                       measures = c("MNTD", "PD"),
-                                      null_model = NTI_null_model, package = NTI_package,
-                                      abundance_weighted = NTI_abundance_weighted,
+                                      null_model = NTI_null_model, package = package,
+                                      abundance_weighted = abundance_weighted,
                                       nsim = NTI_nsim, swapiter = NTI_swapiter, verbose = NTI_verbose) %>%
         mutate(NTI = (MNTD - MNTD.rand.mean) / MNTD.rand.sd ) -> phylo_ses_alpha_ab
 
@@ -137,9 +137,9 @@ phyloseq_alphas <- function(physeq,
 #' @examples
 #' library(phyloseq);library(tidyverse);data("GlobalPatterns")
 #'
-#' GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE) %>% phyloseq_SES_MNTD(null.model = "taxa.labels", runs = 1000, iterations = 1000) -> out_MNTD
+#' GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE) %>% phyloseq_SES_MNTD_par(null.model = "taxa.labels", runs = 1000, iterations = 1000, abundance.weighted = TRUE) -> out_phyloseq_SES_MNTD_par
 
-phyloseq_SES_MNTD <- function(physeq,null.model = c("taxa.labels", "richness",
+phyloseq_SES_MNTD_par <- function(physeq,null.model = c("taxa.labels", "richness",
                                                     "frequency", "sample.pool", "phylogeny.pool", "independentswap",
                                                     "trialswap"), abundance.weighted = TRUE, runs = 999, iterations = 1000, cores = 2){
 
@@ -232,6 +232,48 @@ phyloseq_SES_MNTD <- function(physeq,null.model = c("taxa.labels", "richness",
 
   return(out)
 }
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note mntd.obs.z 	 Standardized effect size of MNTD vs. null communities (= (mntd.obs - mntd.rand.mean) / mntd.rand.sd, equivalent to -NTI)
+#' @note
+#' @examples
+#' library(phyloseq);library(tidyverse);data("GlobalPatterns")
+#'
+#'GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE) %>% phyloseq_ses_mntd(null.model = "taxa.labels", runs = 1000, iterations = 1000, abundance.weighted=TRUE) -> out_phyloseq_ses_mntd
+
+phyloseq_ses_mntd <- function(physeq, null.model = c("taxa.labels", "richness", "frequency",
+                                                     "sample.pool", "phylogeny.pool", "independentswap", "trialswap"),
+                              abundance.weighted=TRUE, runs = 999, iterations = 1000)
+{
+
+
+  ####---------------------- Load R package
+  require(picante)
+
+  ####---------------------- Extract data
+  # physeq %>%
+  #   microbiome::transform(transform = "compositional") -> physeq
+
+  as(otu_table(physeq), "matrix") %>%
+    t() %>%
+    as.data.frame() -> samp
+
+
+  physeq@phy_tree %>%
+    cophenetic() %>%
+    as.matrix() -> dis
+
+  ####----------------------
+
+  picante::ses.mntd(samp = samp, dis = dis, null.model = null.model,
+                    abundance.weighted=abundance.weighted, runs = runs, iterations = iterations) -> out
+
+  return(out)
+}
+
 
 #' @title ...
 #' @param .
