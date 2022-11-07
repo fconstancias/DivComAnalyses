@@ -22,9 +22,10 @@
 #'physeq %>% phyloseq_null_model_microeco(., env_cols = c("pH", "temp"),  method = c("mantel_corr", "betaMNTD",  "RCbray",  "cal_NTI", "cal_process"), test = TRUE) -> out
 #'
 
+readRDS((url("https://github.com/fconstancias/DivComAnalyses/blob/9e6ebc69e0c5e136c910186a7136e51af4cecc13/data-raw/ps_invivo.RDS?raw=true" ))) %>% filter_taxa(function(x) sum(x > 0) > 1, TRUE) %>% phyloseq_null_model_microeco(env_cols = NULL, c("mantel_corr", "betaMNTD", "cal_NTI","RCbray","cal_process")) -> out
 
 phyloseq_null_model_microeco <- function(physeq,
-                                         method = c("mantel_corr", "betaMPD", "betaMNTD", "RCbray", "cal_NRI", "cal_NTI", "cal_Cscore", "cal_Cscore", "cal_tNST", "cal_process"),
+                                         method = c("mantel_corr", "betaMPD", "betaMNTD", "RCbray", "cal_NRI", "cal_NTI", "cal_Cscore", "cal_tNST", "cal_process"),
                                          env_cols = c(NULL, "pH", "temp"),
                                          mantel_r.type = "pearson",
                                          mantel_nperm = 999,
@@ -231,19 +232,9 @@ phyloseq_null_model_microeco <- function(physeq,
 #' @examples
 #'
 #'require(phyloseq); require(tidyverse)
-#'data("GlobalPatterns")
-#'GlobalPatterns -> physeq
-#'
-#'set.seed(12344566)
-#'sample_data(physeq)$pH <- rnorm(nsamples(physeq), mean=6, sd=2)
-#'set.seed(12344566)
-#'sample_data(physeq)$temp  <- rnorm(nsamples(physeq), mean=22, sd=6)
-#'physeq %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE) -> physeq
-#'
-#'physeq %>% phyloseq_null_model_microeco(., env_cols = c("pH", "temp"),  method = c("mantel_corr", "betaMNTD",  "RCbray",  "cal_NTI", "cal_process"), test = TRUE) -> out
-#'
+#'readRDS((url("https://github.com/fconstancias/DivComAnalyses/blob/9e6ebc69e0c5e136c910186a7136e51af4cecc13/data-raw/ps_invivo.RDS?raw=true" ))) %>% filter_taxa(function(x) sum(x > 0) > 110, TRUE) %>% phyloseq_env_microeco(env_cols = c("BW", "merged_pc"), cal_diff_group = "treatment_grouped")
 
-phyloseq_env_microeco <- function(physeq, env_cols = NULL, cal_diff_group = "Group", cal_diff_m = "wilcox", cal_ordination_m = c("dbRDA", "CCA", "RDA"), ordination_feature_sel = FALSE){
+phyloseq_env_microeco <- function(physeq, method = c("cal_diff", "cal_autocor"), env_cols = NULL, cal_diff_group = "Group", cal_diff_m = "wilcox", cal_ordination_m = c("dbRDA", "CCA", "RDA"), ordination_feature_sel = FALSE){
 
 
   ####---------------------- Load R package
@@ -391,9 +382,9 @@ phyloseq_env_microeco <- function(physeq, env_cols = NULL, cal_diff_group = "Gro
 #'physeq %>% phyloseq_null_model_microeco(., env_cols = c("pH", "temp"),  method = c("mantel_corr", "betaMNTD",  "RCbray",  "cal_NTI", "cal_process"), test = TRUE) -> out
 #'
 #'
-readRDS((url("https://github.com/fconstancias/DivComAnalyses/blob/9e6ebc69e0c5e136c910186a7136e51af4cecc13/data-raw/ps_invivo.RDS?raw=true" ))) %>% filter_taxa(function(x) sum(x > 0) > 110, TRUE) -> physeq
+readRDS((url("https://github.com/fconstancias/DivComAnalyses/blob/9e6ebc69e0c5e136c910186a7136e51af4cecc13/data-raw/ps_invivo.RDS?raw=true" ))) %>% filter_taxa(function(x) sum(x > 0) > 110, TRUE) %>% phyloseq_func_microeco(prok_database = c("FAPROTAX")) -> out
 
-phyloseq_func_microeco <- function(physeq, prok_database = c("FAPROTAX", "NJC19"), fungi_database = c("FUNGuild", "FungalTraits"), abundance_weighted = TRUE, blast_tool_path = "~/Documents/ncbi-blast-2.13.0+/bin/", path_to_reference_data = "~/Documents/Ref99NR/Tax4Fun2_ReferenceData_v2/", num_threads = 4){
+phyloseq_func_microeco <- function(physeq,method = c("cal_spe_func", "cal_tax4fun2"), prok_database = c("FAPROTAX", "NJC19"), fungi_database = c("FUNGuild", "FungalTraits"), abundance_weighted = TRUE, blast_tool_path = "~/Documents/ncbi-blast-2.13.0+/bin/", path_to_reference_data = "~/Documents/Ref99NR/Tax4Fun2_ReferenceData_v2/", num_threads = 4){
 
 
   ####---------------------- Load R package
@@ -415,10 +406,22 @@ phyloseq_func_microeco <- function(physeq, prok_database = c("FAPROTAX", "NJC19"
   # dataset %>%
   #   file2meco::meco2phyloseq() -> pss
 
-  tax_table(physeq) <-  gsub(tax_table(physeq), pattern = "unknown", replacement = "s__")
+  # tax_table(physeq) <-  gsub(tax_table(physeq), pattern = "unknown", replacement = "s__")
 
-  physeq %>%
-    file2meco::phyloseq2meco(.) -> data
+  otu_table_trans <- as.data.frame(physeq@otu_table@.Data, check.names = FALSE, stringsAsFactors = FALSE)
+  sample_table_trans <- data.frame(phyloseq::sample_data(physeq), check.names = FALSE, stringsAsFactors = FALSE)
+  tax_table_trans <- as.data.frame(physeq@tax_table@.Data, check.names = FALSE, stringsAsFactors = FALSE)
+  tax_table_trans %>%  tidy_taxonomy() -> tax_table_trans
+  phylo_tree_trans <- physeq@phy_tree
+  seq_trans <- physeq@refseq
+
+  data <- microtable$new(sample_table = sample_table_trans, otu_table = otu_table_trans,
+                            tax_table = tax_table_trans, phylo_tree = phylo_tree_trans, rep_fasta = seq_trans)
+
+  # physeq %>%
+    # file2meco::phyloseq2meco(physeq = .) -> data
+
+  # data@rep_fasta <- physeq@refseq
 
   data$sample_table -> env_data
 
@@ -427,7 +430,6 @@ phyloseq_func_microeco <- function(physeq, prok_database = c("FAPROTAX", "NJC19"
   t1 <- trans_func$new(data)
 
   out = NULL
-
 
   ####---------------------- cal_diff
 
@@ -452,11 +454,14 @@ phyloseq_func_microeco <- function(physeq, prok_database = c("FAPROTAX", "NJC19"
       color_gradient_low = "#00008B",
       color_gradient_high = "#9E0142"
     ) -> out$plot_spe_func_perc
+
+    # t1$print
+
   }
 
   ####---------------------- cal_diff
 
-  if ("cal_tax4fun"  %in% method)
+  if ("cal_tax4fun2"  %in% method)
   {
 
     t1$cal_tax4fun2(blast_tool_path = blast_tool_path,
@@ -467,90 +472,34 @@ phyloseq_func_microeco <- function(physeq, prok_database = c("FAPROTAX", "NJC19"
                     num_threads = num_threads,
                     normalize_pathways = F)
 
-    t1$res_spe_func -> out$res_spe_func
+    tax4fun2 <- microtable$new(otu_table = t1$res_tax4fun2_pathway, tax_table = Tax4Fun2_KEGG$ptw_desc, sample_table = dataset$sample_table)
 
-    t1$cal_spe_func_perc(abundance_weighted = abundance_weighted)
+    tax4fun2$tidy_dataset()
 
-    t1$res_spe_func_perc -> out$res_spe_func_perc
+    tax4fun2$cal_abund()
 
-  }
+    func2 <- trans_abund$new(tax4fun2, taxrank = "Level.2")#, groupmean = "treatment_grouped")
+    func2$plot_bar(legend_text_italic = FALSE) -> fun_plot
 
-    # -> out$res_diff
+    # calculate functional redundancies
+    t1$cal_tax4fun2_FRI()
 
-    res_diff_plot <- vector("list", length(env_cols))
-    names(res_diff_plot) <- env_cols
+    t1$res_tax4fun2_aFRI -> out$res_tax4fun2_aFRI
 
-    tmp <- list()
-    for(i in colnames(t1$data_env)){
-      tmp[[i]] <- t1$plot_diff(measure = i, add_sig_text_size = 5, xtext_size = 12) + theme(plot.margin = unit(c(0.1, 0, 0, 1), "cm"))
-    }
+    t1$res_tax4fun2_rFRI -> out$res_tax4fun2_rFRI
 
-    # for (i in names((res_diff_plot))
-    # {
-    # t1$plot_diff(color_values = RColorBrewer::brewer.pal(env_data[,cal_diff_group] %>%  unique() %>%  length(), "Dark2"),
-    #              measure = env_cols[i],
-    #              group = cal_diff_group,
-    #              add_sig = TRUE,
-    #              add_sig_label = "Significance",
-    #              add_sig_text_size = 3.88,
-    #              use_boxplot = TRUE,
-    #              boxplot_add = "jitter",
-    #              order_x_mean = FALSE,
-    #              y_start = 1.01,
-    #              y_increase = 0.05,
-    #              xtext_angle = NULL,
-    #              xtext_size = 15,
-    #              ytitle_size = 17,
-    #              barwidth = 0.9) -> res_diff_plot[[i]]
-    # }
+    # t1$res_tax4fun2_otu_table_reduced_aggregated
 
-    out$res_diff_plot <- tmp
-  }
+    # t1$cal_abund()
 
-  ####---------------------- cal_autocor
-
-  if ("cal_autocor"  %in% method)
-  {
-
-    t1$cal_autocor(
-      group = cal_diff_group,
-      color_values = RColorBrewer::brewer.pal(env_data[,cal_diff_group] %>%  unique() %>%  length(), "Dark2"),
-      alpha = 0.8,
-      upper = list(continuous = GGally::wrap("cor", method= "spearman"))) -> out$cal_autocor
-
-  }
-
-  ####---------------------- cal_autocor
-
-
-  if ("cal_ordination"  %in% method)
-  {
-
-    t1$cal_ordination(
-      method = cal_ordination_m,
-      feature_sel = ordination_feature_sel,
-      taxa_level = NULL,
-      taxa_filter_thres = NULL,
-      use_measure = NULL,
-      add_matrix = NULL)
-
-  }
-
-
-  ####---------------------- cal_mantel
-
-
-  if ("cal_mantel"  %in% method)
-  {
-
-    t1$cal_mantel(
-      select_env_data = env_cols,
-      partial_mantel = TRUE,
-      add_matrix = NULL,
-      use_measure = "bray",
-      method = "pearson",
-      p_adjust_method = "fdr")
-
+    # t1$plot_spe_func_perc(
+    #   filter_func = NULL,
+    #   use_group_list = TRUE,
+    #   add_facet = TRUE,
+    #   order_x = NULL,
+    #   color_gradient_low = "#00008B",
+    #   color_gradient_high = "#9E0142"
+    # )
   }
 
   return(out)

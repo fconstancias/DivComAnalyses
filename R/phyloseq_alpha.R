@@ -8,7 +8,7 @@
 #' @return .
 #' @export
 #' @examples
-#' v
+#'
 #'
 #' phyloseq_alphas(GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 3, TRUE), phylo = TRUE ,compute_NTI = TRUE, return = "wide") -> out_NTI
 #' system.time(phyloseq_alphas(GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE),export_hill = TRUE,  phylo = TRUE ,compute_NTI_PD = TRUE,  abundance_weighted_NTI_PD = TRUE, return = "long") -> out_NTI_ab) ; system.time(phyloseq_alphas(GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE), export_hill = TRUE, phylo = TRUE ,compute_NTI_PD = TRUE,  abundance_weighted_NTI_PD  = FALSE, return = "long") -> out_NTI_abFALSE)
@@ -16,13 +16,10 @@
 #' https://rfunctions.blogspot.com/2012/07/standardized-effect-size-nearest.html
 
 phyloseq_alphas <- function(physeq,
-                            est_rich_metrics = c("Observed", "Chao1", "Shannon", "InvSimpson"),
-                            mic_alpha_metrics= c("evenness_pielou",
+                            mic_alpha_metrics= c("observed", "diversity_shannon", "diversity_inverse_simpson","evenness_pielou",
                                                  "diversity_coverage"),
                             export_hill = FALSE,
                             phylo = FALSE,
-                            # phylo_metrics = c("PD", "MPD", "MNTD", "SES.PD",
-                            #                   "SES.MPD"),
                             compute_NTI_PD = FALSE,
                             abundance_weighted_NTI_PD = TRUE,
                             return = "wide",
@@ -48,10 +45,10 @@ phyloseq_alphas <- function(physeq,
 
   ####---------------------- phyloseq::estimate_richness
 
-  physeq %>%
-    phyloseq::estimate_richness(.,
-                                measures = est_rich_metrics) %>%
-    rownames_to_column('sample_id_tmp') -> alpha_rich
+  # physeq %>%
+  #   phyloseq::estimate_richness(.,
+  #                               measures = est_rich_metrics) %>%
+  #   rownames_to_column('sample_id_tmp') -> alpha_rich
 
   ####----------------------  microbiome::alpha
 
@@ -60,8 +57,8 @@ phyloseq_alphas <- function(physeq,
     rownames_to_column('sample_id_tmp') -> mic_alpha
 
   meta_data %>%
-    left_join(alpha_rich,
-              by = c("sample_id_tmp" = "sample_id_tmp")) %>%
+    # left_join(alpha_rich,
+    #           by = c("sample_id_tmp" = "sample_id_tmp")) %>%
     left_join(mic_alpha,
               by = c("sample_id_tmp" = "sample_id_tmp")) -> out
 
@@ -98,9 +95,9 @@ phyloseq_alphas <- function(physeq,
     if(export_hill == TRUE){
 
       out %>%
-        dplyr::rename("Hill-d0" = Observed,
-               "Hill-d1" = Shannon,
-               "Hill-d2" = InvSimpson) %>%
+        dplyr::rename("Hill-d0" = observed,
+               "Hill-d1" = diversity_shannon,
+               "Hill-d2" = diversity_inverse_simpson) %>%
         mutate(`Hill-d1` = exp(`Hill-d1`)) -> out
     }
 
@@ -117,8 +114,7 @@ phyloseq_alphas <- function(physeq,
                    #                 mic_alpha_metrics,
                    #                 phylo_metrics, ifelse(compute_NTI == TRUE, "NTI", ""))),
                    values_to = "value",
-                   names_to = 'alphadiversiy',
-                   values_drop_na  = TRUE) -> out
+                   names_to = 'alphadiversiy') -> out
     return(out)
   }
   detach("package:metagMisc", unload=TRUE);     detach("package:microbiome", unload=TRUE)
