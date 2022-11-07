@@ -3067,7 +3067,7 @@ adonis_OmegaSq <- function(aov_tab, partial = TRUE){
 #' @examples
 #' library(phyloseq);library(tidyverse);data("GlobalPatterns")
 #'
-#' GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE) %>% phyloseq_comdistNTI_parallel(cores = 6) -> out_phyloseq_comdistNTI_parallel
+#' system.time(GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE) %>% phyloseq_comdist_parallel(., cores = 6) -> out_phyloseq_comdistNTI_parallel)
 
 #' https://rfunctions.blogspot.com/2012/07/standardized-effect-size-nearest.html
 
@@ -3185,7 +3185,7 @@ phyloseq_comdist_parallel <- function(physeq, abundance.weighted = FALSE, exclud
 #' @examples
 #' library(phyloseq);library(tidyverse);data("GlobalPatterns")
 #'
-#' phyloseq_comdist_SES_NTI_parallel(GlobalPatterns %>%  subset_samples(SampleType == "Skin") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE),  runs = 1, cores = 4) -> out
+#' phyloseq_comdist_SES_NTI_parallel(GlobalPatterns %>%  subset_samples(SampleType == "Skin") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE), cores = 4) -> out
 #' https://rfunctions.blogspot.com/2012/07/standardized-effect-size-nearest.html
 
 
@@ -3251,7 +3251,7 @@ phyloseq_comdist2_SES_NTI_parallel <- function(physeq, method = "swap", fixedmar
 #' MicEco::ses.comdistnt()
 #' library(phyloseq);library(tidyverse);data("GlobalPatterns")
 #'
-#'GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE) %>% phyloseq_bNTI_parallel(.,   abundance_weighted = TRUE, exclude_conspecifics = FALSE, runs = 4, null.model = "taxa.labels", iterations = 4, cores = 6) -> out_phyloseq_bNTI_parallel
+#'system.time(GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE) %>% phyloseq_bNTI_parallel(.,   abundance_weighted = TRUE, exclude_conspecifics = FALSE, null.model = "taxa.labels", cores = 4, runs = 4, iterations = 4) -> out_phyloseq_bNTI_parallel)
 
 phyloseq_bNTI_parallel <- function(physeq, null.model = c("taxa.labels", "richness",
                                                           "frequency", "sample.pool", "phylogeny.pool", "independentswap",
@@ -3325,7 +3325,7 @@ phyloseq_bNTI_parallel <- function(physeq, null.model = c("taxa.labels", "richne
   out <- list(ntaxa = specnumber(samp), comdistnt_obs = comdistnt.obs,
               comdistnt_rand.mean = comdistnt.rand.mean, comdistnt_rand_sd = comdistnt.rand.sd,
               comdistnt_obs.rank = comdistnt.obs.rank, comdistnt_obs_z = comdistnt.obs.z,
-              comdistnt_obs.p = comdistnt.obs.p, runs = runs)
+              comdistnt_obs.p = comdistnt.obs.p, bNTI = -1 * comdistnt.obs.z, runs = runs)
 
 
   return(out)
