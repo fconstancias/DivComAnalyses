@@ -472,14 +472,14 @@ phyloseq_func_microeco <- function(physeq,method = c("cal_spe_func", "cal_tax4fu
                     num_threads = num_threads,
                     normalize_pathways = F)
 
-    tax4fun2 <- microtable$new(otu_table = t1$res_tax4fun2_pathway, tax_table = Tax4Fun2_KEGG$ptw_desc, sample_table = dataset$sample_table)
+    tax4fun2 <- microtable$new(otu_table = t1$res_tax4fun2_pathway, tax_table = Tax4Fun2_KEGG$ptw_desc, sample_table = env_data)
 
     tax4fun2$tidy_dataset()
 
     tax4fun2$cal_abund()
 
     func2 <- trans_abund$new(tax4fun2, taxrank = "Level.2")#, groupmean = "treatment_grouped")
-    func2$plot_bar(legend_text_italic = FALSE) -> fun_plot
+    func2$plot_bar(legend_text_italic = FALSE) -> out$fun_plot
 
     # calculate functional redundancies
     t1$cal_tax4fun2_FRI()
