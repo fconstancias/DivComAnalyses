@@ -384,8 +384,7 @@ phyloseq_env_microeco <- function(physeq, method = c("cal_diff", "cal_autocor"),
 #'
 # readRDS((url("https://github.com/fconstancias/DivComAnalyses/blob/9e6ebc69e0c5e136c910186a7136e51af4cecc13/data-raw/ps_invivo.RDS?raw=true" ))) %>% filter_taxa(function(x) sum(x > 0) > 110, TRUE) %>% phyloseq_func_microeco(prok_database = c("FAPROTAX")) -> out
 
-phyloseq_func_microeco <- function(physeq,method = c("cal_spe_func", "cal_tax4fun2"), prok_database = c("FAPROTAX", "NJC19"), fungi_database = c("FUNGuild", "FungalTraits"), abundance_weighted = TRUE, blast_tool_path = "~/Documents/ncbi-blast-2.13.0+/bin/", path_to_reference_data = "~/Documents/Ref99NR/Tax4Fun2_ReferenceData_v2/", num_threads = 4){
-
+phyloseq_func_microeco <- function(physeq,method = c("cal_spe_func", "cal_tax4fun2"), prok_database = c("FAPROTAX", "NJC19"), fungi_database = c("FUNGuild", "FungalTraits"), abundance_weighted = TRUE, blast_tool_path = "~/Documents/ncbi-blast-2.13.0+/bin/", path_to_reference_data = "~/Documents/Ref99NR/Tax4Fun2_ReferenceData_v2/",  min_identity_to_reference = 97, num_threads = 4){
 
   ####---------------------- Load R package
 
@@ -444,7 +443,7 @@ phyloseq_func_microeco <- function(physeq,method = c("cal_spe_func", "cal_tax4fu
 
     t1$res_spe_func_perc -> out$res_spe_func_perc
 
-    t1$show_prok_func() -> tt
+    t1$show_prok_func() -> out$show_prok_func
 
     t1$plot_spe_func_perc(
       filter_func = NULL,
@@ -467,7 +466,7 @@ phyloseq_func_microeco <- function(physeq,method = c("cal_spe_func", "cal_tax4fu
     t1$cal_tax4fun2(blast_tool_path = blast_tool_path,
                     path_to_reference_data = path_to_reference_data,
                     normalize_by_copy_number = T,
-                    min_identity_to_reference = 97,
+                    min_identity_to_reference = min_identity_to_reference,
                     use_uproc = T,
                     num_threads = num_threads,
                     normalize_pathways = F)
@@ -476,18 +475,28 @@ phyloseq_func_microeco <- function(physeq,method = c("cal_spe_func", "cal_tax4fu
 
     tax4fun2$tidy_dataset()
 
-    tax4fun2$cal_abund()
+    tax4fun2$cal_abund() #select_cols = "Level.3")
+
+    # tax4fun2$taxa_abund()
 
     func2 <- trans_abund$new(tax4fun2, taxrank = "Level.2")#, groupmean = "treatment_grouped")
-    func2$plot_bar(legend_text_italic = FALSE) -> out$fun_plot
+    func2$plot_bar(legend_text_italic = FALSE) -> out$fun_plot_l2
 
+    func1 <- trans_abund$new(tax4fun2, taxrank = "Level.1")#, groupmean = "treatment_grouped")
+    func1$plot_bar(legend_text_italic = FALSE) -> out$fun_plot_l1
+
+    func3 <- trans_abund$new(tax4fun2, taxrank = "Level.3")#, groupmean = "treatment_grouped")
+    func3$plot_bar(legend_text_italic = FALSE) -> out$fun_plot_l3
+
+    if ("cal_tax4fun2_FRI"  %in% method)
+    {
     # calculate functional redundancies
     t1$cal_tax4fun2_FRI()
 
     t1$res_tax4fun2_aFRI -> out$res_tax4fun2_aFRI
 
     t1$res_tax4fun2_rFRI -> out$res_tax4fun2_rFRI
-
+    }
     # t1$res_tax4fun2_otu_table_reduced_aggregated
 
     # t1$cal_abund()
