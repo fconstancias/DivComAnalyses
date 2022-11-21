@@ -234,7 +234,7 @@ phyloseq_null_model_microeco <- function(physeq,
 #'require(phyloseq); require(tidyverse)
 #'readRDS((url("https://github.com/fconstancias/DivComAnalyses/blob/9e6ebc69e0c5e136c910186a7136e51af4cecc13/data-raw/ps_invivo.RDS?raw=true" ))) %>% filter_taxa(function(x) sum(x > 0) > 110, TRUE) %>% phyloseq_env_microeco(env_cols = c("BW", "merged_pc"), cal_diff_group = "treatment_grouped")
 
-phyloseq_env_microeco <- function(physeq, method = c("cal_diff", "cal_autocor"), env_cols = NULL, cal_diff_group = "Group", cal_diff_m = "wilcox", cal_ordination_m = c("dbRDA", "CCA", "RDA"), ordination_feature_sel = FALSE){
+phyloseq_env_microeco <- function(physeq, method = c("cal_diff", "cal_autocor"), env_cols = NULL, cal_diff_group = "Group", cal_diff_m = "wilcox", cal_ordination_m = c("dbRDA", "CCA", "RDA"), ordination_feature_sel = FALSE, color_values = NULL){
 
 
   ####---------------------- Load R package
@@ -313,7 +313,9 @@ phyloseq_env_microeco <- function(physeq, method = c("cal_diff", "cal_autocor"),
 
     t1$cal_autocor(
       group = cal_diff_group,
-      color_values = RColorBrewer::brewer.pal(env_data[,cal_diff_group] %>%  unique() %>%  length(), "Dark2"),
+      color_values = ifelse(color_values == NULL,
+                            RColorBrewer::brewer.pal(env_data[,cal_diff_group] %>%  unique() %>%  length(), "Dark2"),
+                            color_values),
       alpha = 0.8,
       upper = list(continuous = GGally::wrap("cor", method= "spearman"))) -> out$cal_autocor
 
@@ -354,7 +356,6 @@ phyloseq_env_microeco <- function(physeq, method = c("cal_diff", "cal_autocor"),
 
   return(out)
 }
-
 
 
 
@@ -415,10 +416,10 @@ phyloseq_func_microeco <- function(physeq,method = c("cal_spe_func", "cal_tax4fu
   seq_trans <- physeq@refseq
 
   data <- microtable$new(sample_table = sample_table_trans, otu_table = otu_table_trans,
-                            tax_table = tax_table_trans, phylo_tree = phylo_tree_trans, rep_fasta = seq_trans)
+                         tax_table = tax_table_trans, phylo_tree = phylo_tree_trans, rep_fasta = seq_trans)
 
   # physeq %>%
-    # file2meco::phyloseq2meco(physeq = .) -> data
+  # file2meco::phyloseq2meco(physeq = .) -> data
 
   # data@rep_fasta <- physeq@refseq
 
@@ -490,12 +491,12 @@ phyloseq_func_microeco <- function(physeq,method = c("cal_spe_func", "cal_tax4fu
 
     if ("cal_tax4fun2_FRI"  %in% method)
     {
-    # calculate functional redundancies
-    t1$cal_tax4fun2_FRI()
+      # calculate functional redundancies
+      t1$cal_tax4fun2_FRI()
 
-    t1$res_tax4fun2_aFRI -> out$res_tax4fun2_aFRI
+      t1$res_tax4fun2_aFRI -> out$res_tax4fun2_aFRI
 
-    t1$res_tax4fun2_rFRI -> out$res_tax4fun2_rFRI
+      t1$res_tax4fun2_rFRI -> out$res_tax4fun2_rFRI
     }
     # t1$res_tax4fun2_otu_table_reduced_aggregated
 
@@ -515,4 +516,80 @@ phyloseq_func_microeco <- function(physeq,method = c("cal_spe_func", "cal_tax4fu
 }
 
 
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note see: https://chiliubio.github.io/microeco_tutorial/diversity-based-class.html
+#' @note
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'require(phyloseq); require(tidyverse)
+#'data("GlobalPatterns")
+#'GlobalPatterns %>%  subset_samples(SampleType %in% c("Feces", "Skin")) %>%  phyloseq_alpha_microeco(group = "SampleType") -> outa
+#'data("dataset");dataset %>% file2meco::meco2phyloseq() %>% phyloseq_alpha_microeco(group = "Group",measures = "Chao1") -> outa
+#'readRDS((url("https://github.com/fconstancias/DivComAnalyses/blob/9e6ebc69e0c5e136c910186a7136e51af4cecc13/data-raw/ps_invivo.RDS?raw=true" ))) %>% filter_taxa(function(x) sum(x > 0) > 110, TRUE) -> ps
+
+phyloseq_alpha_microeco <- function(physeq, color_groups = NULL, order_x_mean = FALSE, measures = c("Observed", "Shannon", "InvSimpson"), anova_set = NULL,  p_adjust_method = "fdr", group = "SampleType", method = "KW"){
+
+  ####---------------------- Load R package
+
+  require(microeco); require(phyloseq); require(file2meco); require(tidyverse)
+
+  ####---------------------- Extract data
+  # sample_data(physeq)$temp  <- rnorm(nsamples(physeq), mean=22, sd=6)
+
+  physeq %>%
+    file2meco::phyloseq2meco(.) -> data
+
+  data$sample_table -> env_data
+
+  ####---------------------- alpha - trans_alpha {microeco}
+
+  t1 <- trans_alpha$new(dataset = data, group = group, by_group = NULL)
+
+  out$data_stat <- t1$data_stat
+  out$data_alpha <- t1$data_alpha
+
+  ####---------------------- stat
+
+  t1$cal_diff(method = method, measure = measures, p_adjust_method = p_adjust_method, anova_set = NULL)
+
+  out$res <- t1$res_diff
+
+  ####---------------------- plot
+
+  # t1$plot_alpha(measure = "Chao1", order_x_mean = TRUE, add_sig_text_size = 6)
+
+  t1$res_diff %>%
+    base::subset(Significance != "ns") -> t1$res_diff
+
+
+  if(is.null(color_groups)) {
+    RColorBrewer::brewer.pal(out$data_stat[,group] %>%  unique() %>%  length(), "Dark2") -> color_groups
+  }
+
+  tmp <- list()
+
+  for(i in measures){
+    tmp[[i]] <- t1$plot_alpha(measure = i,
+                              # color_values = color_values,
+                              add_sig_label = "Significance",
+                              add_sig = TRUE,
+                              color_values = color_groups,
+                              order_x_mean = order_x_mean,
+                              add_sig_text_size = 5, xtext_size = 12) +
+      theme(plot.margin = unit(c(0.1, 0, 0, 1), "cm"))
+  }
+
+  out$res_diff_plot <- tmp
+
+  ####---------------------- return
+
+  return(out)
+}
 
