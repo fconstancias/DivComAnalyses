@@ -439,45 +439,6 @@ phyloseq_get_humann_strat_un_output <- function(physeq,
 }
 ## ------------------------------------------------------------------------------------------------------------------------------------------------
 
-#' @title ...
-#' @param .
-#' @param ..
-#' @author Florentin Constancias
-#' @note .
-#' @note .
-#' @note .
-#' @return .
-#' @export
-#' @examples
-#'
-#' here::here("data/processed/humann/DNA/genefamilies_joined_tables_uniref90_ko_renamed_kegg-orthology.tsv") %>% humann_2df() %>% clean_humann_df() %>% humann_2phyloseq() %>% phyloseq_get_humann_strat_un_output(output = "unstratified" ,transform = "clr",  export_long_df = FALSE, remove_unmapped_unintegrated = TRUE) -> physeq
-#'
-#' sample_names(physeq) <- str_replace(sample_names(physeq), "_DNA_cat_Abundance-RPKs", "")
-#'
-#' physeq_add_metadata(physeq, here::here("data/metadata_all_DNA_RNA.xlsx") %>%  readxl::read_xlsx() %>% filter(Type == "DNA"), sample_column = "Sample") -> test
-#'
-
-physeq_add_metadata <- function(physeq,
-                                metadata,
-                                sample_column = "Sample"){
-
-  ## ------------------------------------------------------------------------
-  require(tidyverse); require(speedyseq)
-
-  ## ------------------------------------------------------------------------
-  physeq@sam_data = NULL
-
-  phyloseq::merge_phyloseq(physeq,
-                           metadata %>%
-                             dplyr::mutate(tmp = get(sample_column)) %>%
-                             column_to_rownames('tmp') %>%
-                             speedyseq::sample_data()) -> physeq
-
-  ## ------------------------------------------------------------------------
-  return(physeq)
-}
-
-## ------------------------------------------------------------------------------------------------------------------------------------------------
 
 #' @title ...
 #' @param .
