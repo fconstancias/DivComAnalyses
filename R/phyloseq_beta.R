@@ -3732,3 +3732,219 @@ phyloseq_raup_crick_abu_par <- function(phyloseq, reps, ncore, classic_metric=FA
 }
 
 
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note so far sample wise but can be fine tuned using: phyloseq::merge_samples()
+#' @note parrallel version: https://stackoverflow.com/questions/46532657/convert-r-apply-statement-to-lapply-for-parallel-processing
+#' @note see: https://www.biorxiv.org/content/10.1101/2020.10.15.341966v1.full.pdf
+#' @note TODO: # Now generate an object that combines the replicates at each level and time point
+#' @return
+#' @export
+#' @examples
+#' require(tidyverse); require(phyloseq); data("GlobalPatterns"); GlobalPatterns %>% phyloseq::merge_samples("SampleType", fun = sum) %>%   phyloseq_kraft_null_model(nsim = 2, meta_sel = sample_variable(.), filtering_expr = "is.na('sample_A')") -> out
+#'
+
+
+phyloseq_kraft_null_model <- function(phyloseq = GlobalPatterns,
+                                      meta_sel = c("SampleType",sample_variables(phyloseq)),
+                                      nsim = 999,
+                                      filtering_expr = "SampleType_A == 'Freshwater (creek)' | SampleType_B == 'Sediment (estuary)'",
+                                      verbose = TRUE)
+{
+  ####---------------------- Load R package -------
+
+  require(phyloseq); require(tidyverse)#; require()
+
+  ####---------------------- Extract data -------
+
+  phyloseq %>%
+    filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> phyloseq
+
+  as(otu_table(phyloseq), "matrix") %>%
+    data.frame() %>%
+    rownames_to_column('Taxa') %>%
+    pivot_longer(sample_names(phyloseq)) %>%
+    filter(value > 0) -> df
+
+  ####---------------------- old way -------
+
+  # df <- tibble(spp=rep(df$Taxa,df$value), transect=rep(df$name,df$value))
+
+  ####---------------------- XXXXXXXXXXX -------
+
+  phyloseq %>%
+    sample_names() %>%
+    as.vector() -> samples_names
+
+  ####---------------------- XXXXXXXXXXX -------
+
+  tibble::tibble(Sample_A = samples_names,
+                 Sample_B = samples_names) %>%
+    tidyr::expand(Sample_A, Sample_B) %>%
+    dplyr::filter(Sample_A != Sample_B) -> sample_pw  # remove self comparaisons
+
+  #### ------------- Extracting metadata based on meta_sel parameter
+
+  phyloseq %>%
+    sample_data() %>%
+    data.frame() %>%
+    dplyr::select(one_of(meta_sel)) %>%
+    rownames_to_column("sample_id_tmp") -> meta_data
+
+  meta_data_A <- meta_data
+  meta_data_B <- meta_data
+
+  names(meta_data_A) <- paste0(names(meta_data), "_A")
+  names(meta_data_B) <- paste0(names(meta_data), "_B")
+
+  #### ------------- Joining metadata with pairwise sample comparaisons
+
+  sample_pw %>%
+    left_join(meta_data_A,
+              by = c("Sample_A" = "sample_id_tmp_A")) %>%
+    left_join(meta_data_B,
+              by = c("Sample_B" = "sample_id_tmp_B")) %>%
+    # filter("SampleType_B" == "Mock")
+    filter(rlang::eval_tidy(rlang::parse_expr(filtering_expr))) -> sample_pw_meta
+
+
+  # Stab_Treat_A  %in% "STAB" & # Sample_A has to be STAB  (Stab_Treat_A colum)
+  #        Stab_Treat_B == "TREAT" & # and Sample_B has to be TREAT (Stab_Treat_B colum)
+  #        Period_A == Period_B, # and Period_A (of Sample_A has to be the same as the period of Sample_B - no between period ratios)
+  #      Treatment_A == Treatment_B) -> sample_pw_meta # only within treatment ratios
+
+
+  ####---------------------- XXXXXXXXXXX -------
+
+  out_list <- list()
+
+  for (i in 1:nrow(sample_pw_meta)){
+
+    # print(i)
+
+    # df %>%
+    #   filter(transect == sample_pw$Sample_A[i] | transect == sample_pw$Sample_B[i]) -> out_list[[i]]
+    #
+    # names(out_list)[[i]] <- paste0(sample_pw$Sample_A[i], "_", sample_pw$Sample_B[i])
+
+    df %>%
+      filter( name %in% c(sample_pw$Sample_A[i],
+                          sample_pw$Sample_B[i])) %>%
+      filter(value > 0 ) -> out_tmp
+
+
+    tibble(spp=rep(out_tmp$Taxa,out_tmp$value), transect=rep(out_tmp$name,out_tmp$value)) -> out_list[[i]]
+
+    names(out_list)[[i]] <- paste0(sample_pw$Sample_A[i], "_", sample_pw$Sample_B[i])
+
+  }
+
+
+  ####---------------------- XXXXXXXXXXX -------
+
+
+  # out_list[[1]] %>%
+  #   ses.beta.function(Nsim = 2)
+  #
+  # mini_list <- list(  out_list[[1]],   out_list[[2]],   out_list[[3]])
+
+  # names(final_out) <- names(out_list)
+  #
+  # mini_list %>%
+  #   lapply(ses.beta.function) -> final_out
+
+  final_out <- list()
+
+  out_list %>%
+    lapply(ses.beta.function) %>%
+    bind_rows(.) %>%
+    mutate(gamma = as.double(gamma),
+           obs.mean.alpha = as.double(obs.mean.alpha),
+           obs.beta  = as.double(obs.beta ),
+           mean.null.beta = as.double(mean.null.beta),
+           sd.null.beta  = as.double(sd.null.beta ),
+           ses.beta   = as.double(ses.beta)) %>%
+    mutate(SI = 1 - ((abs(obs.beta - mean.null.beta))/obs.beta )) %>%
+    mutate(DS = (abs(obs.beta - mean.null.beta))/obs.beta) -> final_out
+
+  ####---------------------- XXXXXXXXXXX -------
+
+  ses.beta.function <- function(gdata, Nsim=nsim)
+    # 'gdata' is the    data file, 'Nsim' is the number of randomizations for calculating expected/null beta
+  {
+    ####---------------------- XXXXXXXXXXX -------
+
+    require(tidyverse)
+
+    ####---------------------- XXXXXXXXXXX -------
+
+    gdata %>%
+      mutate(transect = as.vector(transect)) %>%
+      mutate(spp = as.vector(gdata$spp)) -> gdata
+
+    ####---------------------- XXXXXXXXXXX -------
+
+    sample_A = unique(gdata$transect)[1]
+    sample_B = unique(gdata$transect)[2]
+
+    if(verbose == TRUE){
+      print(paste0("processing ", sample_A, " and ", sample_B ))
+    }
+
+    ####---------------------- XXXXXXXXXXX -------
+
+    plot.gamma=length(unique(gdata$spp)) #calculate the total number of species at the site
+    transect.spp=tapply(gdata$spp,gdata$transect,unique) #generate species list for each transect
+    obs.mean.alpha=mean(sapply(transect.spp,length)) #calculate average number of species per transect
+    obs.beta=1-obs.mean.alpha/plot.gamma #calculate observed beta partition
+    rand.mean.alpha=vector(length=Nsim) #create empty vector to be filled in with randomly generated alpha values
+    for(j in 1:Nsim) #start loop for simulations
+    {
+      if(verbose == TRUE){
+
+        print(paste0("simulation:  ", j ))
+      }
+
+      samp=sample(gdata$transect,length(gdata$transect),replace=F)
+
+      #swaps order of plotnames
+      swap.data=data.frame("transect"=samp,"spp"=gdata$spp)
+
+      #assigns random plotnames to individuals
+      rand.transect.spp=tapply(swap.data$spp,swap.data$transect,unique)
+
+      #generate species list for each transect
+      rand.mean.alpha[j]=mean(sapply(rand.transect.spp,length))
+
+      #calculate average number of species per transect
+    } #end loop for simulations
+    null.plot.beta=1-rand.mean.alpha/plot.gamma #calculates the 1000 random beta values
+
+    mean.null.beta=mean(null.plot.beta) #calculates the mean of the random beta values
+
+    sd.null.beta=sd(null.plot.beta) #calculates the sd of the random beta values
+
+    ses.beta=(obs.beta-mean.null.beta)/sd.null.beta #calculates the deviation of the observed from expected (random) beta
+
+    out <- c("sample_A" =sample_A, "sample_B" = sample_B,"gamma"=plot.gamma,"obs.mean.alpha"=obs.mean.alpha,"obs.beta"=obs.beta,"mean.null.beta"=mean.null.beta,"sd.null.beta"=sd.null.beta,"ses.beta"=ses.beta)
+
+    # # rownames(out)
+    # unique(gdata$transect) %>%  as.character() -> samples
+    #
+    # paste0(samples[1], "_vs_" ,samples[2])
+    #
+    # lapply(strsplit(unique(gdata$transect, ","), as.character)
+    #
+    #        -> opt$raw_file_pattern
+
+    return(out)
+  }
+
+  ####---------------------- XXXXXXXXXXX -------
+
+  return(final_out)
+}
+
