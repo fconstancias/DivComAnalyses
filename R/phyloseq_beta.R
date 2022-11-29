@@ -2705,7 +2705,7 @@ phyloseq_generate_pcoa_per_variables <- function(tmp,
 #' @param .
 #' @param ..
 #' @author Florentin Constancias
-#' @note .
+#' @note todo:     filter(rlang::eval_tidy(rlang::parse_expr(filtering_expr))) -> sample_pw_meta
 #' @note .
 #' @note .
 #' @return .
@@ -2721,7 +2721,7 @@ phyloseq_generate_pcoa_per_variables <- function(tmp,
 
 plot_ratio_Stab_Treat_taxa <- function(ps_new,
                                        transform = "compositional", # percentage 0,1
-                                       tax_rank = "Genus",
+                                       # tax_rank = "Genus",
                                        taxa_sel = NULL, #to be implemented
                                        detection = 0, # Detection threshold for absence/presence
                                        prevalence = 0.20, # Prevalence threshold (in [0, 1]).
@@ -2878,7 +2878,7 @@ plot_ratio_Stab_Treat_taxa <- function(ps_new,
 #' @param .
 #' @param ..
 #' @author Florentin Constancias
-#' @note .
+#' @note todo:     filter(rlang::eval_tidy(rlang::parse_expr(filtering_expr))) -> sample_pw_meta
 #' @note .
 #' @note .
 #' @return .
@@ -2890,8 +2890,8 @@ plot_ratio_Stab_Treat_taxa <- function(ps_new,
 plot_ratio_Stab_Treat_meta <- function(ps_new,
                                        meta_sel = c("sample_name","Stab_Treat", "Period", "Reactor","Timepoint", "Treatment","Period"),
                                        meta_plot = "Clostridium.perfringens",
-                                       plot = TRUE,
-                                       stats = FALSE,
+                                       # plot = TRUE,
+                                       # stats = FALSE,
                                        ref_group_stat = "NA"){
 
   #### ------------- get pairwise sample combinations
