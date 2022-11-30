@@ -1,4 +1,4 @@
-#' @title ...
+phyloseq_correlate_taxa#' @title ...
 #' @param .
 #' @param ..
 #' @author Florentin Constancias
@@ -993,43 +993,43 @@ plot_volcano <- function(resuls_complete,
   ####-------- generate volcano plot
 
   resuls_complete %>%
-  ggplot(aes(x = log2FoldChange, y = -log10(padj))) + # tell ggplot that we are going to plot -log10(padj) as a function of log2FoldChange
-  geom_point(aes(shape = SIGN, # points are foing to be ploted, shape is coded by SIGN column (SIGN or NS)
-                 size = SIGN, # size is coded by SIGN column (SIGN or NS)
-                 fill = get(level_facet), # filling colour and line color is coded by Class info of the ASV
-                 colour = get(level_facet),
-                 alpha = baseMean)) + # alpha = transparency reflects baseMean i.e., mean value of ASV among samples.
-  scale_shape_manual(values = c(4, 21)) + # We force the shape of the points to be 4 and 21.see : <http://www.sthda.com/sthda/RDoc/images/points-symbols.png>
-  scale_alpha_continuous(name = "baseMean",
-                         limits = c(0,1000),
-                         trans = "sqrt",
-                         range = c(0.6, 0.8)) + #  transparency values from 06 to 0.8
-  scale_colour_viridis_d(alpha = 0.7,
-                         begin = 0,
-                         end = 1,
-                         direction = 1) +
-  scale_fill_viridis_d() +
-  scale_size_manual(values=c(0.2, 2)) + # We force the size of the points: 0.2 for NS and 2 for SIGN
-  # geom_text_repel( # We use ggrepel to display Strain column for significant ASVs
-  #   data = resuls_complete %>%
-  #     drop_na(SIGN, log2FoldChange ,padj) %>%
-  #     subset(padj <= 0.001 & abs_log2FoldChange > 4),
-  #   aes(label = Genus),
-  #   size = 2,
-  #   force = 4,
-  # ) +
-  geom_hline( # adding horizontal line:
-    yintercept = -log10(0.05),
-    col = "red",
-    linetype = "dotted",
-    size = 0.5
-  ) + geom_vline( # adding vertical lines:
-    xintercept = c(-2, 2),
-    col = "red",
-    linetype = "dotted",
-    size = 0.5) -> volcano_plot
+    ggplot(aes(x = log2FoldChange, y = -log10(padj))) + # tell ggplot that we are going to plot -log10(padj) as a function of log2FoldChange
+    geom_point(aes(shape = SIGN, # points are foing to be ploted, shape is coded by SIGN column (SIGN or NS)
+                   size = SIGN, # size is coded by SIGN column (SIGN or NS)
+                   fill = get(level_facet), # filling colour and line color is coded by Class info of the ASV
+                   colour = get(level_facet),
+                   alpha = baseMean)) + # alpha = transparency reflects baseMean i.e., mean value of ASV among samples.
+    scale_shape_manual(values = c(4, 21)) + # We force the shape of the points to be 4 and 21.see : <http://www.sthda.com/sthda/RDoc/images/points-symbols.png>
+    scale_alpha_continuous(name = "baseMean",
+                           limits = c(0,1000),
+                           trans = "sqrt",
+                           range = c(0.6, 0.8)) + #  transparency values from 06 to 0.8
+    scale_colour_viridis_d(alpha = 0.7,
+                           begin = 0,
+                           end = 1,
+                           direction = 1) +
+    scale_fill_viridis_d() +
+    scale_size_manual(values=c(0.2, 2)) + # We force the size of the points: 0.2 for NS and 2 for SIGN
+    # geom_text_repel( # We use ggrepel to display Strain column for significant ASVs
+    #   data = resuls_complete %>%
+    #     drop_na(SIGN, log2FoldChange ,padj) %>%
+    #     subset(padj <= 0.001 & abs_log2FoldChange > 4),
+    #   aes(label = Genus),
+    #   size = 2,
+    #   force = 4,
+    # ) +
+    geom_hline( # adding horizontal line:
+      yintercept = -log10(0.05),
+      col = "red",
+      linetype = "dotted",
+      size = 0.5
+    ) + geom_vline( # adding vertical lines:
+      xintercept = c(-2, 2),
+      col = "red",
+      linetype = "dotted",
+      size = 0.5) -> volcano_plot
 
-return(volcano_plot)
+  return(volcano_plot)
 }
 
 
@@ -1553,16 +1553,12 @@ phyloseq_run_ALDEx2 <- function(tmp = tmp,
 #' @export
 #' @examples
 #'
-#'library(phyloseq)
-#'data("enterotype")
-#'enterotype %>%
-#' subset_samples(!is.na(Age)) %>%
-#' phyloseq_correlate_taxa(log10 = TRUE, tax_glom = "Genus", grouping_column = "Gender", cor_variables = "Age")
-#'
+#'library(phyloseq); library(tidyverse)
+#'data("enterotype"); enterotype %>% subset_samples(!is.na(Age)) %>% phyloseq_correlate_taxa(transform = "clr", tax_glom = "Genus", grouping_column = "Gender", cor_variables = "Age")
 
 phyloseq_correlate_taxa <- function(ps_tmp,
-                                    log10 = TRUE,
                                     tax_glom = FALSE,
+                                    transform = "compositional",
                                     grouping_column,
                                     adjustment= 3,
                                     num_taxa = 20,
@@ -1575,16 +1571,14 @@ phyloseq_correlate_taxa <- function(ps_tmp,
   {
     ps_tmp %>%
       tax_glom(taxrank = tax_glom) -> ps_tmp
+
+
   }
 
   ps_tmp %>%
-    transform_sample_counts(function(x) x/sum(x) * 100) -> tmp2
+    microbiome::transform(transform = transform) -> tmp2
 
-  if(log10==TRUE)
-  {
-    tmp2 %>%
-      microbiome::transform("log10") -> tmp2
-  }
+
   tmp2 %>%
     phyloseq_taxa_env_correlation(grouping_column= grouping_column, method= method, pvalue.threshold=0.05,
                                   padjust.method="fdr", adjustment=adjustment, num.taxa= num_taxa, select.variables = cor_variables) -> env.taxa.cor

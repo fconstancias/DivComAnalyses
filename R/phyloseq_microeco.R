@@ -234,7 +234,7 @@ phyloseq_null_model_microeco <- function(physeq,
 #'require(phyloseq); require(tidyverse)
 #'readRDS((url("https://github.com/fconstancias/DivComAnalyses/blob/9e6ebc69e0c5e136c910186a7136e51af4cecc13/data-raw/ps_invivo.RDS?raw=true" ))) %>% filter_taxa(function(x) sum(x > 0) > 110, TRUE) %>% phyloseq_env_microeco(env_cols = c("BW", "merged_pc"), cal_diff_group = "treatment_grouped")
 
-phyloseq_env_microeco <- function(physeq, method = c("cal_diff", "cal_autocor"), env_cols = NULL, cal_diff_group = "Group", cal_diff_m = "wilcox", cal_ordination_m = c("dbRDA", "CCA", "RDA"), ordination_feature_sel = FALSE, color_values = NULL){
+phyloseq_env_microeco <- function(physeq, method = c("cal_diff", "cal_autocor"), env_cols = NULL, cal_diff_group = "Group", cal_diff_m = "wilcox", cal_ordination_m = c("dbRDA", "CCA", "RDA"), ordination_feature_sel = FALSE, color_values = NULL, use_data = c("Genus", "all", "other")){
 
 
   ####---------------------- Load R package
@@ -351,6 +351,21 @@ phyloseq_env_microeco <- function(physeq, method = c("cal_diff", "cal_autocor"),
       use_measure = "bray",
       method = "pearson",
       p_adjust_method = "fdr")
+
+
+
+  }
+
+  if ("cal_cor"  %in% method)
+{
+    # create trans_env object
+    # t1 <- trans_env$new(dataset = dataset, add_data = dataset$sample_table, env_cols =  env_cols)
+    # calculate correlations
+    t2$cal_cor(use_data = use_data,p_adjust_method = "fdr", select_env_data = env_cols,by_group = "group", cor_method = "spearman")
+    # plot the correlation heatmap
+    t2$plot_cor() -> out$plot_cor
+
+    t2$res_cor -> out$res_cor
 
   }
 
@@ -528,11 +543,6 @@ phyloseq_func_microeco <- function(physeq,method = c("cal_spe_func", "cal_tax4fu
 #' @export
 #' @examples
 #'
-#'require(phyloseq); require(tidyverse)
-#'data("GlobalPatterns")
-#'GlobalPatterns %>%  subset_samples(SampleType %in% c("Feces", "Skin")) %>%  phyloseq_alpha_microeco(group = "SampleType") -> outa
-#'data("dataset");dataset %>% file2meco::meco2phyloseq() %>% phyloseq_alpha_microeco(group = "Group",measures = "Chao1") -> outa
-#'readRDS((url("https://github.com/fconstancias/DivComAnalyses/blob/9e6ebc69e0c5e136c910186a7136e51af4cecc13/data-raw/ps_invivo.RDS?raw=true" ))) %>% filter_taxa(function(x) sum(x > 0) > 110, TRUE) -> ps
 
 phyloseq_alpha_microeco <- function(physeq, color_groups = NULL, order_x_mean = FALSE, measures = c("Observed", "Shannon", "InvSimpson"), anova_set = NULL,  p_adjust_method = "fdr", group = "SampleType", method = "KW"){
 
@@ -587,6 +597,155 @@ phyloseq_alpha_microeco <- function(physeq, color_groups = NULL, order_x_mean = 
   }
 
   out$res_diff_plot <- tmp
+
+  ####---------------------- return
+
+  return(out)
+}
+
+
+
+
+#' @title ...
+#' @param .
+#' @param ..
+#' @author Florentin Constancias
+#' @note see: https://chiliubio.github.io/microeco_tutorial/model-based-class.html#trans_network-class
+#' @note
+#' @note .
+#' @return .
+#' @export
+#' @examples
+#'
+#'require(phyloseq); require(tidyverse)
+#'data("GlobalPatterns")
+#'GlobalPatterns %>%  subset_samples(SampleType %in% c("Feces", "Skin")) %>%  phyloseq_alpha_microeco(group = "SampleType") -> outa
+#'data("dataset");dataset %>% file2meco::meco2phyloseq() %>% phyloseq_alpha_microeco(group = "Group",measures = "Chao1") -> outa
+#'readRDS((url("https://github.com/fconstancias/DivComAnalyses/blob/9e6ebc69e0c5e136c910186a7136e51af4cecc13/data-raw/ps_invivo.RDS?raw=true" ))) %>% filter_taxa(function(x) sum(x > 0) > 110, TRUE) -> ps
+
+phyloseq_network_microeco <- function(physeq, env_cols = c("PAA_ng_ml", "PAG_ng_ml")){
+
+  ####---------------------- Load R package
+
+  require(microeco); require(phyloseq); require(file2meco); require(tidyverse)
+
+  ####---------------------- Extract data
+  # sample_data(physeq)$temp  <- rnorm(nsamples(physeq), mean=22, sd=6)
+
+  physeq %>%
+    file2meco::phyloseq2meco(.) -> data
+
+  data$sample_table -> env_data
+
+  ####----------------------
+
+  t1 <- trans_network$new(dataset = dataset, cor_method = "sparcc", use_sparcc_method = "NetCoMi", filter_thres = 0.001, nThreads = 4, taxa_level = "Species")
+
+
+  ####----------------------
+
+  t1$cal_network(network_method = "SpiecEasi", SpiecEasi_method = "mb")
+
+  # out$res <- t1$res_diff
+
+  ####----------------------
+
+  t1$cal_module(
+    method = "cluster_fast_greedy",
+    module_name_prefix = "M"
+  )
+
+  ####----------------------
+
+  t1$save_network(filepath = "~/Desktop/network.gexf")
+
+  ####----------------------
+
+
+  t1$cal_network_attr()
+
+  t1$res_network_attr -> out$res_network_attr
+
+  ####----------------------
+
+  t1$get_node_table(node_roles = TRUE)
+
+  t1$res_node_table -> out$res_node_table
+
+  ####----------------------
+
+  t1$get_edge_table()
+
+  t1$res_edge_table -> out$res_edge_table
+
+  ####----------------------
+
+  t1$get_adjacency_matrix(attr = "weight")
+
+  t1$res_adjacency_matrix -> out$res_adjacency_matrix
+
+  ####----------------------
+
+  t1$plot_network(method = "ggraph", node_color = "module")
+
+  ####----------------------
+
+  t1$cal_eigen()
+
+  t1$res_eigen_expla -> out$res_eigen_expla
+
+  ####----------------------
+
+  t1$plot_taxa_roles(
+    use_type = 1,
+    roles_color_background = FALSE,
+    roles_color_values = NULL,
+    add_label = FALSE,
+    add_label_group = "Network hubs",
+    add_label_text = "name",
+    label_text_size = 4,
+    label_text_color = "grey50",
+    label_text_italic = FALSE,
+    plot_module = FALSE,
+    x_lim = c(0, 1),
+    use_level = "Family",
+    show_value = c("z", "p"),
+    show_number = 1:10,
+    plot_color = "Phylum",
+    plot_shape = "taxa_roles",
+    plot_size = "Abundance") -> out$plot_taxa_roles_1
+
+  ####----------------------
+
+  t1$plot_taxa_roles(
+    use_type = 2,
+    roles_color_background = FALSE,
+    roles_color_values = NULL,
+    add_label = FALSE,
+    add_label_group = "Network hubs",
+    add_label_text = "name",
+    label_text_size = 4,
+    label_text_color = "grey50",
+    label_text_italic = FALSE,
+    plot_module = FALSE,
+    x_lim = c(0, 1),
+    use_level = "Class",
+    show_value = c("z", "p"),
+    show_number = 1:10,
+    plot_color = "Class",
+    plot_shape = "taxa_roles",
+    plot_size = "Abundance") -> out$plot_taxa_roles_2
+
+  ####----------------------
+
+  # create trans_env object
+  t2 <- trans_env$new(dataset = dataset, add_data = dataset$sample_table, env_cols =  env_cols)
+  # calculate correlations
+  t2$cal_cor(add_abund_table = t1$res_eigen, p_adjust_method = "fdr", by_group = "group", cor_method = "spearman")
+  # plot the correlation heatmap
+  t2$plot_cor() -> out$plot_cor
+
+  t2$res_cor -> out$res_cor
 
   ####---------------------- return
 
