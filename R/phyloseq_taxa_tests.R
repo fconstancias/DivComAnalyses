@@ -1,6 +1,3 @@
-#' @title ...
-#' @param .
-#' @param ..
 #' @author Florentin Constancias
 #' @note Do not transform it to relative abundance table
 #' @note group_var: The name of the group indicator. group_var is required for detecting structural zeros and outliers
@@ -1477,9 +1474,7 @@ phyloseq_run_Deseq <- function(tmp = tmp,
 #' @export
 #' @examples
 #'
-#'library(phyloseq)
-#'data(esophagus)
-#'phyloseq_compute_bdiv(esophagus, 100) -> dist
+#'library(phyloseq); data(so); phyloseq_compute_bdiv(esophagus, 100) -> dist
 #'
 #'
 #'
