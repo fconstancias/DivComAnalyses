@@ -1157,7 +1157,8 @@ phyloseq_boxplot_abundance <- function (ps,
                                         size = 2,
                                         alpha = 1,
                                         log10 = TRUE,
-                                        colors = NULL)
+                                        colors = NULL,
+                                        str_trun = 35)
 
 {
   require(tidyverse); require(microbiome)
@@ -1189,7 +1190,7 @@ phyloseq_boxplot_abundance <- function (ps,
 
   y %>%
     stringr::str_replace("unknown", "un.") %>%
-    stringr::str_trunc(35,  side ="center") -> ylab
+    stringr::str_trunc(str_trun,  side ="center") -> ylab
 
   p <- ggplot(df, aes(x = xvar, y = yvar)) + theme_classic() + ylab(ylab)
   if (show.points) {
@@ -1222,7 +1223,10 @@ phyloseq_boxplot_abundance <- function (ps,
   }
 
   if (log10) {
-    p <- p + scale_y_log10() + ylab(paste0(ylab)) + theme(legend.position = "none")
+    p <- p + scale_y_log10() + ylab(paste0(ylab)) + theme(legend.position = "none",
+                                                          axis.title.x=element_blank(),
+                                                                axis.text.x=element_blank(),
+                                                                axis.ticks.x=element_blank())
   }
   if (is.null(colors)) {
     p <- p + xlab(x) + theme(legend.position = "none")
