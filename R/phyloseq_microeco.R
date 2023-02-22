@@ -234,7 +234,7 @@ phyloseq_null_model_microeco <- function(physeq,
 #'require(phyloseq); require(tidyverse)
 #'readRDS((url("https://github.com/fconstancias/DivComAnalyses/blob/9e6ebc69e0c5e136c910186a7136e51af4cecc13/data-raw/ps_invivo.RDS?raw=true" ))) %>% filter_taxa(function(x) sum(x > 0) > 110, TRUE) %>% phyloseq_env_microeco(env_cols = c("BW", "merged_pc"), cal_diff_group = "treatment_grouped")
 
-phyloseq_env_microeco <- function(physeq, method = c("cal_diff", "cal_autocor"), env_cols = NULL, cal_diff_group = "Group", cal_diff_m = "wilcox", cal_ordination_m = c("dbRDA", "CCA", "RDA"), ordination_feature_sel = FALSE, color_values = NULL, use_data = c("Genus", "all", "other")){
+phyloseq_env_microeco <- function(physeq, method = c("cal_diff", "cal_autocor"), env_cols = NULL, cor_method = "spearman", cal_diff_group = "Group", cal_diff_m = "wilcox", cal_ordination_m = c("dbRDA", "CCA", "RDA"), ordination_feature_sel = FALSE, color_values = NULL, use_data = c("Genus", "all", "other"), p_adjust_method = "none", p_adjust_type = "Type"){
 
 
   ####---------------------- Load R package
@@ -361,12 +361,22 @@ phyloseq_env_microeco <- function(physeq, method = c("cal_diff", "cal_autocor"),
     # create trans_env object
     # t1 <- trans_env$new(dataset = dataset, add_data = dataset$sample_table, env_cols =  env_cols)
     # calculate correlations
-    t2$cal_cor(use_data = use_data,p_adjust_method = "fdr", select_env_data = env_cols,by_group = "group", cor_method = "spearman")
+    # t1$cal_abund
+    t1$cal_cor(use_data = use_data,p_adjust_method = p_adjust_method, p_adjust_type = p_adjust_type, select_env_data = env_cols,by_group = "group", cor_method = cor_method)
     # plot the correlation heatmap
-    t2$plot_cor() -> out$plot_cor
+    t1$plot_cor() -> out$plot_cor
 
-    t2$res_cor -> out$res_cor
+    # t1$plot_cor(filter_feature = c("*", "**", "***", "****"))
 
+    t1$res_cor -> out$res_cor
+
+    t1$res_cor %>%
+      filter(AdjPvalue <= 0.05 & Correlation > 0) -> t1$res_cor
+
+    t1$plot_cor() -> out$plot_cor
+
+    out$plot_cor + scale_fill_gradient2(limits = c(-1, 1), low = "#2C7BB6",
+                           mid = "white", high = "#D7191C") ->  out$plot_cor
   }
 
   return(out)
