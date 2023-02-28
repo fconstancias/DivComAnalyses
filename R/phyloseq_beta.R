@@ -979,7 +979,7 @@ phyloseq_adonis2 <- function(dm,
             by = terms_margins) %>%
       data.frame() %>%
       rownames_to_column('terms') %>%
-      rename('Pr(>F)' = `Pr..F.` ) -> out
+      dplyr::rename('Pr(>F)' = `Pr..F.` ) -> out
   }
 
 
