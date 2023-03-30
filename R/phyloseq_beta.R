@@ -1049,9 +1049,6 @@ phyloseq_adonis <- function(dm,
 #'library(phyloseq)
 #'data(esophagus)
 #'phyloseq_compute_bdiv(esophagus, 100) -> dist
-#'
-#'
-#'
 #'plot_list %>%
 #'  phyloseq_plot_ordinations_facet(color_group = "SampleType",
 #'                                 shape_group = NULL)
@@ -1060,6 +1057,7 @@ phyloseq_adonis <- function(dm,
 
 phyloseq_plot_ordinations_facet <- function(plot_list,
                                             color_group = "treatment_grouped",
+                                            point_size = 2,
                                             alpha = 0.9,
                                             shape_group = NULL,
                                             axis_names = c("Axis.1", "Axis.2"),
@@ -1082,7 +1080,7 @@ phyloseq_plot_ordinations_facet <- function(plot_list,
     df %>%
       ggplot(aes_string(axis_names[[1]], axis_names[[2]])) -> p
     # tidyr::separate(group, into = c("gpA", "gpB"), sep = ".", fill= "left", remove = FALSE)
-    p = p + geom_point(size=2,
+    p = p + geom_point(size=point_size,
                        aes_string(color= color_group,
                                   shape = shape_group,
                                   alpha = alpha))
@@ -1115,7 +1113,7 @@ phyloseq_plot_ordinations_facet <- function(plot_list,
     df %>%
       ggplot(aes_string(axis_names[[1]], axis_names[[2]])) -> p
     # tidyr::separate(group, into = c("gpA", "gpB"), sep = ".", fill= "left", remove = FALSE)
-    p = p + geom_point(size=2,
+    p = p + geom_point(size=point_size,
                        aes_string(color= color_group,
                                   shape = shape_group,
                                   alpha = alpha))
