@@ -29,12 +29,12 @@
 
 metaphlan_2phyloseq <- function(merged_metaphlan,
                                 metadata,
-                                tree = c(FALSE,"https://raw.githubusercontent.com/biobakery/MetaPhlAn/master/metaphlan/utils/mpa_v30_CHOCOPhlAn_201901_species_tree.nwk"),
+                                tree = c(FALSE,"https://raw.githubusercontent.com/biobakery/MetaPhlAn/master/metaphlan/utils/mpa_vJan21_CHOCOPhlAnSGB_202103.nwk"),
                                 skip_col = 0,
-                                metaphlan_sample_names_to_rm = "_metagenome",
-                                tax_label = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"),
+                                metaphlan_sample_names_to_rm = "d_metagenome",
+                                tax_label = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species", "Strain"),
                                 tax_sep = "\\|"){
-  # TODO: mode for lefser with all taxa
+
   ## ------------------------------------------------------------------------
   require(tidyverse); require(speedyseq)
 
@@ -45,10 +45,10 @@ metaphlan_2phyloseq <- function(merged_metaphlan,
     # read_tsv(col_names = TRUE,
     # skip = skip_col) %>%
     # dplyr::select_if(names(.) %!in% c('NCBI_tax_id')) %>%
-    dplyr::filter(., grepl('s__|UNCLASSIFIED', clade_name)) %>%
-    dplyr::filter(., !grepl('t__', clade_name)) %>%
+    dplyr::filter(., grepl('t__|UNCLASSIFIED', clade_name)) %>%
+    # dplyr::filter(., !grepl('t__', clade_name)) %>%
     tidyr::separate(clade_name,tax_label ,sep = tax_sep) %>%
-    dplyr::filter(!is.na(Species) | Kingdom == "UNCLASSIFIED") -> df
+    dplyr::filter(!is.na(Strain) | Kingdom == "UNCLASSIFIED") -> df
   ## ------------------------------------------------------------------------
 
   df %>%
@@ -63,12 +63,12 @@ metaphlan_2phyloseq <- function(merged_metaphlan,
   merge_phyloseq(otu_table(count, taxa_are_rows = TRUE),
                  tax_table(tax)) -> physeq
 
-  tax_table(physeq) <- tax_table(physeq) %>% gsub(pattern="[a-s]__",replacement="") %>%  data.frame() %>%  replace(is.na(.), "UNCLASSIFIED") %>%  as.matrix() %>%  tax_table()
+  tax_table(physeq) <- tax_table(physeq) %>% gsub(pattern="[a-t]__",replacement="") %>%  data.frame() %>%  replace(is.na(.), "UNCLASSIFIED") %>%  as.matrix() %>%  tax_table()
 
   # tax_table(physeq) <- tax_table(physeq) %>%
   ## ------------------------------------------------------------------------
 
-  taxa_names(physeq) <- tax_table(physeq)[,"Species"]
+  taxa_names(physeq) <- paste0(tax_table(physeq)[,"Strain"], "_", tax_table(physeq)[,"Species"])
 
   ## ------------------------------------------------------------------------
 
