@@ -27,17 +27,17 @@
 #                    skip_col = 1,
 #                    id = "clade_name") -> ps
 
-metaphlan_2phyloseq <- function(merged_metaphlan,
-                                metadata,
-                                tree = c(FALSE,"https://raw.githubusercontent.com/biobakery/MetaPhlAn/master/metaphlan/utils/mpa_vJan21_CHOCOPhlAnSGB_202103.nwk"),
+metaphlan_2phyloseq <- function(merged_metaphlan="~/metaphlan_analysis/merged_abundance_table.txt",
+                                metadata="no",
+                                tree = "https://raw.githubusercontent.com/biobakery/MetaPhlAn/master/metaphlan/utils/mpa_vJun23_CHOCOPhlAnSGB_202307.nwk",
                                 skip_col = 0,
-                                metaphlan_sample_names_to_rm = "d_metagenome",
+                                metaphlan_sample_names_to_rm = "",
                                 tax_label = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species", "Strain"),
                                 tax_sep = "\\|"){
-
+  
   ## ------------------------------------------------------------------------
-  require(tidyverse); require(speedyseq)
-
+  require(tidyverse);  require(phyloseq)
+  
   `%!in%` = Negate(`%in%`)
   ## ------------------------------------------------------------------------
   merged_metaphlan %>%
@@ -46,51 +46,53 @@ metaphlan_2phyloseq <- function(merged_metaphlan,
     # skip = skip_col) %>%
     # dplyr::select_if(names(.) %!in% c('NCBI_tax_id')) %>%
     dplyr::filter(., grepl('t__|UNCLASSIFIED', clade_name)) %>%
+    # dplyr::filter(clade_name != NA) %>% 
     # dplyr::filter(., !grepl('t__', clade_name)) %>%
     tidyr::separate(clade_name,tax_label ,sep = tax_sep) %>%
-    dplyr::filter(!is.na(Strain) | Kingdom == "UNCLASSIFIED") -> df
+    dplyr::filter(!is.na(Strain) | !Kingdom == "UNCLASSIFIED") -> df
+  
   ## ------------------------------------------------------------------------
-
+  
   df %>%
     dplyr::select_if(is_character) %>%
     as.matrix() -> tax
-
+  
   df %>%
     dplyr::select_if(is.double) %>%
     as.matrix() -> count
+  
   ## ------------------------------------------------------------------------
-
+  
   merge_phyloseq(otu_table(count, taxa_are_rows = TRUE),
                  tax_table(tax)) -> physeq
-
+  
   tax_table(physeq) <- tax_table(physeq) %>% gsub(pattern="[a-t]__",replacement="") %>%  data.frame() %>%  replace(is.na(.), "UNCLASSIFIED") %>%  as.matrix() %>%  tax_table()
-
-  # tax_table(physeq) <- tax_table(physeq) %>%
+  
   ## ------------------------------------------------------------------------
-
-  taxa_names(physeq) <- paste0(tax_table(physeq)[,"Strain"], "_", tax_table(physeq)[,"Species"])
-
+  
+  taxa_names(physeq) <- paste0(tax_table(physeq)[,"Species"], "_", tax_table(physeq)[,"Strain"])
+  
   ## ------------------------------------------------------------------------
-
-  physeq %>%
-    clean_phyloseq_sample_names(sub_pat = metaphlan_sample_names_to_rm) -> physeq
-
+  
+  # physeq %>%
+  #   clean_phyloseq_sample_names(sub_pat = metaphlan_sample_names_to_rm) -> physeq
+  
   ## ------------------------------------------------------------------------
   if (file.exists(metadata) == TRUE){
     merge_phyloseq(physeq,
                    metadata %>% phyloseq::sample_data()) -> physeq
   }
-  if (tree != FALSE){
-    tree %>%
-      ape::read.tree() -> tree_file
-
-    tree_file$tip.label <- gsub(".+\\|s__", "", tree_file$tip.label)
-
-    filt_tree <- ape::keep.tip(tree_file, intersect(taxa_names(physeq),tree_file$tip.label))
-
-    merge_phyloseq(physeq,
-                   filt_tree %>% phy_tree()) -> physeq
-  }
+  # if (tree != FALSE){
+  #   tree %>%
+  #     ape::read.tree() -> tree_file
+  #   
+  #   tree_file$tip.label <- gsub(".+\\|s__", "", tree_file$tip.label)
+  #   
+  #   filt_tree <- ape::keep.tip(tree_file, intersect(taxa_names(physeq),tree_file$tip.label))
+  #   
+  #   merge_phyloseq(physeq,
+  #                  filt_tree %>% phy_tree()) -> physeq
+  # }
   return(physeq)
 }
 
