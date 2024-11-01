@@ -1251,73 +1251,178 @@ phyloseq_distance_boxplot <- function(p, dist = dlist$wjaccard, d = "SampleType"
 #' @examples
 #'
 
-phyloseq_add_taxa_vector_fix <- function(dist =NULL,
-                                         phyloseq = NULL,
-                                         figure_ord = pca_treat,
-                                         m = "PCoA",
-                                         pval_cutoff = 0.05,
-                                         top_r = 12,
-                                         taxrank_glom = NULL,
-                                         tax_rank_plot = taxrank_glom,
-                                         vector_color = "grey10",
-                                         taxnames_rm = c("unknown", "Unclassified"),
-                                         fact = 3,
-                                         seed = 123,
-                                         perm = 999,
-                                         adj_method = "fdr",
-                                         ggrepel_force = 25)
+# phyloseq_add_taxa_vector_fix <- function(phyloseq = ., perm = 999,
+#                                dist = beta$aitch,
+#                                tax_rank_plot = "Genus",
+#                                taxrank_glom = "Genus",
+#                                figure_ord = empty_plot_tmp, 
+#                                adj_method = "fdr", 
+#                                fact = 0.8, pval_cutoff = 0.05,
+#                                top_r = 10)
+# {
+#   ####----------------------
+# 
+#   require(phyloseq); require(tidyverse); require(vegan)
+# 
+#   ####----------------------
+# 
+#   as.matrix(dist)[sample_names(phyloseq),sample_names(phyloseq)] %>%
+#     as.dist() -> dist
+# 
+#   ####---------------------- Calculate ordination
+# 
+#   set.seed(seed)
+#   iMDS  <- ordinate(phyloseq,
+#                     m,
+#                     dist)
+# 
+#   ####----------------------Normalize features
+# 
+#   phyloseq %>%
+#     transform_sample_counts(function(x) {x/sum(x)} * 100)  -> tmp1
+#   ####----------------------
+# 
+#   if(taxrank_glom != FALSE) {
+#     tmp1 %>%
+#       speedyseq::tax_glom(taxrank_glom) -> ps_glom
+#   }
+# 
+#   ps_glom %>%
+#     otu_table() %>%
+#     t() %>%
+#     data.frame() -> tmp
+# 
+#   ####----------------------Create plot, store as temp variable, p
+#   set.seed(seed)
+#   p <- phyloseq::plot_ordination(phyloseq, iMDS)
+# 
+#   dune.spp.fit <- envfit(iMDS$vectors, tmp, permutations = perm) # this fits species vectors
+# 
+#   spp.scrs <- as.data.frame(scores(dune.spp.fit, display = "vectors")) #save species intrinsic values into dataframe
+# 
+#   spp.scrs <- cbind(spp.scrs) #add species names to dataframe
+#   spp.scrs <- cbind(spp.scrs, pval = dune.spp.fit$vectors$pvals, r = dune.spp.fit$vectors$r) #add pvalues to dataframe so you can select species which are significant
+#   #spp.scrs<- cbind(spp.scrs, abrev = abbreviate(spp.scrs$Species, minlength = 6)) #abbreviate species names
+#   # sig.spp.scrs <- filter(spp.scrs, pval<=pval_cutoff ) %>% top_n(top_r, r) #subset data to show species significant at 0.05
+#   sig.spp.scrs <- spp.scrs
+# 
+#   ####----------------------
+# 
+#   as(tax_table(ps_glom), "matrix") %>%
+#     as.data.frame() -> tax_table
+# 
+#   # if(join_cbind == "join"){
+#   #   left_join(sig.spp.scrs,
+#   #             tax_table,
+#   #             by = c("id" = id_taxa)) %>%
+#   #     dplyr::rename(tax_rank_plot = all_of(tax_rank_plot)) %>%
+#   #     dplyr::filter(!tax_rank_plot %in% taxnames_rm,
+#   #                   pval<=pval_cutoff) %>%
+#   #     top_n(top_r, r) -> all
+#   # }
+#   # if(join_cbind == "cbind"){
+#   cbind(sig.spp.scrs, tax_table) %>%
+#     rstatix::adjust_pvalue(p.col = "pval",
+#                            method = adj_method ) %>%
+#     dplyr::rename(tax_rank_plot = all_of(tax_rank_plot)) -> envfit_all
+# 
+#   envfit_all %>%
+#     dplyr::filter(!tax_rank_plot %in% taxnames_rm,
+#                   pval.adj<=pval_cutoff) %>%
+#     top_n(top_r, r)  -> all
+#   # }
+# 
+#   # !!variable := name_of_col_from_df
+# 
+#   ####----------------------
+# 
+#   figure_ord  +
+#     geom_segment(data = all,
+#                  aes(x = 0, xend=Axis.1* fact, y=0, yend=Axis.2 * fact), arrow = arrow(length = unit(0.25, "cm")), colour = vector_color, lwd=0.3, inherit.aes = FALSE) + #add vector arrows of significant species
+#     ggrepel::geom_text_repel(data = all, aes(x= Axis.1* fact, y=Axis.2*fact, label = tax_rank_plot), cex = 3, direction = "both", segment.size = 0.25, inherit.aes = FALSE, force = ggrepel_force, segment.linetype = 2, segment.color = "gray70") -> p2
+# 
+#   ####----------------------
+# 
+# 
+#   ggplot() + theme_void() +
+#     geom_segment(data = all,
+#                  aes(x = 0, xend=Axis.1* fact, y=0, yend=Axis.2 * fact), arrow = arrow(length = unit(0.25, "cm")), colour = vector_color, lwd=0.3, inherit.aes = FALSE) + #add vector arrows of significant species
+#     ggrepel::geom_text_repel(data = all, aes(x= Axis.1* fact, y=Axis.2*fact, label = tax_rank_plot), cex = 3, direction = "both", segment.size = 0.25, inherit.aes = FALSE, force = ggrepel_force, segment.linetype = 2, segment.color = "gray70") -> p3
+# 
+# 
+#   ####----------------------
+# 
+#   out <- list("plot" = p2,
+#               "vectors" = p3,
+#               "ord" = iMDS,
+#               "envfit" = envfit_all,
+#               "signenvfit" = all)
+# 
+#   return(out)
+# 
+#   detach("package:vegan", unload=TRUE)
+# }
+
+phyloseq_add_taxa_vector_fix <- function(phyloseq = ps_up, perm = 999,
+                                         dist = beta$aitch,
+                                         tax_rank_plot = "Genus",
+                                         taxrank_glom = "Genus",
+                                         figure_ord = empty_plot_tmp, 
+                                         adj_method = "fdr", 
+                                         fact = 0.8, pval_cutoff = 0.05,
+                                         top_r = 10)
 {
   ####----------------------
-
+  
   require(phyloseq); require(tidyverse); require(vegan)
-
+  
   ####----------------------
-
+  
   as.matrix(dist)[sample_names(phyloseq),sample_names(phyloseq)] %>%
     as.dist() -> dist
-
+  
   ####---------------------- Calculate ordination
-
+  
   set.seed(seed)
   iMDS  <- ordinate(phyloseq,
                     m,
                     dist)
-
+  
   ####----------------------Normalize features
-
+  
   phyloseq %>%
     transform_sample_counts(function(x) {x/sum(x)} * 100)  -> tmp1
   ####----------------------
-
+  
   if(taxrank_glom != FALSE) {
     tmp1 %>%
       speedyseq::tax_glom(taxrank_glom) -> ps_glom
   }
-
+  
   ps_glom %>%
     otu_table() %>%
     t() %>%
     data.frame() -> tmp
-
+  
   ####----------------------Create plot, store as temp variable, p
   set.seed(seed)
   p <- phyloseq::plot_ordination(phyloseq, iMDS)
-
+  
   dune.spp.fit <- envfit(iMDS$vectors, tmp, permutations = perm) # this fits species vectors
-
+  
   spp.scrs <- as.data.frame(scores(dune.spp.fit, display = "vectors")) #save species intrinsic values into dataframe
-
+  
   spp.scrs <- cbind(spp.scrs) #add species names to dataframe
   spp.scrs <- cbind(spp.scrs, pval = dune.spp.fit$vectors$pvals, r = dune.spp.fit$vectors$r) #add pvalues to dataframe so you can select species which are significant
   #spp.scrs<- cbind(spp.scrs, abrev = abbreviate(spp.scrs$Species, minlength = 6)) #abbreviate species names
   # sig.spp.scrs <- filter(spp.scrs, pval<=pval_cutoff ) %>% top_n(top_r, r) #subset data to show species significant at 0.05
   sig.spp.scrs <- spp.scrs
-
+  
   ####----------------------
-
+  
   as(tax_table(ps_glom), "matrix") %>%
     as.data.frame() -> tax_table
-
+  
   # if(join_cbind == "join"){
   #   left_join(sig.spp.scrs,
   #             tax_table,
@@ -1332,43 +1437,44 @@ phyloseq_add_taxa_vector_fix <- function(dist =NULL,
     rstatix::adjust_pvalue(p.col = "pval",
                            method = adj_method ) %>%
     dplyr::rename(tax_rank_plot = all_of(tax_rank_plot)) -> envfit_all
-
+  
   envfit_all %>%
     dplyr::filter(!tax_rank_plot %in% taxnames_rm,
                   pval.adj<=pval_cutoff) %>%
     top_n(top_r, r)  -> all
   # }
-
+  
   # !!variable := name_of_col_from_df
-
+  
   ####----------------------
-
+  
   figure_ord  +
     geom_segment(data = all,
                  aes(x = 0, xend=Axis.1* fact, y=0, yend=Axis.2 * fact), arrow = arrow(length = unit(0.25, "cm")), colour = vector_color, lwd=0.3, inherit.aes = FALSE) + #add vector arrows of significant species
     ggrepel::geom_text_repel(data = all, aes(x= Axis.1* fact, y=Axis.2*fact, label = tax_rank_plot), cex = 3, direction = "both", segment.size = 0.25, inherit.aes = FALSE, force = ggrepel_force, segment.linetype = 2, segment.color = "gray70") -> p2
-
+  
   ####----------------------
-
-
+  
+  
   ggplot() + theme_void() +
     geom_segment(data = all,
                  aes(x = 0, xend=Axis.1* fact, y=0, yend=Axis.2 * fact), arrow = arrow(length = unit(0.25, "cm")), colour = vector_color, lwd=0.3, inherit.aes = FALSE) + #add vector arrows of significant species
     ggrepel::geom_text_repel(data = all, aes(x= Axis.1* fact, y=Axis.2*fact, label = tax_rank_plot), cex = 3, direction = "both", segment.size = 0.25, inherit.aes = FALSE, force = ggrepel_force, segment.linetype = 2, segment.color = "gray70") -> p3
-
-
+  
+  
   ####----------------------
-
+  
   out <- list("plot" = p2,
               "vectors" = p3,
               "ord" = iMDS,
               "envfit" = envfit_all,
               "signenvfit" = all)
-
+  
   return(out)
-
+  
   detach("package:vegan", unload=TRUE)
 }
+
 
 
 #' @title ...
