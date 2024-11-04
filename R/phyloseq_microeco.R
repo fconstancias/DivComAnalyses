@@ -554,10 +554,10 @@ phyloseq_func <- function(physeq,method = c("cal_spe_func", "cal_tax4fun2"), pro
 
 
 phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"), method = "lefse", group = "Time", fix_formula = "Time", alpha = 0.01, lefse_subgroup = NULL,
-                                   taxa_level = "all",  filter_thres =  0.00001, p_adjust_method = "fdr", lda_threshold = 2,
-                                   plot_pal = RColorBrewer::brewer.pal(8, "Dark2"), group_order = NULL, add_sig = FALSE, keep_prefix = TRUE,
-                                   plot_type2 = "barerrorbar", add_sig_plot2 = FALSE, errorbar_color_black = TRUE,
-                                   taxa_level_2 = "Species"){
+                          taxa_level = "all",  filter_thres =  0.00001, p_adjust_method = "fdr", lda_threshold = 2,
+                          plot_pal = RColorBrewer::brewer.pal(8, "Dark2"), group_order = NULL, add_sig = FALSE, keep_prefix = TRUE,
+                          plot_type2 = "barerrorbar", add_sig_plot2 = FALSE, errorbar_color_black = TRUE,
+                          taxa_level_2 = "Species"){
   
   ####---------------------- Load R package
   
@@ -575,7 +575,7 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
   
   ####---------------------- feature - trans_diff {microeco}
   
-  t1 <- trans_diff$new(dataset = data, method = method, group = group, 
+  t1 <- trans_diff$new(dataset = data, method = method, group = group, remove_unknown = TRUE,
                        alpha = alpha, lefse_subgroup = lefse_subgroup,
                        taxa_level = taxa_level, filter_thres = filter_thres,
                        p_adjust_method = p_adjust_method)
@@ -584,84 +584,133 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
   out$abund <- t1$res_abund
   out$res_diff <- t1$res_diff
   
+  
+  if ("ancombc2"  %in% method)
+  {
+    t1$res_diff %<>% subset(P.adj <= 0.05)
+    
+    
+    out$diff_bar  <- t1$plot_diff_bar(keep_full_name = FALSE, 
+                                      heatmap_cell =  "P.adj",
+                                      heatmap_sig = "Significance",
+                                      heatmap_x = "Factors",
+                                      heatmap_y = "Taxa",
+                                      heatmap_lab_fill = "P.adj")
+    
+    out$diff_bar  <- out$diff_bar + theme(legend.position = "none")
+    
+    
+    # out$diff_abund  <- t1$plot_diff_abund(plot_type = "ggboxplot", select_taxa = t1$plot_diff_bar_taxa , y_start = 0.05, y_increase = 0.1, color_values = plot_pal)
+    # 
+    # out$diff_abund  <- out$diff_abund + scale_y_sqrt() + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), panel.border = element_blank()) + ylab("Proportion (sqrt)") 
+    # out$combined_plot <- out$diff_bar%>% aplot::insert_right(out$diff_abund, width = 1)
+    # out$combined_plot 
+    # 
+    
+    
+  }
   # see t1$res_diff for the result
   # From v0.8.0, threshold is used for the LDA score selection.
-  out$diff_bar <- t1$plot_diff_bar(
-    threshold = lda_threshold,
-    color_values = plot_pal,
-    color_group_map = FALSE,
-    use_number = use_number,
-    select_group = NULL,
-    keep_full_name = FALSE,
-    keep_prefix = keep_prefix,
-    group_order = group_order,
-    group_aggre = TRUE,
-    group_two_sep = TRUE,
-    coord_flip = TRUE,
-    add_sig = add_sig,
-    add_sig_increase = 0.1,
-    add_sig_text_size = 5,
-    xtext_angle = 45,
-    xtext_size = 10,
-    axis_text_y = 12,
-    heatmap_cell = "P.unadj",
-    heatmap_sig = "Significance",
-    heatmap_x = "Factors",
-    heatmap_y = "Taxa",
-    heatmap_lab_fill = "P value")
   
-  out$diff_abund <- t1$plot_diff_abund(trans = "log10", group_order = group_order, select_taxa = t1$plot_diff_bar_taxa, plot_type = plot_type2, 
-                                       add_sig = add_sig_plot2, errorbar_addpoint = FALSE, errorbar_color_black = errorbar_color_black, 
-                                       color_values = plot_pal)
+  if ("lefse"  %in% method)
+  {
+    out$diff_bar <- t1$plot_diff_bar(
+      threshold = lda_threshold,
+      color_values = plot_pal,
+      color_group_map = FALSE,
+      use_number = use_number,
+      select_group = NULL,
+      keep_full_name = FALSE,
+      keep_prefix = keep_prefix,
+      group_order = group_order,
+      group_aggre = TRUE,
+      group_two_sep = TRUE,
+      coord_flip = TRUE,
+      add_sig = add_sig,
+      add_sig_increase = 0.1,
+      add_sig_text_size = 5,
+      xtext_angle = 45,
+      xtext_size = 10,
+      axis_text_y = 12,
+      heatmap_cell = ifelse(method %in% c("ancombc2"), "P.adj" ,"P.unadj"),
+      heatmap_sig = "Significance",
+      heatmap_x = "Factors",
+      heatmap_y = "Taxa",
+      heatmap_lab_fill = ifelse(method %in% c("ancombc2"), "P.adj" ,"P value"))
+    
+    out$diff_abund <- t1$plot_diff_abund(group_order = group_order, select_taxa = t1$plot_diff_bar_taxa, plot_type = plot_type2, 
+                                         add_sig = add_sig_plot2, errorbar_addpoint = FALSE, errorbar_color_black = errorbar_color_black, 
+                                         color_values = plot_pal)
+    
+    out$diff_bar  <- out$diff_bar + theme(legend.position = "none")
+    out$diff_abund  <- out$diff_abund + scale_y_sqrt() + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), panel.border = element_blank()) + ylab("Proportion (sqrt)") 
+    out$combined_plot <- out$diff_bar%>% aplot::insert_right(out$diff_abund, width = 0.5)
+    out$combined_plot 
+  }
   
-  out$diff_bar  <- out$diff_bar + theme(legend.position = "none")
-  out$diff_abund  <- out$diff_abund  + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), panel.border = element_blank())
-  out$combined_plot <- out$diff_bar%>% aplot::insert_right(out$diff_abund )
-  out$combined_plot 
+  if ("linda"  %in% method)
+  {
+    
+    t1 <- trans_diff$new(dataset = data, formula = "~ Sample_Type + Time +  (1|Subject)", method = "linda", remove_unknown = TRUE,
+                         alpha = alpha,
+                         taxa_level = taxa_level, filter_thres = filter_thres,
+                         p_adjust_method = p_adjust_method)
+    
+    t1$res_diff %<>% subset(P.adj <= 0.05) # subset(Significance %in% c("*","**","***"))
+    
+    out$diff_bar  <- t1$plot_diff_bar(keep_full_name = FALSE, 
+                                     heatmap_cell =  "P.adj",
+                                     heatmap_sig = "Significance",
+                                     heatmap_x = "Factors",
+                                     heatmap_y = "Taxa",
+                                     heatmap_lab_fill = "P.adj")
+    
+    out$diff_bar  <- out$diff_bar + theme(legend.position = "none")
+    
+    
+    # y_start and y_increase control the position of labels; for the details, please see the document of plot_alpha function in trans_alpha class
+    out$diff_abund  <- t1$plot_diff_abund(plot_type = "ggboxplot", select_taxa = t1$plot_diff_bar_taxa , y_start = 0.05, y_increase = 0.1, color_values = plot_pal)
+    
+    out$diff_abund  <- out$diff_abund + scale_y_sqrt() + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), panel.border = element_blank()) + ylab("Proportion (sqrt)") 
+    out$combined_plot <- out$diff_bar%>% aplot::insert_right(out$diff_abund, width = 1)
+    out$combined_plot 
+    
+    if(!require("glmmTMB")) install.packages("glmmTMB")
+    
+    if ("glmm_beta"  %in% method)
+    {
+    t1 <- trans_diff$new(dataset = data, taxa_level = taxa_level, method = "glmm_beta", 
+                         formula = "Sample_Type + Time +  (1|Subject)", filter_thres = filter_thres) # Time + (1|Subject)" fix_formula
+    View(t1$res_diff)
+    
+    # That's supercool, we can see which taxa are influenced by site or time ... and then how they differ from baseline (TP1)
+    # first this approach and then lefse or other test when we see differenfces ...
+    
+    t1$plot_diff_bar(heatmap_cell = "Estimate", heatmap_sig = "Significance", heatmap_lab_fill = "Coefficient")
+    
+    # Let’s run two-way anova for more usages of heatmap.
+    
+    t1 <- trans_diff$new(dataset = data, method = "anova", formula = "Time + Sample_Type", taxa_level = taxa_level, filter_thres = filter_thres, transformation = "AST")
+    t1$plot_diff_bar()
+    t1$plot_diff_bar(color_palette = rev(RColorBrewer::brewer.pal(n = 11, name = "RdYlBu")), trans = "log10")
+    t1$plot_diff_bar(color_values = c("#053061", "white", "#A50026"), trans = "log10")
+    t1$plot_diff_bar(color_values = c("#053061", "white", "#A50026"), trans = "log10", filter_feature = "", text_y_position = "right", cluster_ggplot = "row")
+   
+    # t1$plot_diff_abund(select_taxa = t1$plot_diff_bar_taxa , y_start = 0.05, y_increase = 0.1, color_values = plot_pal)
+    
+  }
   
-  ####---------------------- stat
+  
+  # maaslin2 https://github.com/ChiLiubio/microeco/issues/235
+  
+  
 
-  # LinDA method. If MicrobiomeStat package is not installed, please first run: install.packages("MicrobiomeStat")
-#  t2 <- clone(t1)
-  
-#  t2 <- trans_diff$new(dataset = data, method = "linda", group = group, taxa_level = taxa_level_2, filter_thres = filter_thres)
-  
-  # t2$plot_diff_bar(
-  #   threshold = NULL,
-  #   color_values = plot_pal,
-  #   color_group_map = FALSE,
-  #   select_group = NULL,
-  #   keep_full_name = FALSE,
-  #   keep_prefix = keep_prefix,
-  #   group_order = group_order,
-  #   group_aggre = TRUE,
-  #   group_two_sep = TRUE,
-  #   coord_flip = TRUE,
-  #   add_sig = add_sig,
-  #   add_sig_increase = 0.1,
-  #   add_sig_text_size = 5,
-  #   xtext_angle = 45,
-  #   xtext_size = 10,
-  #   axis_text_y = 12,
-  #   heatmap_cell = "P.unadj",
-  #   heatmap_sig = "Significance",
-  #   heatmap_x = "Factors",
-  #   heatmap_y = "Taxa",
-  #   heatmap_lab_fill = "P value")
-  # # ANCOMBC2 method
-  
-#  t3 <- clone(t1)
-  
-  # when fix_formula is not provided (necessary in ancombc2 function of ANCOMBC package), it will be assigned automatically by using group parameter
-  # Restart R if there is an error that "Error in model.matrix.formula(): data must be a data.frame"
-#  t3 <- trans_diff$new(dataset = data, method = "ancombc2", group = NULL, fix_formula = fix_formula, taxa_level = taxa_level_2, filter_thres = filter_thres)
-  
   ####---------------------- return
   
   return(out)
 }
 
-#' @title ...
+s#' @title ...
 #' @param .
 #' @param ..
 #' @author Florentin Constancias
@@ -674,10 +723,10 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
 
 
 phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"), 
-                                      y_response = "Time", x_predictors = "All",
-                                      prop_train = 3/4,
-                                      method = "rf", plot_group = "all",
-                                      color_values = time_pal){
+                                y_response = "Time", x_predictors = "All",
+                                prop_train = 3/4,
+                                method = "rf", plot_group = "all",
+                                color_values = time_pal){
   
   ####---------------------- Load R package
   
@@ -694,7 +743,7 @@ phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Pla
   data$sample_table -> env_data
   
   ####---------------------- feature - trans_classifier {microeco}
- 
+  
   # initialize: use "genotype" as response variable
   # x.predictors parameter is used to select the taxa; here we use all the taxa data in d1$taxa_abund
   t1 <- trans_classifier$new(dataset = data, y.response = y_response, x.predictors = x_predictors)
@@ -763,7 +812,7 @@ phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Pla
 #' @examples
 #'
 
-phyloseq_alpha <- function(physeq, color_groups = NULL, order_x_mean = FALSE, measures = c("Observed", "Shannon", "InvSimpson"), anova_set = NULL,  p_adjust_method = "fdr", group = "SampleType", method = "KW"){
+phyloseq_alpha <- function(physeq, color_groups = NULL, order_x_mean = FALSE, measures = c("Observed", "Shannon", "InvSimpson"), anova_set = NULL,  p_adjust_method = "fdr", group = "SampleType", method = "wilcox"){
   
   ####---------------------- Load R package
   
@@ -779,14 +828,14 @@ phyloseq_alpha <- function(physeq, color_groups = NULL, order_x_mean = FALSE, me
   
   ####---------------------- alpha - trans_alpha {microeco}
   
-  t1 <- trans_alpha$new(dataset = data, group = group, by_group = NULL)
+  t1 <- trans_alpha$new(dataset = data,  group = group, by_group = NULL)
   
   out$data_stat <- t1$data_stat
   out$data_alpha <- t1$data_alpha
   
   ####---------------------- stat
   
-  t1$cal_diff(method = method, measure = measures, p_adjust_method = p_adjust_method, anova_set = NULL)
+  t1$cal_diff(method = method, p_adjust_method = p_adjust_method) #, anova_set = NULL)
   
   out$res <- t1$res_diff
   
@@ -798,13 +847,17 @@ phyloseq_alpha <- function(physeq, color_groups = NULL, order_x_mean = FALSE, me
     base::subset(Significance != "ns") -> t1$res_diff
   
   
+  if(nrow( t1$res_diff) > 0 )
+  {
+    
+
   if(is.null(color_groups)) {
     RColorBrewer::brewer.pal(out$data_stat[,group] %>%  unique() %>%  length(), "Dark2") -> color_groups
   }
   
   tmp <- list()
   
-  for(i in measures){
+  for(i in  out$res %>%  distinct(Measure) %>%  pull() ){
     tmp[[i]] <- t1$plot_alpha(measure = i,
                               # color_values = color_values,
                               add_sig_label = "Significance",
@@ -816,6 +869,8 @@ phyloseq_alpha <- function(physeq, color_groups = NULL, order_x_mean = FALSE, me
   }
   
   out$res_diff_plot <- tmp
+  
+  }
   
   ####---------------------- return
   
