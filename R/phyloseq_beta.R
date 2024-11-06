@@ -1365,6 +1365,8 @@ phyloseq_distance_boxplot <- function(p, dist = dlist$wjaccard, d = "SampleType"
 
 phyloseq_add_taxa_vector_fix <- function(phyloseq = ps_up, perm = 999,
                                          dist = beta$aitch,
+                                         m = "PCoA",
+                                         seed = 123,
                                          tax_rank_plot = "Genus",
                                          taxrank_glom = "Genus",
                                          figure_ord = empty_plot_tmp, 

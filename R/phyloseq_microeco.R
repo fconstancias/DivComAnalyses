@@ -553,7 +553,7 @@ phyloseq_func <- function(physeq,method = c("cal_spe_func", "cal_tax4fun2"), pro
 #'
 
 
-phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"), method = "lefse", group = "Time", fix_formula = "Time", alpha = 0.01, lefse_subgroup = NULL,
+phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"), method = "lefse", group = "Time", fix_formula = "Time", alpha = 0.001, lefse_subgroup = NULL,
                           taxa_level = "all",  filter_thres =  0.00001, p_adjust_method = "fdr", lda_threshold = 2,
                           plot_pal = RColorBrewer::brewer.pal(8, "Dark2"), group_order = NULL, add_sig = FALSE, keep_prefix = TRUE,
                           plot_type2 = "barerrorbar", add_sig_plot2 = FALSE, errorbar_color_black = TRUE,
@@ -659,11 +659,11 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
     t1$res_diff %<>% subset(P.adj <= 0.05) # subset(Significance %in% c("*","**","***"))
     
     out$diff_bar  <- t1$plot_diff_bar(keep_full_name = FALSE, 
-                                     heatmap_cell =  "P.adj",
-                                     heatmap_sig = "Significance",
-                                     heatmap_x = "Factors",
-                                     heatmap_y = "Taxa",
-                                     heatmap_lab_fill = "P.adj")
+                                      heatmap_cell =  "P.adj",
+                                      heatmap_sig = "Significance",
+                                      heatmap_x = "Factors",
+                                      heatmap_y = "Taxa",
+                                      heatmap_lab_fill = "P.adj")
     
     out$diff_bar  <- out$diff_bar + theme(legend.position = "none")
     
@@ -675,28 +675,33 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
     out$combined_plot <- out$diff_bar%>% aplot::insert_right(out$diff_abund, width = 1)
     out$combined_plot 
     
-    if(!require("glmmTMB")) install.packages("glmmTMB")
+  }
+  if(!require("glmmTMB")) install.packages("glmmTMB")
+  
+  if ("glmm_beta"  %in% method) #works with taxa_level = all
+  {
+    t1 <- trans_diff$new(dataset = data, taxa_level = "Species", method = "glmm_beta", p_adjust_method = p_adjust_method,
+                         formula = "Sample_Type + Time + (1|Subject)", filter_thres = filter_thres) # Time + (1|Subject)" fix_formula
+    # View(t1$res_diff)
     
-    if ("glmm_beta"  %in% method)
-    {
-    t1 <- trans_diff$new(dataset = data, taxa_level = taxa_level, method = "glmm_beta", 
-                         formula = "Sample_Type + Time +  (1|Subject)", filter_thres = filter_thres) # Time + (1|Subject)" fix_formula
-    View(t1$res_diff)
+    out$res_diff <- t1$res_diff %<>% 
+      group_by(Factors) %>% 
+      rstatix::adjust_pvalue(p.col = "P.unadj", method = p_adjust_method, output.col = "P.adj") %>% 
+      dplyr::select(-Significance) %>% rstatix::add_significance(p.col = "P.adj", output.col = "Significance")
+    
+    t1$res_diff %<>% subset(P.adj <= 0.05)
     
     # That's supercool, we can see which taxa are influenced by site or time ... and then how they differ from baseline (TP1)
     # first this approach and then lefse or other test when we see differenfces ...
     
-    t1$plot_diff_bar(heatmap_cell = "Estimate", heatmap_sig = "Significance", heatmap_lab_fill = "Coefficient")
+    out$plot_diff_bar <- t1$plot_diff_bar(heatmap_cell = "Estimate", heatmap_sig = "Significance", heatmap_lab_fill = "Coefficient")
     
-    # Let’s run two-way anova for more usages of heatmap.
+    out$plot_diff_bar2 <-  t1$plot_diff_bar(color_palette = rev(RColorBrewer::brewer.pal(n = 11, name = "RdYlBu")), trans = "log10")
+    out$plot_diff_bar3 <-  t1$plot_diff_bar(color_values = c("#053061", "white", "#A50026"), trans = "log10", filter_feature = "", text_y_position = "right", cluster_ggplot = "row")
     
-    t1 <- trans_diff$new(dataset = data, method = "anova", formula = "Time + Sample_Type", taxa_level = taxa_level, filter_thres = filter_thres, transformation = "AST")
-    t1$plot_diff_bar()
-    t1$plot_diff_bar(color_palette = rev(RColorBrewer::brewer.pal(n = 11, name = "RdYlBu")), trans = "log10")
-    t1$plot_diff_bar(color_values = c("#053061", "white", "#A50026"), trans = "log10")
-    t1$plot_diff_bar(color_values = c("#053061", "white", "#A50026"), trans = "log10", filter_feature = "", text_y_position = "right", cluster_ggplot = "row")
-   
-    # t1$plot_diff_abund(select_taxa = t1$plot_diff_bar_taxa , y_start = 0.05, y_increase = 0.1, color_values = plot_pal)
+    
+    out$plot_diff_bar4 <-  t1$plot_diff_bar(color_values = c("#053061", "white", "#A50026"), trans = "log10", filter_feature = "", text_y_position = "right", cluster_ggplot = "row")
+    
     
   }
   
@@ -704,13 +709,13 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
   # maaslin2 https://github.com/ChiLiubio/microeco/issues/235
   
   
-
+  
   ####---------------------- return
   
   return(out)
 }
 
-s#' @title ...
+#' @title ...
 #' @param .
 #' @param ..
 #' @author Florentin Constancias
@@ -850,26 +855,26 @@ phyloseq_alpha <- function(physeq, color_groups = NULL, order_x_mean = FALSE, me
   if(nrow( t1$res_diff) > 0 )
   {
     
-
-  if(is.null(color_groups)) {
-    RColorBrewer::brewer.pal(out$data_stat[,group] %>%  unique() %>%  length(), "Dark2") -> color_groups
-  }
-  
-  tmp <- list()
-  
-  for(i in  out$res %>%  distinct(Measure) %>%  pull() ){
-    tmp[[i]] <- t1$plot_alpha(measure = i,
-                              # color_values = color_values,
-                              add_sig_label = "Significance",
-                              add_sig = TRUE,
-                              color_values = color_groups,
-                              order_x_mean = order_x_mean,
-                              add_sig_text_size = 5, xtext_size = 12) +
-      theme(plot.margin = unit(c(0.1, 0, 0, 1), "cm"))
-  }
-  
-  out$res_diff_plot <- tmp
-  
+    
+    if(is.null(color_groups)) {
+      RColorBrewer::brewer.pal(out$data_stat[,group] %>%  unique() %>%  length(), "Dark2") -> color_groups
+    }
+    
+    tmp <- list()
+    
+    for(i in  out$res %>%  distinct(Measure) %>%  pull() ){
+      tmp[[i]] <- t1$plot_alpha(measure = i,
+                                # color_values = color_values,
+                                add_sig_label = "Significance",
+                                add_sig = TRUE,
+                                color_values = color_groups,
+                                order_x_mean = order_x_mean,
+                                add_sig_text_size = 5, xtext_size = 12) +
+        theme(plot.margin = unit(c(0.1, 0, 0, 1), "cm"))
+    }
+    
+    out$res_diff_plot <- tmp
+    
   }
   
   ####---------------------- return

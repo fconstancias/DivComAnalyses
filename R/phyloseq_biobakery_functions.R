@@ -29,7 +29,8 @@
 
 metaphlan_2phyloseq <- function(merged_metaphlan="~/metaphlan_analysis/merged_abundance_table.txt",
                                 metadata="no",
-                                tree = "https://raw.githubusercontent.com/biobakery/MetaPhlAn/master/metaphlan/utils/mpa_vJun23_CHOCOPhlAnSGB_202307.nwk",
+                                rm_unclassified = FALSE,
+                                tree = "https://raw.githubusercontent.com/biobakery/MetaPhlAn/refs/heads/master/metaphlan/utils/mpa_vJun23_CHOCOPhlAnSGB_202403.nwk",
                                 skip_col = 0,
                                 metaphlan_sample_names_to_rm = "",
                                 tax_label = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species", "Strain"),
@@ -48,8 +49,13 @@ metaphlan_2phyloseq <- function(merged_metaphlan="~/metaphlan_analysis/merged_ab
     dplyr::filter(., grepl('t__|UNCLASSIFIED', clade_name)) %>%
     # dplyr::filter(clade_name != NA) %>% 
     # dplyr::filter(., !grepl('t__', clade_name)) %>%
-    tidyr::separate(clade_name,tax_label ,sep = tax_sep) %>%
-    dplyr::filter(!is.na(Strain) | !Kingdom == "UNCLASSIFIED") -> df
+    tidyr::separate(clade_name,tax_label ,sep = tax_sep)  -> df
+  # dplyr::filter(!is.na(Strain) | !Kingdom == "UNCLASSIFIED") -> df
+  
+  if(rm_unclassified == TRUE){
+    df %>% 
+      dplyr::filter(!is.na(Strain) | !Kingdom == "UNCLASSIFIED") -> df
+  }
   
   ## ------------------------------------------------------------------------
   
@@ -85,17 +91,16 @@ metaphlan_2phyloseq <- function(merged_metaphlan="~/metaphlan_analysis/merged_ab
   # if (tree != FALSE){
   #   tree %>%
   #     ape::read.tree() -> tree_file
-  #   
+  # 
   #   tree_file$tip.label <- gsub(".+\\|s__", "", tree_file$tip.label)
-  #   
+  # 
   #   filt_tree <- ape::keep.tip(tree_file, intersect(taxa_names(physeq),tree_file$tip.label))
-  #   
+  # 
   #   merge_phyloseq(physeq,
   #                  filt_tree %>% phy_tree()) -> physeq
   # }
   return(physeq)
 }
-
 ## ------------------------------------------------------------------------------------------------------------------------------------------------
 
 #' @title ...

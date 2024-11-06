@@ -705,34 +705,60 @@ phyloseq_Maaslin2 <- function(phyloseq,
 #' @examples
 #'
 #'
-#'data("GlobalPatterns")
-#'GlobalPatterns %>%
-#' subset_samples(SampleType %in% c("Feces", "Skin")) %>%
-#' phyloseq_get_strains_fast  -> ps_tmp
-#'
-#'ps_tmp %>% phyloseq_Maaslin2(fixed_effects = "SampleType",random_effects = NULL , min_abundance = 2, min_prevalence = 0.5 ,  normalization = "NONE", transform = "NONE", analysis_method = "ZINB", output_dir = "~/test_masslin2_ZINB/")
-#'ps_tmp %>% phyloseq_Maaslin2(taxrank = FALSE, rename_ASV_strain = FALSE, fixed_effects = "SampleType",random_effects = NULL , min_abundance = 2, min_prevalence = 0.5 ,  normalization = "NONE", transform = "NONE", analysis_method = "NEGBIN", output_dir = "~/test_masslin2_negbin/") -> test
-#'ps_tmp %>% phyloseq_Maaslin2(fixed_effects = "SampleType",random_effects = NULL , min_abundance = 2, min_prevalence = 0.5 ,  normalization = "NONE", transform = "NONE", analysis_method = "CPLM", output_dir = "~/test_masslin2_CPLM/") -> test_CPLM
+
+data("GlobalPatterns")
+GlobalPatterns %>%
+subset_samples(SampleType %in% c("Feces", "Skin")) %>%
+phyloseq_get_strains_fast  -> ps_tmp
+
+ps_tmp %>% phyloseq_maaslin3(fixed_effects = "SampleType",random_effects = NULL , coef_plot_vars = FALSE, min_abundance = 2, min_prevalence = 0.5 ,  normalization = "CLR", transform = "NONE",warn_prevalence = FALSE,  output = "~/test_masslin2_ZINB/", plot_summary_plot = FALSE, plot_associations = FALSE, save_models = FALSE) -> test
+
+ps_up %>% phyloseq_maaslin3(formula = 'Sample + Time +  (1|Subject)',  fixed_effects = c("Time","Sample"), random_effects =  "Subject", min_abundance = 0, min_prevalence = 0 ,  normalization = "TSS", transform = "LOG",warn_prevalence = FALSE, save_models = FALSE, output = "~/test_masslin3_TSS_LOG/", plot_summary_plot = TRUE, plot_associations = TRUE, summary_plot_first_n = 50, max_pngs = 50) -> test
+
+
+ps_tmp %>% phyloseq_Maaslin2(taxrank = FALSE, rename_ASV_strain = FALSE, fixed_effects = "SampleType",random_effects = NULL , min_abundance = 2, min_prevalence = 0.5 ,  normalization = "NONE", transform = "NONE", analysis_method = "NEGBIN", output_dir = "~/test_masslin2_negbin/") -> test
+ps_tmp %>% phyloseq_Maaslin2(fixed_effects = "SampleType",random_effects = NULL , min_abundance = 2, min_prevalence = 0.5 ,  normalization = "NONE", transform = "NONE", analysis_method = "CPLM", output_dir = "~/test_masslin2_CPLM/") -> test_CPLM
 
 
 phyloseq_maaslin3 <- function(phyloseq,
-                              min_abundance = 0,
-                              min_prevalence = 0.1 ,
-                              min_variance = 0,
-                              random_effects = NULL,
-                              fixed_effects = c("treatment"),
-                              max_significance = 0.25,
-                              normalization = "TSS",
-                              transform = "LOG",
-                              analysis_method = "LM",
-                              correction = "BH",
-                              standardize = TRUE,
+                              formula = NULL,
+                              fixed_effects = NULL,
                               reference = NULL,
-                              cores = 4,
-                              plot_heatmap = FALSE,
-                              plot_scatter = TRUE,
-                              heatmap_first_n = 50,
-                              output_dir = "~/test_masslin2/",
+                              random_effects = NULL,
+                              group_effects = NULL,
+                              ordered_effects = NULL,
+                              strata_effects = NULL,
+                              feature_specific_covariate = NULL,
+                              feature_specific_covariate_name = NULL,
+                              feature_specific_covariate_record = NULL,
+                              min_abundance = 0,
+                              min_prevalence = 0,
+                              zero_threshold = 0,
+                              min_variance = 0,
+                              max_significance = 0.1,
+                              normalization = 'TSS',
+                              transform = 'LOG',
+                              correction = 'BH',
+                              standardize = TRUE,
+                              unscaled_abundance = NULL,
+                              median_comparison_abundance = TRUE,
+                              median_comparison_prevalence = FALSE,
+                              median_comparison_abundance_threshold = 0,
+                              median_comparison_prevalence_threshold = 0,
+                              subtract_median = FALSE,
+                              warn_prevalence = TRUE,
+                              augment = TRUE,
+                              evaluate_only = NULL,
+                              plot_summary_plot = TRUE,
+                              summary_plot_first_n = 25,
+                              coef_plot_vars = NULL,
+                              heatmap_vars = NULL,
+                              plot_associations = TRUE,
+                              max_pngs = 30,
+                              cores = 5,
+                              save_models = TRUE,
+                              verbosity = 'FINEST',
+                              output_dir = "~/test_masslin3/",
                               add_ASV_taxonomy = TRUE){
   
   ##---------------------------------------------
@@ -740,39 +766,62 @@ phyloseq_maaslin3 <- function(phyloseq,
   
   ##---------------------------------------------
   
-  maaslin3(phyloseq %>% otu_table() %>%  t(),
-           phyloseq %>% sample_data() %>% data.frame(),
-           output_dir,
-           # analysis_method = analysis_method,
-           normalization = normalization,
-           transform = "LOG",
+
+  
+  maaslin3(input_data = phyloseq %>% otu_table() %>%  t() %>% data.frame() ,
+           input_metadata = phyloseq %>% sample_data()  %>% data.frame(),
+           output = output_dir,
+           formula = formula,
+           fixed_effects = fixed_effects,
+           reference = reference,
+           random_effects = random_effects,
+           group_effects = group_effects,
+           ordered_effects = ordered_effects,
+           strata_effects = strata_effects,
+           feature_specific_covariate = feature_specific_covariate,
+           feature_specific_covariate_name = feature_specific_covariate_name,
+           feature_specific_covariate_record = feature_specific_covariate_record,
            min_abundance = min_abundance,
            min_prevalence = min_prevalence,
+           zero_threshold = zero_threshold,
            min_variance = min_variance,
-           random_effects = random_effects,
-           fixed_effects = fixed_effects,
-           correction =  correction,
-           reference = reference,
-           standardize = standardize,
            max_significance = max_significance,
-           cores = cores) -> out #,
-           # heatmap_first_n = heatmap_first_n,
-           # plot_heatmap = plot_heatmap,
-           # plot_scatter = plot_scatter) -> out
-  
-  if(add_ASV_taxonomy == TRUE){
-    
-    phyloseq %>%
-      tax_table() %>%
-      as.data.frame()%>%
-      rownames_to_column(var = "feature") -> tax_table
-    
-    left_join(out$results,
-              tax_table, by="feature") -> out$results_ASV_tax
-    
-    write_tsv(out$results_ASV_tax, file=paste0(output_dir, "results_tax_info.tsv"))
-    
-  }
+           normalization = normalization,
+           transform = transform,
+           correction = correction,
+           standardize = standardize,
+           unscaled_abundance = unscaled_abundance,
+           median_comparison_abundance = median_comparison_abundance,
+           median_comparison_prevalence = median_comparison_prevalence,
+           median_comparison_abundance_threshold = median_comparison_abundance_threshold,
+           median_comparison_prevalence_threshold = median_comparison_prevalence_threshold,
+           subtract_median = subtract_median,
+           warn_prevalence = warn_prevalence,
+           augment = augment,
+           evaluate_only = evaluate_only,
+           plot_summary_plot = plot_summary_plot,
+           summary_plot_first_n = summary_plot_first_n,
+           coef_plot_vars = coef_plot_vars,
+           heatmap_vars = heatmap_vars,
+           plot_associations = plot_associations,
+           max_pngs = max_pngs,
+           cores = cores,
+           save_models = save_models,
+           verbosity = verbosity) -> out
+  # 
+  # if(add_ASV_taxonomy == TRUE){
+  #   
+  #   phyloseq %>%
+  #     tax_table() %>%
+  #     as.data.frame()%>%
+  #     rownames_to_column(var = "feature") -> tax_table
+  #   
+  #   left_join(out$results,
+  #             tax_table, by="feature") -> out$results_ASV_tax
+  #   
+  #   write_tsv(out$results_ASV_tax, file=paste0(output_dir, "results_tax_info.tsv"))
+  #   
+  # }
   ##---------------------------------------------
   
   # gc()
