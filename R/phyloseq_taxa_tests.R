@@ -706,18 +706,18 @@ phyloseq_Maaslin2 <- function(phyloseq,
 #'
 #'
 
-data("GlobalPatterns")
-GlobalPatterns %>%
-subset_samples(SampleType %in% c("Feces", "Skin")) %>%
-phyloseq_get_strains_fast  -> ps_tmp
-
-ps_tmp %>% phyloseq_maaslin3(fixed_effects = "SampleType",random_effects = NULL , coef_plot_vars = FALSE, min_abundance = 2, min_prevalence = 0.5 ,  normalization = "CLR", transform = "NONE",warn_prevalence = FALSE,  output = "~/test_masslin2_ZINB/", plot_summary_plot = FALSE, plot_associations = FALSE, save_models = FALSE) -> test
-
-ps_up %>% phyloseq_maaslin3(formula = 'Sample + Time +  (1|Subject)',  fixed_effects = c("Time","Sample"), random_effects =  "Subject", min_abundance = 0, min_prevalence = 0 ,  normalization = "TSS", transform = "LOG",warn_prevalence = FALSE, save_models = FALSE, output = "~/test_masslin3_TSS_LOG/", plot_summary_plot = TRUE, plot_associations = TRUE, summary_plot_first_n = 50, max_pngs = 50) -> test
-
-
-ps_tmp %>% phyloseq_Maaslin2(taxrank = FALSE, rename_ASV_strain = FALSE, fixed_effects = "SampleType",random_effects = NULL , min_abundance = 2, min_prevalence = 0.5 ,  normalization = "NONE", transform = "NONE", analysis_method = "NEGBIN", output_dir = "~/test_masslin2_negbin/") -> test
-ps_tmp %>% phyloseq_Maaslin2(fixed_effects = "SampleType",random_effects = NULL , min_abundance = 2, min_prevalence = 0.5 ,  normalization = "NONE", transform = "NONE", analysis_method = "CPLM", output_dir = "~/test_masslin2_CPLM/") -> test_CPLM
+# data("GlobalPatterns")
+# GlobalPatterns %>%
+# subset_samples(SampleType %in% c("Feces", "Skin")) %>%
+# phyloseq_get_strains_fast  -> ps_tmp
+# 
+# ps_tmp %>% phyloseq_maaslin3(fixed_effects = "SampleType",random_effects = NULL , coef_plot_vars = FALSE, min_abundance = 2, min_prevalence = 0.5 ,  normalization = "CLR", transform = "NONE",warn_prevalence = FALSE,  output = "~/test_masslin2_ZINB/", plot_summary_plot = FALSE, plot_associations = FALSE, save_models = FALSE) -> test
+# 
+# ps_up %>% phyloseq_maaslin3(formula = 'Sample + Time +  (1|Subject)',  fixed_effects = c("Time","Sample"), random_effects =  "Subject", min_abundance = 0, min_prevalence = 0 ,  normalization = "TSS", transform = "LOG",warn_prevalence = FALSE, save_models = FALSE, output = "~/test_masslin3_TSS_LOG/", plot_summary_plot = TRUE, plot_associations = TRUE, summary_plot_first_n = 50, max_pngs = 50) -> test
+# 
+# 
+# ps_tmp %>% phyloseq_Maaslin2(taxrank = FALSE, rename_ASV_strain = FALSE, fixed_effects = "SampleType",random_effects = NULL , min_abundance = 2, min_prevalence = 0.5 ,  normalization = "NONE", transform = "NONE", analysis_method = "NEGBIN", output_dir = "~/test_masslin2_negbin/") -> test
+# ps_tmp %>% phyloseq_Maaslin2(fixed_effects = "SampleType",random_effects = NULL , min_abundance = 2, min_prevalence = 0.5 ,  normalization = "NONE", transform = "NONE", analysis_method = "CPLM", output_dir = "~/test_masslin2_CPLM/") -> test_CPLM
 
 
 phyloseq_maaslin3 <- function(phyloseq,
