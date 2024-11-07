@@ -156,7 +156,7 @@ phyloseq_plot_bdiv <- function(ps_rare,
     names(plot_list) =  names(dlist)
 
     for( i in dlist %>% names){
-      print(i)
+      # print(i)
       set.seed(seed)
 
       if(m == "TSNE")
@@ -266,7 +266,7 @@ phyloseq_plot_PCoA_3d <- function(ps_rare,
   names(plot_list) =  names(dlist)
 
   for( i in dlist %>% names){
-    print(i)
+    # print(i)
     set.seed(seed)
 
     if ( m == "PCoA")
@@ -1193,14 +1193,14 @@ phyloseq_distance_boxplot <- function(p, dist = dlist$wjaccard, d = "SampleType"
 
   # remove self-comparisons
   wu.m = wu.m %>%
-    filter(as.character(Var1) != as.character(Var2)) %>%
+    # filter(as.character(Var1) != as.character(Var2)) %>%
     mutate_if(is.factor, as.character)
 
   # get sample data (S4 error OK and expected)
   sd = sample_data(p) %>%
     data.frame() %>%
     rownames_to_column("tmp") %>%
-    select(tmp, all_of(d)) %>%
+    dplyr::select(tmp, all_of(d)) %>%
     mutate_if(is.factor,as.character)
 
   # combined distances with sample data
@@ -1364,7 +1364,7 @@ phyloseq_distance_boxplot <- function(p, dist = dlist$wjaccard, d = "SampleType"
 # }
 
 phyloseq_add_taxa_vector_fix <- function(phyloseq = ps_up, perm = 999,
-                                         dist = beta$aitch,
+                                         dist = beta$rAitchison,
                                          m = "PCoA",
                                          seed = 123,
                                          tax_rank_plot = "Genus",
@@ -2779,9 +2779,21 @@ in_vitro_mIMT_STABvsTreat <- function(physeq,
 
 phyloseq_generate_pcoa_per_variables <- function(tmp,
                                                  group,
-                                                 dist){
+                                                 dist,
+                                                 seed = 123,
+                                                 axis1 = 1,
+                                                 axis2 = 2,
+                                                 m = "PCoA",
+                                                 color_group = "Time",
+                                                 shape_group = NULL,
+                                                 alpha = NULL,
+                                                 col_pal = time_pal,
+                                                 fill_pal = time_pal){
 
 
+  # as.matrix(dist)[sample_names(tmp),sample_names(tmp)] %>%
+  #   as.dist() -> dist
+  
   out <- vector("list", length(tmp %>%
                                  get_variable(group) %>%
                                  levels()))
@@ -2800,7 +2812,21 @@ phyloseq_generate_pcoa_per_variables <- function(tmp,
       phyloseq_plot_bdiv(dlist = dist,
                          seed = 123,
                          axis1 = 1,
-                         axis2 = 2) -> out[[tp]]
+                         axis2 = 2,
+                         m =  m,
+                         ) -> out[[tp]]
+  
+    
+    out[[tp]] %>%
+      phyloseq_plot_ordinations_facet(color_group = color_group,
+                                      shape_group = shape_group,
+                                      alpha = alpha)  + scale_color_manual(name = "", values = col_pal,
+                                                                           na.value = "black") +
+      scale_fill_manual(name = "", values = fill_pal,
+                        na.value = "black") + theme_linedraw() + theme(legend.position = "right") + facet_null()  + facet_wrap(distance ~ ., scales = "free", nrow = 3) -> out[[tp]]
+    
+    
+    
   }
 
   return(out)
