@@ -553,7 +553,7 @@ phyloseq_func <- function(physeq,method = c("cal_spe_func", "cal_tax4fun2"), pro
 #'
 
 
-phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"), method = "lefse", group = "Time", fix_formula = "Time", alpha = 0.001, lefse_subgroup = NULL,
+phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"), method = "lefse", group = "Time", fix_formula = "Time", alpha = 0.001, lefse_subgroup = NULL, linda_formula = linda_formula = "~ Sample_Type + Time +  (1|Subject)",
                           taxa_level = "all",  filter_thres =  0.00001, p_adjust_method = "fdr", lda_threshold = 2,
                           plot_pal = RColorBrewer::brewer.pal(8, "Dark2"), group_order = NULL, add_sig = FALSE, keep_prefix = TRUE,
                           plot_type2 = "barerrorbar", add_sig_plot2 = FALSE, errorbar_color_black = TRUE,
@@ -651,7 +651,7 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
   if ("linda"  %in% method)
   {
     
-    t1 <- trans_diff$new(dataset = data, formula = "~ Sample_Type + Time +  (1|Subject)", method = "linda", remove_unknown = TRUE,
+    t1 <- trans_diff$new(dataset = data, formula = linda_formula , method = "linda", remove_unknown = TRUE,
                          alpha = alpha,
                          taxa_level = taxa_level, filter_thres = filter_thres,
                          p_adjust_method = p_adjust_method)
@@ -681,7 +681,7 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
   if ("glmm_beta"  %in% method) #works with taxa_level = all
   {
     t1 <- trans_diff$new(dataset = data, taxa_level = "Species", method = "glmm_beta", p_adjust_method = p_adjust_method,
-                         formula = "Sample_Type + Time + (1|Subject)", filter_thres = filter_thres) # Time + (1|Subject)" fix_formula
+                         formula = linda_formula , filter_thres = filter_thres) # Time + (1|Subject)" fix_formula
     # View(t1$res_diff)
     
     out$res_diff <- t1$res_diff %<>% 
