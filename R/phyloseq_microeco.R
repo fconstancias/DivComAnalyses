@@ -553,7 +553,7 @@ phyloseq_func <- function(physeq,method = c("cal_spe_func", "cal_tax4fun2"), pro
 #'
 
 
-phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"), method = "lefse", group = "Time", fix_formula = "Time", alpha = 0.001, lefse_subgroup = NULL, linda_formula = linda_formula = "~ Sample_Type + Time +  (1|Subject)",
+phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"), method = "lefse", group = "Time", fix_formula = "Time", alpha = 0.001, lefse_subgroup = NULL, linda_formula = "~ Sample_Type + Time +  (1|Subject)",
                           taxa_level = "all",  filter_thres =  0.00001, p_adjust_method = "fdr", lda_threshold = 2,
                           plot_pal = RColorBrewer::brewer.pal(8, "Dark2"), group_order = NULL, add_sig = FALSE, keep_prefix = TRUE,
                           plot_type2 = "barerrorbar", add_sig_plot2 = FALSE, errorbar_color_black = TRUE,
