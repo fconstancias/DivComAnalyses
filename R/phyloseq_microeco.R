@@ -585,11 +585,11 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
                          taxa_level = taxa_level, filter_thres = filter_thres,
                          p_adjust_method = p_adjust_method)
     
-    
+    out$res_diff_raw <- t1$res_diff_raw
     out$abund <- t1$res_abund
     out$res_diff <- t1$res_diff
     
-    t1$res_diff %<>% subset(P.adj <= 0.05)
+    t1$res_diff %<>% subset(P.adj <= 0.05 & passed_ss == "TRUE")
     
     
     out$diff_bar  <- t1$plot_diff_bar(keep_full_name = FALSE, 
@@ -678,13 +678,13 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
     
     out$diff_bar  <- out$diff_bar + theme(legend.position = "none")
     
-    
+    out$res_diff <- t1$res_diff
     # y_start and y_increase control the position of labels; for the details, please see the document of plot_alpha function in trans_alpha class
-    out$diff_abund  <- t1$plot_diff_abund(plot_type = "ggboxplot", select_taxa = t1$plot_diff_bar_taxa , y_start = 0.05, y_increase = 0.1, color_values = plot_pal)
+    # out$diff_abund  <- t1$plot_diff_abund(plot_type = "ggboxplot", select_taxa = t1$plot_diff_bar_taxa , y_start = 0.05, y_increase = 0.1, color_values = plot_pal)
     
-    out$diff_abund  <- out$diff_abund + scale_y_sqrt() + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), panel.border = element_blank()) + ylab("Proportion (sqrt)") 
-    out$combined_plot <- out$diff_bar%>% aplot::insert_right(out$diff_abund, width = 1)
-    out$combined_plot 
+    # out$diff_abund  <- out$diff_abund + scale_y_sqrt() + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), panel.border = element_blank()) + ylab("Proportion (sqrt)") 
+    # out$combined_plot <- out$diff_bar%>% aplot::insert_right(out$diff_abund, width = 1)
+    # out$combined_plot 
     
   }
   if(!require("glmmTMB")) install.packages("glmmTMB")
