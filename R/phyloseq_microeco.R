@@ -575,18 +575,20 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
   
   ####---------------------- feature - trans_diff {microeco}
   
-  t1 <- trans_diff$new(dataset = data, method = method, group = group, remove_unknown = TRUE,
-                       alpha = alpha, lefse_subgroup = lefse_subgroup,
-                       taxa_level = taxa_level, filter_thres = filter_thres,
-                       p_adjust_method = p_adjust_method)
-  
-  
-  out$abund <- t1$res_abund
-  out$res_diff <- t1$res_diff
+
   
   
   if ("ancombc2"  %in% method)
   {
+    t1 <- trans_diff$new(dataset = data, method = method, group = group, remove_unknown = TRUE,
+                         alpha = alpha, lefse_subgroup = lefse_subgroup,
+                         taxa_level = taxa_level, filter_thres = filter_thres,
+                         p_adjust_method = p_adjust_method)
+    
+    
+    out$abund <- t1$res_abund
+    out$res_diff <- t1$res_diff
+    
     t1$res_diff %<>% subset(P.adj <= 0.05)
     
     
@@ -614,6 +616,15 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
   
   if ("lefse"  %in% method)
   {
+    t1 <- trans_diff$new(dataset = data, method = method, group = group, remove_unknown = TRUE,
+                         alpha = alpha, lefse_subgroup = lefse_subgroup,
+                         taxa_level = taxa_level, filter_thres = filter_thres,
+                         p_adjust_method = p_adjust_method)
+    
+    
+    out$abund <- t1$res_abund
+    out$res_diff <- t1$res_diff
+    
     out$diff_bar <- t1$plot_diff_bar(
       threshold = lda_threshold,
       color_values = plot_pal,
