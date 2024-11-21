@@ -737,12 +737,26 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
 #' @examples
 #'
 
-
-phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"), 
-                                y_response = "Time", x_predictors = "All",
+ps_up %>% subset_samples(Sample == "Saliva") %>% 
+subset_taxa(Kingdom != "UNCLASSIFIED") %>% 
+transform_sample_counts(function(x) x/sum(x) * 100) %>% 
+  phyloseq_classifier(physeq = .,
+                      y_response = "Time",
+                      x_predictors = "Species",
+                      ref_train_max_mtry = 2,
+                      ref_train_ntree = 10,
+                      feature_imp_nrep = 10) -> class_out
+  
+  
+phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Saliva"), 
+                                y_response = "Time", 
+                                x_predictors = "All",
                                 prop_train = 3/4,
                                 method = "rf", plot_group = "all",
-                                color_values = time_pal){
+                                color_values = time_pal,
+                                ref_train_max_mtry = 6,
+                                ref_train_ntree = 1000,
+                                feature_imp_nrep = 1000){
   
   ####---------------------- Load R package
   
@@ -772,7 +786,14 @@ phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Pla
   t1$set_trainControl()
   
   # use default parameter method = "rf"
-  t1$cal_train(method = method)
+  # require(doParallel)
+  # library(caret)
+  # library(randomForest)
+  n <- parallel::detectCores()/2 # experiment!
+  cl <- parallel::makeCluster(n)
+  doParallel::registerDoParallel(cl)
+  
+  t1$cal_train(method = method, max.mtry = ref_train_max_mtry, ntree = ref_train_ntree)
   
   t1$cal_predict()
   
@@ -786,14 +807,44 @@ phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Pla
   out$confusionMatrix <- t1$plot_confusionMatrix()
   # t1$plot_confusion()
   
+  t1$cal_ROC()
   #Using cal_ROC and plot_ROC can get the ROC (Receiver Operator Characteristic) curve.
-  out$Specificitysensitivity() <- t1$res_ROC$res_roc
-  out$RecallPrecision() <- t1$res_ROC$res_pr
+  # out$Specificitysensitivity() <- t1$res_ROC$res_roc
+  # out$RecallPrecision() <- t1$res_ROC$res_pr
   
   out$plotROC  <- t1$plot_ROC(plot_group = plot_group, color_values = color_values)
   # default all groups
   #t1$plot_ROC(size = 0.5, alpha = 0.7)
   
+  
+  # default method in caret package without significance
+  t1$cal_feature_imp()
+  
+  # out$res_feature_imp <-  t1$res_feature_imp()
+  
+  out$plot_feature_imp1 <- t1$plot_feature_imp(colour = "red", fill = "red", width = 0.6)
+  # generate significance with rfPermute package
+  t1$cal_feature_imp(rf_feature_sig = TRUE, num.rep = feature_imp_nrep)
+  
+  out$res_feature_imp <- t1$res_feature_imp
+  # add_sig = TRUE: add significance label
+   
+  out$plot_feature_imp2 <- t1$plot_feature_imp(coord_flip = TRUE, colour = "red", fill = "red", width = 0.6, add_sig = TRUE)
+  
+  
+  out$plot_feature_imp3 <- t1$plot_feature_imp(show_sig_group = TRUE, rf_sig_show = "MeanDecreaseGini", coord_flip = TRUE, width = 0.6, add_sig = TRUE, group_aggre = TRUE)
+  
+  
+  # 
+  # # show_sig_group = TRUE: show different colors in groups with different significance labels
+  # t1$plot_feature_imp(show_sig_group = TRUE, coord_flip = FALSE, width = 0.6, add_sig = TRUE)
+  # t1$plot_feature_imp(show_sig_group = TRUE, coord_flip = TRUE, width = 0.6, add_sig = TRUE)
+  # # rf_sig_show = "MeanDecreaseGini": switch to MeanDecreaseGini
+  # t1$plot_feature_imp(show_sig_group = TRUE, rf_sig_show = "MeanDecreaseGini", coord_flip = TRUE, width = 0.6, add_sig = TRUE)
+  # # group_aggre = FALSE: donot aggregate features for each group
+  # t1$plot_feature_imp(show_sig_group = TRUE, rf_sig_show = "MeanDecreaseGini", coord_flip = TRUE, width = 0.6, add_sig = TRUE, group_aggre = TRUE)
+  # 
+  # 
   # require Boruta package
   # t1$cal_feature_sel(boruta.maxRuns = boruta_maxRuns, boruta.pValue = 0.01)
   # 

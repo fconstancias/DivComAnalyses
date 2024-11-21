@@ -1427,7 +1427,8 @@ phyloseq_boxplot_abundance <- function (ps,
                                         show.points = TRUE,
                                         size = 2,
                                         alpha = 1,
-                                        log10 = TRUE,
+                                        log10 = FALSE,
+                                        log2 = TRUE,
                                         colors = NULL,
                                         str_trun = 35)
 
@@ -1498,6 +1499,13 @@ phyloseq_boxplot_abundance <- function (ps,
                                                           axis.title.x=element_blank(),
                                                                 axis.text.x=element_blank(),
                                                                 axis.ticks.x=element_blank())
+  }
+  
+  if (log2) {
+    p <- p + scale_y_continuous(trans='log2') + ylab(paste0(ylab)) + theme(legend.position = "none",
+                                                          axis.title.x=element_blank(),
+                                                          axis.text.x=element_blank(),
+                                                          axis.ticks.x=element_blank())
   }
   if (is.null(colors)) {
     p <- p + xlab(x) + theme(legend.position = "none")
