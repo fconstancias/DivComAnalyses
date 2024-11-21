@@ -737,15 +737,15 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
 #' @examples
 #'
 
-ps_up %>% subset_samples(Sample == "Saliva") %>% 
-subset_taxa(Kingdom != "UNCLASSIFIED") %>% 
-transform_sample_counts(function(x) x/sum(x) * 100) %>% 
-  phyloseq_classifier(physeq = .,
-                      y_response = "Time",
-                      x_predictors = "Species",
-                      ref_train_max_mtry = 2,
-                      ref_train_ntree = 10,
-                      feature_imp_nrep = 10) -> class_out
+# ps_up %>% subset_samples(Sample == "Saliva") %>% 
+# subset_taxa(Kingdom != "UNCLASSIFIED") %>% 
+# transform_sample_counts(function(x) x/sum(x) * 100) %>% 
+#   phyloseq_classifier(physeq = .,
+#                       y_response = "Time",
+#                       x_predictors = "Species",
+#                       ref_train_max_mtry = 2,
+#                       ref_train_ntree = 10,
+#                       feature_imp_nrep = 10) -> class_out
   
   
 phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Saliva"), 
