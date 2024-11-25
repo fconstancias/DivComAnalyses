@@ -11,7 +11,7 @@ taxa_list_boxplot <- function(ps = ps_tmp,
                               unclassified_name = "UNCLASSIFIED"){
   
   ps %>% 
-    subset_taxa(Kingdom != unclassified_name) %>% 
+    filter_tax_table(Kingdom != unclassified_name) %>% 
     physeq_glom_rename(speedyseq = TRUE, taxrank = taxa_rank, rename_ASV = taxa_rank) %>% 
     transform_sample_counts(function(x) x/sum(x) * 1)    %>% 
     prune_taxa(taxa = tax_vector,
@@ -23,7 +23,7 @@ taxa_list_boxplot <- function(ps = ps_tmp,
     ps = ps_sel,
     log10 = log10, 
     log2 = log2,
-    x= comp_group, color = comp_group, level = taxa_rank, line = NULL, violin = FALSE, show.points = TRUE, colors = palette) -> boxplots
+    x= x, color = color, level = taxa_rank, line = NULL, violin = FALSE, show.points = TRUE, colors = palette) -> boxplots
   
   names(boxplots) <- taxa_names(ps_sel)
   
@@ -36,21 +36,24 @@ plot_taxa_selection <- function(
     ps_tmp = tmp,
     unclassified_name = "UNCLASSIFIED",
     diff_ab_out = TP1$maaslin3$merged_res,
-    diff_ab_filter = 'N_not_zero > 50 &  model == "Abundance" &  qval_joint <= 0.05',
+    diff_ab_filter = 'N_not_zero > 50 &  model == "Abundance" &  qval_joint <= 0.05', # 'MeanDecreaseGini > 0.001 & P.adj <= 0.001'
+    full_path_tax_res = FALSE,
+    full_path_row_to_col = "tmp", #taxa_sel_col, # or tmp if feature is not rowname -> duplicate feature otherwise
+    full_path_sel = "s__",
     taxa_level = "Species", 
-    taxa_sel_col = "feature", 
+    taxa_sel_col = "feature", # "Species"
+    palette = sample_pal,
+    # taxa_sel_col2 = taxa_sel_col, # ou taxa_level si full_path_tax_res = TRUE
     taxa_sel = c(NULL), #,c("Lautropia_dentalis", "Prevotella_oulorum", "Prevotella_salivae")),
     ntax = 20,
     plot_x = "Subject",
     facet_by = c("Sample_Type", "Time"),
-    group_by = c("Sample_Type", "Time"),
+    group_by = "Sample_Type",
     facet_heat = "~ Sample_Type + Time",
     facet_formula = "Sample_Type ~ Time",
     barplot_level = "Species",
-    boxplot_main_group = "Class"){
-  
-  library(dplyr)
-  library(rlang)
+    boxplot_main_group = "Class",
+    comp_group = "Sample"){
   
   # https://stackoverflow.com/questions/69056666/alternatives-to-eval-parse-with-dplyr
   # subset <- "carb == 4"
@@ -59,7 +62,7 @@ plot_taxa_selection <- function(
   # https://stackoverflow.com/questions/48797551/using-rlang-to-select-the-entire-dataframe-and-not-just-one-column
   # df <- dplyr::select(.data = data, x = !!rlang::enquo(x), dplyr::everything())
   
-  require(ggpubr); require(tidyverse);require(speedyseq);require(ampvis2);require(microViz);require(ggnested)
+  require(rlang);require(ggpubr); require(tidyverse);require(speedyseq);require(ampvis2);require(microViz);require(ggnested)
   source("https://raw.githubusercontent.com/fconstancias/DivComAnalyses/master/R/phyloseq_heatmap.R")
   
   suppressMessages({suppressWarnings({
@@ -67,9 +70,27 @@ plot_taxa_selection <- function(
     # Initialize output container
     out <- list()
     
-    
+    if(isTRUE(full_path_tax_res))
+    {
+      
+      diff_ab_out %>% 
+        rownames_to_column(rlang::eval_tidy(full_path_row_to_col)) %>% 
+        # dplyr::filter(., grepl("s__",feature)) %>% 
+        dplyr::filter(., grepl(rlang::eval_tidy(full_path_sel), get(taxa_sel_col))) %>%
+        
+        # dplyr::filter(., grepl(full_path_sel,get(taxa_sel_col))) %>% 
+        
+        # dplyr::filter(., grepl(full_path_sel,get(taxa_sel_col))) %>% 
+        tidyr::separate(rlang::parse_expr(taxa_sel_col),
+                        c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"),sep = "\\|") %>% 
+        mutate(across(everything(), gsub, pattern = "[a-s]__", replacement = "")) -> diff_ab_out
+    }
+    if (isTRUE(full_path_tax_res)){ # to check if this doesn interfer with later
+      taxa_sel_col <- taxa_level
+    }
     if( !is.vector(taxa_sel))
     {
+      # print("OK")
       diff_ab_out %>% 
         dplyr::filter(rlang::eval_tidy(rlang::parse_expr(diff_ab_filter))) %>% 
         pull(rlang::parse_expr(taxa_sel_col)) -> taxa_sel
@@ -81,7 +102,7 @@ plot_taxa_selection <- function(
     # Remove unclassified taxa (if specified) 
     if (!is.null(unclassified_name)) {
       ps_tmp <- ps_tmp %>% 
-        subset_taxa(Kingdom != unclassified_name)
+        filter_tax_table(Kingdom != unclassified_name)
     }
     
     # Transform to relative abundance (percentage), filter to most abundant taxa
@@ -174,19 +195,29 @@ plot_taxa_selection <- function(
       pull(subgroup_colour, unique)
     
     out$bar_plot <- bar_plot +
-      facet_wrap(as.formula(facet_formula), scales = "free_x", drop = TRUE) +
+      facet_grid(as.formula(facet_formula), scales = "free", drop = TRUE) +
       # scale_color_manual(values = tax_pal) +
       scale_fill_manual(values = tax_pal) +
       theme(legend.position = "none")
     
+    # out$bar_plot2 <- out$bar_plot +
+    #   facet_null() + facet_grid(rows = vars(Phylum), cols = vars(Sample_Type), scales = "free")  +    # scale_color_manual(values = tax_pal) +
+    #   scale_fill_manual(values = tax_pal) +
+    #   theme(legend.position = "none")
     
+    
+    # facet_grid(rows = vars(Sample_Type), 
+    #            cols = vars(Subject ),
+    #            labeller = as_labeller(~ paste("", .))) + theme(legend.position = "none") -> out$ps_sub
+    # 
     
     ps_tmp %>%
       transform_sample_counts(function(x) x / sum(x) * 100) %>% # more transform option (CLR, ...)
       tax_glom(taxrank = taxa_level) %>%
       filter_tax_table(get(taxa_level) %in% taxa_sel) %>%
       tax_mutate(Strain = NULL) %>% 
-      taxa_list_boxplot(ps = ., tax_vector = taxa_sel, taxa_rank = taxa_level) -> out$boxplot
+      taxa_list_boxplot(ps = ., tax_vector = taxa_sel, x =  plot_x,
+                        color = comp_group, palette = palette, taxa_rank = taxa_level) -> out$boxplot
     # Return a list of plots and relevant components
     # out <- list(
     #   "heat_all" = heat_all,
@@ -203,10 +234,6 @@ plot_taxa_selection <- function(
   })
   
 }
-
-
-
-
 
 
 #' @author Florentin Constancias
