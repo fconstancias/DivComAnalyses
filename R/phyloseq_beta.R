@@ -28,20 +28,20 @@ phyloseq_compute_bdiv <- function(phylo_tmp,
   require(ape)
   require(phyloseq)
   require(GUniFrac)
-
+  
   set.seed(seed)
-
+  
   if (phylo == TRUE)
   {
-
+    
     #https://github.com/joey711/phyloseq/issues/936
     phy_tree(phylo_tmp) <- ape::multi2di(phy_tree(phylo_tmp))
-
+    
     dist_methods <- c("bray","bjaccard", "wjaccard", "uunifrac", "wunifrac"); dist_unif <- c("d_0", "d_0.5")
-
+    
     dlist <- vector("list", length(dist_methods) + length(dist_unif))
     names(dlist) = c(dist_methods, dist_unif)
-
+    
     # compute phyloseq::distance distances
     for( i in dist_methods ){
       if ( i == "bjaccard"){ # binary disances computed using vegan requires to specify binary = TRUE
@@ -62,17 +62,17 @@ phyloseq_compute_bdiv <- function(phylo_tmp,
                                    %>% t(),
                                    phy_tree(phylo_tmp),
                                    alpha=c(0, 0.5))$unifracs
-
+    
     for( i in dist_unif ){
-
+      
       dlist[[i]] <- unifracs[, , i] %>% as.dist()
     }
   }else{
     dist_methods <- c("bray", "sorensen","bjaccard", "wjaccard")
-
+    
     dlist <- vector("list", length(dist_methods))
     names(dlist) = c(dist_methods)
-
+    
     # compute phyloseq::distance distances
     for( i in dist_methods ){
       if ( i== "bjaccard"){ # binary disances computed using vegan requires to specify binary = TRUE
@@ -92,11 +92,11 @@ phyloseq_compute_bdiv <- function(phylo_tmp,
           phyloseq::distance(method = i) ->  dlist[[i]]
       }
     }
-
+    
   }
   return(dlist)
   detach("package:ape", unload=TRUE); detach("package:GUniFrac", unload=TRUE)
-
+  
 }
 
 #' @title ...
@@ -133,64 +133,64 @@ phyloseq_plot_bdiv <- function(ps_rare,
   if (m == "CoDa")
   {
     ps_rare <- microbiome::transform(ps_rare, "clr")
-
+    
     ord_clr <- phyloseq::ordinate(ps_rare, "RDA")
-
+    
     #Scale axes and plot ordination
     phyloseq::plot_ordination(ps_rare, ord_clr, type="samples") -> p
     # coord_fixed(ord_clr$CA$eig[2] / sum(ord_clr$CA$eig) / ord_clr$CA$eig[1] / sum(ord_clr$CA$eig))
     #https://github.com/ggloor/CoDa_microbiome_tutorial/wiki/Part-1:-Exploratory-Compositional-PCA-biplot
-
-
+    
+    
     aidist <- ps_rare %>%
       phyloseq::distance(method = "euclidean")
-
+    
     out <- list("PCA" = p,
                 "physeq_clr" = ps_rare,
                 "aidist" = aidist)
-
+    
     return(out)
   }else{
-
+    
     plot_list <- vector("list", length(dlist))
     names(plot_list) =  names(dlist)
-
+    
     for( i in dlist %>% names){
       # print(i)
       set.seed(seed)
-
+      
       if(m == "TSNE")
       {
         as.matrix(dlist[[i]])[sample_names(ps_rare),sample_names(ps_rare)] %>%
           as.dist() -> dlist[[i]]
-
+        
         # https://microbiome.github.io/microbiome/Ordination.html
         # Run TSNE
         tsne_out <- Rtsne::Rtsne(dlist[[i]], dims = 2, perplexity = TSNE_per, verbose = T)
         proj <- tsne_out$Y %>% data.frame()
-
+        
         rownames(proj) <- rownames(t(otu_table(ps_rare)))
-
+        
         proj2 <- cbind(proj, sample_data(ps_rare))
-
+        
         # rownames(proj) == sample_data(ps_rare)$SampleID
-
+        
         # microbiome::plot_landscape(proj, legend = T, size = 1)
         p <- phyloseq::plot_ordination(ps_rare,
                                        proj)
-
+        
         plot_list[[i]] = p
-
+        
       }else{
-
+        
         as.matrix(dlist[[i]])[sample_names(ps_rare),sample_names(ps_rare)] %>%
           as.dist() -> dlist[[i]]
-
+        
         # Calculate ordination
         iMDS  <- ordinate(ps_rare,
                           m,
                           distance = dlist[[i]])
-
+        
         # Create plot, store as temp variable, p
         p <- phyloseq::plot_ordination(ps_rare, iMDS,
                                        axes = axis1:axis2)
@@ -199,17 +199,17 @@ phyloseq_plot_bdiv <- function(ps_rare,
         {
           stress_list <- vector("list", length(dlist))
           names(stress_list) =  names(dlist)
-
+          
           stress = iMDS$grstress %>% round(2)
-
+          
           p <- p + ggtitle(paste0(m," using distance method ",   i, "\n",
                                   " NMDS 2d stress = ", stress)) +
             geom_point(size = 4) + theme_bw() #+
           # ggrepel::geom_text_repel(cex=2.5,aes(label=sample))
           plot_list[[i]] = p
-
+          
           stress_list[[i]] = stress
-
+          
           plot_list <- c(plot_list, stress_list)
         }
         if(m == "PCoA")
@@ -225,11 +225,11 @@ phyloseq_plot_bdiv <- function(ps_rare,
           # tmp_list_3[[i]]  <- vegan::permutest(vegan::betadisper(dlist[[i]], get_variable(tmp, color)))$tab$`Pr(>F)`[1]
           # TW https://github.com/alekseyenko/WdStar/blob/master/16S_alone_taxa_of_interest.html
           # tmp_list_4[[i]]  <- Tw2.test(dlist[[i]], get_variable(tmp, color)) %>% as.data.frame() #%>% mutate(Day = day)
-
+          
         }
       }
     }
-
+    
     return(plot_list)
   }
 }
@@ -264,21 +264,21 @@ phyloseq_plot_PCoA_3d <- function(ps_rare,
 {
   plot_list <- vector("list", length(dlist))
   names(plot_list) =  names(dlist)
-
+  
   for( i in dlist %>% names){
     # print(i)
     set.seed(seed)
-
+    
     if ( m == "PCoA")
     {
       # Calculate ordination
       ord <- cmdscale(dlist[[i]], k = 3, eig =T)
       ordata <- as.data.frame(ord$points)
-
+      
       rownames(ordata) == sample_data(ps_rare)$SampleID
       ordata$Sample <- rownames(ordata)
       ordata <- cbind(ordata, sample_data(ps_rare))
-
+      
       pty_pcoa <- plotly::plot_ly(ordata, x= ~V1, y=~V2, z = ~V3,
                                   color = as.formula(paste0("~",paste0(color))), # #Description
                                   symbol = as.formula(paste0("~",paste0(shape))),
@@ -297,11 +297,11 @@ phyloseq_plot_PCoA_3d <- function(ps_rare,
       # Calculate ordination
       ord <- vegan::metaMDS(dlist[[i]], k = 3)
       ordata <- as.data.frame(ord$points)
-
+      
       rownames(ordata) == sample_data(ps_rare)$SampleID
       ordata$Sample <- rownames(ordata)
       ordata <- cbind(ordata, sample_data(ps_rare))
-
+      
       pty_pcoa <- plotly::plot_ly(ordata, x= ~MDS1, y=~MDS2, z = ~MDS3,
                                   color = as.formula(paste0("~",paste0(Group))), # #Description
                                   colors = ggpubr::get_palette(palette = "npg",
@@ -341,28 +341,28 @@ phyloseq_plot_PCoA_3d <- function(ps_rare,
 
 calc_pairwise_permanovas_strata <- function(dm, physeq, compare_header, n_perm,  strat) {
   # require(mctoolsr)
-
+  
   physeq %>%
     sample_data() %>%
     data.frame() -> metadata_map
-
+  
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
     as.dist() -> dm
-
+  
   comp_var = as.factor(metadata_map[, compare_header])
   comp_pairs = utils::combn(base::levels(comp_var), 2)
   pval = c()
   R2 = c()
-
+  
   for (i in 1:ncol(comp_pairs)) {
     pair = comp_pairs[, i]
     dm_w_map = list(dm_loaded = dm, map_loaded = metadata_map)
     dm_w_map$map_loaded$in_pair = comp_var %in% pair
     dm_w_map_filt = filter_dm(dm_w_map, filter_cat = "in_pair",
                               keep_vals = TRUE)
-
+    
     if (strat %in% colnames(metadata_map)){
-
+      
       if (!missing(n_perm)) {
         m = vegan::adonis(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
                                                                              compare_header], permutations = n_perm,
@@ -395,12 +395,12 @@ calc_pairwise_permanovas_strata <- function(dm, physeq, compare_header, n_perm, 
   results$pvalBon = pval * length(pval)
   results$pvalFDR = round(pval * (length(pval)/rank(pval, ties.method = "average")),
                           3)
-
+  
   # detach("package:mctoolsr", unload=TRUE)
   return(results)
-
+  
   detach("package:vegan", unload=TRUE)
-
+  
 }
 
 filter_dm <- function (input_dm, filter_cat, filter_vals, keep_vals)
@@ -467,14 +467,14 @@ test_filt_map = function(map, filter_cat, filter_vals, keep_vals){
 
 physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat = FALSE, terms_margins = "terms") {
   require(vegan)
-
+  
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
     as.dist() -> dm
-
+  
   physeq %>%
     sample_data() %>%
     data.frame() -> metadata_map
-
+  
   comp_var = as.factor(metadata_map[, compare_header])
   comp_pairs = utils::combn(levels(comp_var), 2)
   pval = c()
@@ -485,9 +485,9 @@ physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat
     dm_w_map$map_loaded$in_pair = comp_var %in% pair
     dm_w_map_filt = filter_dm(dm_w_map, filter_cat = "in_pair",
                               keep_vals = TRUE)
-
+    
     if (strat %in% colnames(metadata_map)){
-
+      
       if (!missing(n_perm)) {
         m = vegan::adonis2(dm_w_map_filt$dm_loaded ~ dm_w_map_filt$map_loaded[,
                                                                               compare_header], permutations = n_perm,
@@ -521,61 +521,61 @@ physeq_pairwise_permanovas <- function(dm, physeq, compare_header, n_perm, strat
   results$pvalBon = pval * length(pval)
   results$pvalFDR = round(pval * (length(pval)/rank(pval, ties.method = "average")),
                           3)
-
+  
   #detach("package:mctoolsr", unload=TRUE)
-
+  
   return(results)
-
-
-
+  
+  
+  
   detach("package:vegan", unload=TRUE)
-
+  
 }
 
 
 physeq_pairwise_permanovas_adonis2 <- function(dm, physeq, compare_header, n_perm = 999, strata = "none", terms_margins = "terms") {
-
+  
   require(vegan)
-
+  
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
     as.dist() -> dist
-
+  
   physeq %>%
     sample_data() %>%
     data.frame() -> df
-
+  
   comp_var = as.factor(df[, compare_header])
   comp_pairs = combn(levels(comp_var), 2)
-
+  
   pval= NULL; R2 = NULL
-
+  
   for (i in 1:ncol(comp_pairs)) {
-
+    
     pair = comp_pairs[, i]
     dm_w_map = list(dm_loaded = dm, map_loaded = df)
     dm_w_map$map_loaded$in_pair = comp_var %in% pair
     dm_w_map_filt = filter_dm(dm_w_map, filter_cat = "in_pair",
                               keep_vals = TRUE)
-
+    
     dm_w_map_filt$dm_loaded -> dist_tmp
     dm_w_map_filt$map_loaded -> df_tmp
-
+    
     if (strata %in% colnames(df)){
-
+      
       df_tmp %>%
         mutate("strata" = get(strata)) -> df_tmp
-
+      
       perm <- how(nperm = n_perm)
       setBlocks(perm) <- with(df_tmp, strata)
-
+      
       adonis2(formula = as.formula(paste("dist_tmp", paste(compare_header), sep=" ~ ")),
               permutations = perm,
               by = terms_margins,
               data = df_tmp) %>%
         as.data.frame() -> m
-
+      
     }else{
-
+      
       adonis2(formula = as.formula(paste("dist_tmp", paste(compare_header), sep=" ~ ")),
               permutations = n_perm,
               by = terms_margins,
@@ -589,14 +589,14 @@ physeq_pairwise_permanovas_adonis2 <- function(dm, physeq, compare_header, n_per
   results$pvalBon = pval * length(pval)
   results$pvalFDR = round(pval * (length(pval)/rank(pval, ties.method = "average")),
                           3)
-
+  
   #detach("package:mctoolsr", unload=TRUE)
-
+  
   return(results)
-
-
+  
+  
   detach("package:vegan", unload=TRUE)
-
+  
 }
 
 
@@ -663,25 +663,25 @@ physeq_betadisper <- function(dm,
                               variable) {
   require(vegan)
   require(phyloseq)
-
+  
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
     as.dist() -> dm
-
-
+  
+  
   vegan::permutest(vegan::betadisper(dm,
                                      get_variable(physeq, variable)))$tab$`Pr(>F)`[1] -> pval
-
+  
   boxplot(vegan::betadisper(dm,
                             get_variable(physeq, variable)),las=2,
           main=paste0("Multivariate Dispersion Test "," pvalue = ",
                       vegan::permutest(betadisper(bc, get_variable(physeq, variable)))$tab$`Pr(>F)`[1])) -> plot
-
+  
   return(out <- list("pval" = pval,
                      "plot" = plot))
-
-
+  
+  
   detach("package:vegan", unload=TRUE)
-
+  
 }
 
 #' @title ...
@@ -709,12 +709,12 @@ phyloseq_TW <- function(dm,
                         variable = variable,
                         nrep = 999,
                         strata = NULL){
-
+  
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] -> dm
-
+  
   # source("https://raw.githubusercontent.com/alekseyenko/WdStar/master/Wd.R")
   if(!is.null(strata)){strata = get_variable(physeq, strata)}
-
+  
   Tw2.posthoc.tests(dm = dm,
                     f = get_variable(physeq, variable),
                     nrep = nrep,
@@ -722,7 +722,7 @@ phyloseq_TW <- function(dm,
     # as.data.frame.table() %>%
     as.data.frame.array() %>%
     mutate(pvalFDR = p.adjust(p.value, method = "fdr")) -> out
-
+  
   return(out)
 }
 
@@ -748,16 +748,16 @@ dist.cohen.d = function(dm, f){
   SS2 = dist.ss2(as.matrix(dm^2),f)
   ns = summary(f)
   N = sum(ns)
-
+  
   SST = sum(SS2)/N
   SSW = sum(diag(SS2)/ns)
-
+  
   mean.diff = (sqrt((ns[1]+ns[2])/(ns[1]*ns[2])))*sqrt(SST-SSW)
-
+  
   sigmas = diag(SS2)/ns/(ns-1)
   s1 = sigmas[1]
   s2 = sigmas[2]
-
+  
   mean.diff/sqrt(((ns[1]-1)*s1 + (ns[2]-1)*s2)/(sum(ns)-2))
 }
 
@@ -766,15 +766,15 @@ Tw2 = function(dm, f){
   SS2 = dist.ss2(as.matrix(dm^2),f)
   ns = summary(f)
   N = sum(ns)
-
+  
   SST = sum(SS2)/N
   SSW1 = SS2[1,1]/ns[1]
   SSW2 = SS2[2,2]/ns[2]
   SSW = SSW1 + SSW2
-
+  
   s1 = SSW1/(ns[1]-1)
   s2 = SSW2/(ns[2]-1)
-
+  
   t.stat = (ns[1]+ns[2])/(ns[1]*ns[2])*(SST-SSW)/(s1/ns[1] + s2/ns[2])
   t.stat
 }
@@ -785,9 +785,9 @@ WdS = function(dm, f){
   SS2 = dist.ss2(as.matrix(dm)^2, f)
   s2 = diag(SS2)/ns/(ns-1)
   W = sum(ns/s2)
-
+  
   idxs = apply(combn(levels(f), 2),2, function(idx) levels(f) %in% idx)
-
+  
   Ws = sum(apply(idxs, 2,
                  function(idx) sum(ns[idx])/prod(s2[idx]) *
                    (sum(SS2[idx, idx])/sum(ns[idx]) - sum(diag(SS2[idx, idx])/ns[idx]))))
@@ -802,7 +802,7 @@ generic.distance.permutation.test =
     generate.permutation=function(){
       f[sample(N)]
     }
-
+    
     if(!is.null(strata)){
       # map elements of each strata back to their positions in the factor variable
       strata.map = order(unlist(tapply(seq_along(f), strata, identity)))
@@ -811,11 +811,11 @@ generic.distance.permutation.test =
         p[strata.map]
       }
     }
-
+    
     stats = c(test.statistic(dm, f),
               replicate(nrep,
                         test.statistic(dm, generate.permutation())))
-
+    
     p.value = sum(stats>=stats[1])/(nrep+1)
     statistic = stats[1]
     list(p.value = p.value, statistic = statistic, nrep=nrep)
@@ -882,23 +882,23 @@ phyloseq_adonis_strata_perm <- function(dm,
                                         terms_margins = "terms",
                                         strata = "none"){
   require(vegan)
-
+  
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
     as.dist() -> dm
-
+  
   physeq %>%
     sample_data() %>%
     data.frame() %>%
     rownames_to_column("tmp_id") -> df
-
+  
   if (strata %in% colnames(df)){
-
+    
     df %>%
       mutate("strata" = get(strata)) -> df
-
+    
     perm <- how(nperm = nrep)
     setBlocks(perm) <- with(df, strata)
-
+    
     adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
             # strata = strata,
             permutations = perm,
@@ -906,9 +906,9 @@ phyloseq_adonis_strata_perm <- function(dm,
             data = df) %>%
       data.frame() %>%
       rownames_to_column('terms') -> out
-
-
-
+    
+    
+    
   }else{
     adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
             permutations = nrep,
@@ -917,13 +917,13 @@ phyloseq_adonis_strata_perm <- function(dm,
       data.frame() %>%
       rownames_to_column('terms') -> out
   }
-
-
-
+  
+  
+  
   return(out)
-
+  
   detach("package:vegan", unload=TRUE)
-
+  
 }
 
 #' @title ...
@@ -952,16 +952,16 @@ phyloseq_adonis2 <- function(dm,
                              strata = "none",
                              terms_margins = "terms"){
   require(vegan)
-
+  
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
     as.dist() -> dm
-
+  
   physeq %>%
     sample_data() %>%
     data.frame() -> df
-
+  
   if (strata %in% colnames(df)){
-
+    
     adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
             strata = strata,
             permutations = nrep,
@@ -969,9 +969,9 @@ phyloseq_adonis2 <- function(dm,
             by = terms_margins) %>%
       data.frame() %>%
       rownames_to_column('terms') -> out
-
-
-
+    
+    
+    
   }else{
     adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
             permutations = nrep,
@@ -981,13 +981,13 @@ phyloseq_adonis2 <- function(dm,
       rownames_to_column('terms') %>%
       dplyr::rename('Pr(>F)' = `Pr..F.` ) -> out
   }
-
-
-
+  
+  
+  
   return(out)
-
+  
   detach("package:vegan", unload=TRUE)
-
+  
 }
 
 phyloseq_adonis <- function(dm,
@@ -997,16 +997,16 @@ phyloseq_adonis <- function(dm,
                             strata = "none",
                             terms_margins = "terms"){
   require(vegan)
-
+  
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
     as.dist() -> dm
-
+  
   physeq %>%
     sample_data() %>%
     data.frame() -> df
-
+  
   if (strata %in% colnames(df)){
-
+    
     adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
             strata = strata,
             permutations = nrep,
@@ -1014,9 +1014,9 @@ phyloseq_adonis <- function(dm,
             by = terms_margins) %>%
       data.frame() %>%
       rownames_to_column('terms') -> out
-
-
-
+    
+    
+    
   }else{
     adonis2(formula = as.formula(paste("dm", paste(formula), sep=" ~ ")),
             permutations = nrep,
@@ -1025,13 +1025,13 @@ phyloseq_adonis <- function(dm,
       data.frame() %>%
       rownames_to_column('terms') -> out
   }
-
-
-
+  
+  
+  
   return(out)
-
+  
   detach("package:vegan", unload=TRUE)
-
+  
 }
 
 
@@ -1064,52 +1064,52 @@ phyloseq_plot_ordinations_facet <- function(plot_list,
                                             return_eig_df = FALSE)
 {
   ## ------------------------------------------------------------------------
-
+  
   if(!any(class(plot_list[[1]]) == "ggplot")){
-
+    
     ## ------------------------------------------------------------------------
-
-
+    
+    
     unlist(plot_list, recursive = FALSE, use.names = TRUE) -> un_listed
-
+    
     un_listed %>%
       plyr::ldply(function(x) x$data) %>%
       dplyr::rename(group = `.id`) %>%
       separate(group, into = c("a","b"), sep = "\\.") ->  df
-
+    
     df %>%
       ggplot(aes_string(axis_names[[1]], axis_names[[2]])) -> p
     # tidyr::separate(group, into = c("gpA", "gpB"), sep = ".", fill= "left", remove = FALSE)
     p = p + geom_point(size=point_size,
                        aes_string(color= color_group,
                                   shape = shape_group,
-                                  alpha = alpha))
-
-    p = p + facet_wrap(b ~ a, scales="free")
-
+                                  alpha = alpha)) + coord_fixed()
+    
+    p = p + facet_wrap(b ~ a, scales="fixed")
+    
     p = p + ggtitle(paste0("Ordination using various distance metrics ")) +
       theme_light()
-
+    
     ## ------------------------------------------------------------------------
     out <- p
-
+    
     if(return_eig_df!=FALSE){
       un_listed %>%
         plyr::ldply(function(x) x$labels$x) %>%
         bind_cols(plyr::ldply(un_listed, function(x) x$labels$y)) %>%
         data.frame() -> eig_df
-
+      
       out <- list("plots" = p,
                   "eig_df" = eig_df)
     }
   }else{
-
+    
     ## ------------------------------------------------------------------------
-
+    
     plot_list %>%
       plyr::ldply(function(x) x$data) %>%
       dplyr::rename(distance = `.id`) -> df
-
+    
     df %>%
       ggplot(aes_string(axis_names[[1]], axis_names[[2]])) -> p
     # tidyr::separate(group, into = c("gpA", "gpB"), sep = ".", fill= "left", remove = FALSE)
@@ -1117,27 +1117,27 @@ phyloseq_plot_ordinations_facet <- function(plot_list,
                        aes_string(color= color_group,
                                   shape = shape_group,
                                   alpha = alpha))
-
+    
     p = p + facet_wrap(distance ~. , scales="free")
-
+    
     p = p + ggtitle(paste0("Ordination using various distance metrics ")) +
       theme_light()
-
+    
     out <- p
     ## ------------------------------------------------------------------------
     if(return_eig_df!=FALSE){
-
+      
       plot_list %>%
         plyr::ldply(function(x) x$labels$x) %>%
         bind_cols(plyr::ldply(plot_list, function(x) x$labels$y)) %>%
         data.frame() -> eig_df
-
+      
       out <- list("plots" = p,
                   "eig_df" = eig_df)
     }
   }
-
-
+  
+  
   return(out)
 }
 
@@ -1161,7 +1161,7 @@ phyloseq_ordinations_expl_var <- function(plot_list)
     plyr::ldply(function(x) x$labels$x) %>%
     bind_cols(plyr::ldply(plot_list, function(x) x$labels$y)) %>%
     data.frame() -> df
-
+  
   return(df)
 }
 
@@ -1180,41 +1180,41 @@ phyloseq_ordinations_expl_var <- function(plot_list)
 
 phyloseq_distance_boxplot <- function(p, dist = dlist$wjaccard, d = "SampleType", filter = NULL)
 {
-
+  
   require("phyloseq")
   require("tidyverse")
-
+  
   as.matrix(dist)[sample_names(p),sample_names(p)] %>%
     as.dist() -> dist
-
+  
   # calc distances
   # wu = phyloseq::distance(p, m)
   wu.m = reshape2::melt(as.matrix(dist))
-
+  
   # remove self-comparisons
   wu.m = wu.m %>%
     # filter(as.character(Var1) != as.character(Var2)) %>%
     mutate_if(is.factor, as.character)
-
+  
   # get sample data (S4 error OK and expected)
   sd = sample_data(p) %>%
     data.frame() %>%
     rownames_to_column("tmp") %>%
     dplyr::select(tmp, all_of(d)) %>%
     mutate_if(is.factor,as.character)
-
+  
   # combined distances with sample data
   colnames(sd) = c("Var1", "Type1")
   wu.sd = left_join(wu.m, sd, by = "Var1")
-
+  
   colnames(sd) = c("Var2", "Type2")
   wu.sd = left_join(wu.sd, sd, by = "Var2")
-
+  
   if(!is.null(filter)){
     wu.sd %>%
       dplyr::filter(Type1 == !!filter) -> wu.sd
   }
-
+  
   # plot
   p = ggplot(wu.sd, aes(x = Type2, y = value)) +
     theme_bw() +
@@ -1230,12 +1230,12 @@ phyloseq_distance_boxplot <- function(p, dist = dlist$wjaccard, d = "SampleType"
     theme(axis.text.x=element_text(angle = 90, hjust = 1, vjust = 0.5)) +
     # ggtitle(paste0("Distance Metric = ")) +
     ylab("Distance") + xlab(NULL)
-
+  
   # return
   out = list(plot=p,
              matrix = wu.sd)
   return(out)
-
+  
 }
 
 
@@ -1363,118 +1363,139 @@ phyloseq_distance_boxplot <- function(p, dist = dlist$wjaccard, d = "SampleType"
 #   detach("package:vegan", unload=TRUE)
 # }
 
-phyloseq_add_taxa_vector_fix <- function(phyloseq = ps_up, perm = 999,
-                                         dist = beta$rAitchison,
+#' Add Taxa Vector Fix to Ordination Plot
+#'
+#' This function calculates and plots taxa vector contributions to an ordination plot. It provides a framework for visualizing significant taxa contributions and vector directions for compositional data.
+#'
+#' @param dist A distance matrix object. Default: `beta$rAitchison`.
+#' @param phyloseq A `phyloseq` object. Default: `ps_up %>% subset_taxa(Class != "UNCLASSIFIED")`.
+#' @param figure_ord An initial ordination plot. Default: `out$PCOA + facet_null()`.
+#' @param m The ordination method to use (e.g., "PCoA"). Default: `"PCoA"`.
+#' @param pval_cutoff P-value cutoff for filtering significant taxa. Default: `0.05`.
+#' @param top_r Number of top taxa to select based on vector length. Default: `12`.
+#' @param taxrank_glom Taxonomic rank for glomming. Default: `tax_rank_plot`.
+#' @param tax_rank_plot Taxonomic rank for plotting. Default: `"Genus"`.
+#' @param vector_color Color of the vector arrows. Default: `"green4"`.
+#' @param taxnames_rm Taxonomic names to remove. Default: `c("unknown", "Unclassified")`.
+#' @param fact Scaling factor for vector lengths. Default: `1`.
+#' @param seed Random seed for reproducibility. Default: `123`.
+#' @param perm Number of permutations for `envfit`. Default: `999`.
+#' @param adj_method Method for p-value adjustment. Default: `"fdr"`.
+#' @param ggrepel_force Force parameter for `ggrepel`. Default: `25`.
+#' @param transform Transformation to apply to the `phyloseq` object. Default: `"compositional"`.
+#' 
+#' @return A list containing plots, ordination results, and envfit data.
+#' @import phyloseq tidyverse vegan gginnards microbiome rstatix
+#' @export
+phyloseq_add_taxa_vector_fix <- function(dist = beta$rAitchison,
+                                         phyloseq = ps_up %>%
+                                           subset_taxa(Class != "UNCLASSIFIED"),
+                                         figure_ord = NULL,
                                          m = "PCoA",
-                                         seed = 123,
+                                         pval_cutoff = 0.05,
+                                         top_r = 12,
+                                         taxrank_glom = tax_rank_plot,
                                          tax_rank_plot = "Genus",
-                                         taxrank_glom = "Genus",
-                                         figure_ord = empty_plot_tmp, 
-                                         adj_method = "fdr", 
-                                         fact = 0.8, pval_cutoff = 0.05,
-                                         top_r = 10)
+                                         vector_color = "green4",
+                                         taxnames_rm = c("unknown", "Unclassified"),
+                                         fact = 1,
+                                         seed = 123,
+                                         perm = 999,
+                                         adj_method = "fdr",
+                                         ggrepel_force = 25,
+                                         transform = "compositional")
 {
   ####----------------------
-  
-  require(phyloseq); require(tidyverse); require(vegan)
+  require(phyloseq); require(tidyverse); require(vegan); require(gginnards); require(microbiome)
   
   ####----------------------
-  
-  as.matrix(dist)[sample_names(phyloseq),sample_names(phyloseq)] %>%
+  as.matrix(dist)[sample_names(phyloseq), sample_names(phyloseq)] %>%
     as.dist() -> dist
   
   ####---------------------- Calculate ordination
-  
   set.seed(seed)
-  iMDS  <- ordinate(phyloseq,
-                    m,
-                    dist)
+  iMDS <- ordinate(phyloseq, m, dist)
+  set.seed(seed)
+  cmdscale(dist, eig = TRUE) -> dd
   
-  ####----------------------Normalize features
-  
+  ####---------------------- Normalize features
   phyloseq %>%
-    transform_sample_counts(function(x) {x/sum(x)} * 100)  -> tmp1
-  ####----------------------
+    microbiome::transform(transform) -> tmp1
   
-  if(taxrank_glom != FALSE) {
+  if (taxrank_glom != FALSE) {
     tmp1 %>%
-      speedyseq::tax_glom(taxrank_glom) -> ps_glom
+      speedyseq::tax_glom(taxrank_glom) -> tmp1
+    
+    taxa_names(tmp1) <- tax_table(tmp1)[, taxrank_glom]
   }
   
-  ps_glom %>%
+  tmp1 %>%
     otu_table() %>%
     t() %>%
-    data.frame() -> tmp
+    data.frame() -> otu_table
   
-  ####----------------------Create plot, store as temp variable, p
+  ####---------------------- Create plot, store as temp variable, p
   set.seed(seed)
   p <- phyloseq::plot_ordination(phyloseq, iMDS)
+  iMDS_list <- list(points = iMDS$vectors, eig = iMDS$values)
   
-  dune.spp.fit <- envfit(iMDS$vectors, tmp, permutations = perm) # this fits species vectors
+  ef <- suppressWarnings(suppressMessages(
+    envfit(iMDS_list, otu_table, perm = perm)
+    ))
   
-  spp.scrs <- as.data.frame(scores(dune.spp.fit, display = "vectors")) #save species intrinsic values into dataframe
-  
-  spp.scrs <- cbind(spp.scrs) #add species names to dataframe
-  spp.scrs <- cbind(spp.scrs, pval = dune.spp.fit$vectors$pvals, r = dune.spp.fit$vectors$r) #add pvalues to dataframe so you can select species which are significant
-  #spp.scrs<- cbind(spp.scrs, abrev = abbreviate(spp.scrs$Species, minlength = 6)) #abbreviate species names
-  # sig.spp.scrs <- filter(spp.scrs, pval<=pval_cutoff ) %>% top_n(top_r, r) #subset data to show species significant at 0.05
-  sig.spp.scrs <- spp.scrs
+  # Get the coordinates of the vectors
+  vector_coordinates <- as.data.frame(scores(ef, "vectors")) * ordiArrowMul(ef)
+  vector_coordinates <- cbind(vector_coordinates, pval = ef$vectors$pvals, r = ef$vectors$r)
   
   ####----------------------
-  
-  as(tax_table(ps_glom), "matrix") %>%
+  as(tax_table(tmp1), "matrix") %>%
     as.data.frame() -> tax_table
   
-  # if(join_cbind == "join"){
-  #   left_join(sig.spp.scrs,
-  #             tax_table,
-  #             by = c("id" = id_taxa)) %>%
-  #     dplyr::rename(tax_rank_plot = all_of(tax_rank_plot)) %>%
-  #     dplyr::filter(!tax_rank_plot %in% taxnames_rm,
-  #                   pval<=pval_cutoff) %>%
-  #     top_n(top_r, r) -> all
-  # }
-  # if(join_cbind == "cbind"){
-  cbind(sig.spp.scrs, tax_table) %>%
-    rstatix::adjust_pvalue(p.col = "pval",
-                           method = adj_method ) %>%
+  cbind(vector_coordinates, tax_table) %>%
+    rstatix::adjust_pvalue(p.col = "pval", method = adj_method) %>%
     dplyr::rename(tax_rank_plot = all_of(tax_rank_plot)) -> envfit_all
   
   envfit_all %>%
-    dplyr::filter(!tax_rank_plot %in% taxnames_rm,
-                  pval.adj<=pval_cutoff) %>%
-    top_n(top_r, r)  -> all
-  # }
+    dplyr::filter(!tax_rank_plot %in% taxnames_rm, pval.adj <= pval_cutoff) %>%
+    top_n(top_r, r) -> all
   
-  # !!variable := name_of_col_from_df
+  ####---------------------- Generate plots
+  # Check if figure_ord is NULL and create an empty plot if necessary
+  if (is.null(figure_ord)) {
+    figure_empty <- ggplot() + theme_void()
+  } else {
+    figure_ord %>%
+      gginnards::delete_layers("GeomPoint") %>%
+      gginnards::delete_layers("GeomPath") -> figure_empty
+  }
   
   ####----------------------
-  
-  figure_ord  +
-    geom_segment(data = all,
-                 aes(x = 0, xend=Axis.1* fact, y=0, yend=Axis.2 * fact), arrow = arrow(length = unit(0.25, "cm")), colour = vector_color, lwd=0.3, inherit.aes = FALSE) + #add vector arrows of significant species
-    ggrepel::geom_text_repel(data = all, aes(x= Axis.1* fact, y=Axis.2*fact, label = tax_rank_plot), cex = 3, direction = "both", segment.size = 0.25, inherit.aes = FALSE, force = ggrepel_force, segment.linetype = 2, segment.color = "gray70") -> p2
+  figure_empty +
+    coord_fixed() + 
+    geom_segment(data = all, aes(x = 0, xend = Axis.1 * fact, y = 0, yend = Axis.2 * fact),
+                 arrow = arrow(length = unit(0.25, "cm")), colour = vector_color, lwd = 0.3, inherit.aes = FALSE) +
+    ggrepel::geom_text_repel(data = all, aes(x = Axis.1 * fact, y = Axis.2 * fact, label = tax_rank_plot),
+                             cex = 3, direction = "both", colour = vector_color, 
+                             segment.size = 0.25, inherit.aes = FALSE, force = ggrepel_force, 
+                             segment.linetype = 2, segment.color = vector_color) -> p2
   
   ####----------------------
-  
-  
   ggplot() + theme_void() +
-    geom_segment(data = all,
-                 aes(x = 0, xend=Axis.1* fact, y=0, yend=Axis.2 * fact), arrow = arrow(length = unit(0.25, "cm")), colour = vector_color, lwd=0.3, inherit.aes = FALSE) + #add vector arrows of significant species
-    ggrepel::geom_text_repel(data = all, aes(x= Axis.1* fact, y=Axis.2*fact, label = tax_rank_plot), cex = 3, direction = "both", segment.size = 0.25, inherit.aes = FALSE, force = ggrepel_force, segment.linetype = 2, segment.color = "gray70") -> p3
-  
+    coord_fixed() + 
+    geom_segment(data = all, aes(x = 0, xend = Axis.1 * fact, y = 0, yend = Axis.2 * fact),
+                 arrow = arrow(length = unit(0.25, "cm")), colour = vector_color, lwd = 0.3, inherit.aes = FALSE) +
+    ggrepel::geom_text_repel(data = all, aes(x = Axis.1 * fact, y = Axis.2 * fact, label = tax_rank_plot),
+                             cex = 3, direction = "both", colour = vector_color, 
+                             segment.size = 0.25, inherit.aes = FALSE, force = ggrepel_force, 
+                             segment.linetype = 2, segment.color = vector_color) -> p3
   
   ####----------------------
-  
-  out <- list("plot" = p2,
-              "vectors" = p3,
-              "ord" = iMDS,
-              "envfit" = envfit_all,
-              "signenvfit" = all)
-  
+  out <- list("plot" = p2, "vectors" = p3, "ord" = iMDS, "envfit" = envfit_all, 
+              "ploted_ordination_used_for_envfit" = p
+  )
   return(out)
   
-  detach("package:vegan", unload=TRUE)
+  detach("package:vegan", unload = TRUE)
 }
 
 
@@ -1508,19 +1529,19 @@ phyloseq_add_taxa_vector <- function(dist,
                                      join_cbind = "join") # to avoid issue with rownames when specific character
 {
   require(phyloseq); require(tidyverse); require(vegan)
-
+  
   as.matrix(dist)[sample_names(phyloseq),sample_names(phyloseq)] %>%
     as.dist() -> dist
-
+  
   # Calculate ordination
   set.seed(seed)
   iMDS  <- ordinate(phyloseq,
                     m,
                     dist)
-
+  
   phyloseq %>%
     transform_sample_counts(function(x) {x/sum(x)} * 100)  -> tmp1
-
+  
   #
   # if (taxrank_glom != "Strain"){
   #   tmp1 %>%
@@ -1531,7 +1552,7 @@ phyloseq_add_taxa_vector <- function(dist,
   #
   #   taxa_names(tmp1) <-  tax_table(tmp1)[,taxrank_glom]
   # }
-
+  
   if(taxrank_glom != FALSE) {
     tmp1 %>%
       speedyseq::tax_glom(taxrank_glom) %>%
@@ -1544,31 +1565,31 @@ phyloseq_add_taxa_vector <- function(dist,
       t() %>%
       data.frame() -> tmp
   }
-
-
+  
+  
   # Create plot, store as temp variable, p
   set.seed(seed)
   p <- phyloseq::plot_ordination(phyloseq, iMDS)
-
+  
   dune.spp.fit <- envfit(iMDS$vectors, tmp, permutations = perm) # this fits species vectors
-
+  
   spp.scrs <- as.data.frame(scores(dune.spp.fit, display = "vectors")) #save species intrinsic values into dataframe
   spp.scrs <- cbind(spp.scrs, id = rownames(spp.scrs)) #add species names to dataframe
   spp.scrs <- cbind(spp.scrs, pval = dune.spp.fit$vectors$pvals, r = dune.spp.fit$vectors$r) #add pvalues to dataframe so you can select species which are significant
   #spp.scrs<- cbind(spp.scrs, abrev = abbreviate(spp.scrs$Species, minlength = 6)) #abbreviate species names
   # sig.spp.scrs <- filter(spp.scrs, pval<=pval_cutoff ) %>% top_n(top_r, r) #subset data to show species significant at 0.05
   sig.spp.scrs <- spp.scrs
-
+  
   # left_join(sig.spp.scrs,
   #          tmp1 %>%
   #   tax_table() %>%
   #   as.data.frame(),
   #   by = c("id" = id_taxa)) -> all
-
+  
   as(tax_table(tmp1), "matrix") %>%
     as.data.frame() %>%
     rownames_to_column('ASV') -> tax_table
-
+  
   if(join_cbind == "join"){
     left_join(sig.spp.scrs,
               tax_table,
@@ -1585,143 +1606,200 @@ phyloseq_add_taxa_vector <- function(dist,
                     pval<=pval_cutoff) %>%
       top_n(top_r, r) -> all
   }
-
-
+  
+  
   # !!variable := name_of_col_from_df
-
+  
   figure_ord  +
     geom_segment(data = all,
                  aes(x = 0, xend=Axis.1* fact, y=0, yend=Axis.2 * fact), arrow = arrow(length = unit(0.25, "cm")), colour = "grey10", lwd=0.3, inherit.aes = FALSE) + #add vector arrows of significant species
     ggrepel::geom_text_repel(data = all, aes(x= Axis.1* fact, y=Axis.2*fact, label = tax_rank_plot), cex = 3, direction = "both", segment.size = 0.25, inherit.aes = FALSE) -> p2
-
+  
   out <- list("plot" = p2,
               "ord" = iMDS,
               "envfit" = spp.scrs,
               "signenvfit" = all)
-
+  
   return(out)
-
+  
   detach("package:vegan", unload=TRUE)
-
+  
 }
 
-#' @title ...
-#' @param .
-#' @param ..
-#' @author Florentin Constancias
-#' @note .
-#' @note .
-#' @note .
-#' @return .
-#' @export
-#' @examples
+#' Phyloseq Ordination with Metadata Vector Fitting
 #'
-#'dist=d_list$wjaccard
-#'phyloseq=physeq_rare_cec_mIMT2
-#'figure_ord = pca_tmp
-
-
-phyloseq_add_metadata_vector <- function(dist,
-                                         phyloseq,
-                                         figure_ord = figure_pca,
-                                         m = "PCoA",
-                                         pval_cutoff = 0.05,
-                                         top_r = 12,
-                                         metadata_sel = c("B24_Acetate", "B24_Propionate", "B24_Butyrate", "B24_Formate", "B24_Succinate", "B24_Lactate", "B24_BCFA"),
-                                         fact = 0.5,
-                                         seed = 123,
-                                         perm = 999,
-                                         norm_method = "center_scale",
-                                         color = "green",
-                                         linetype = "dashed",
-                                         na.rm = TRUE)
+#' This function performs ordination analysis on a phyloseq object, fits selected metadata vectors to the ordination, and generates a plot with vector arrows representing significant metadata vectors.
+#'
+#' @param dist A distance matrix (default: `beta$rAitchison`).
+#' @param phyloseq A phyloseq object (default: `ps_up %>% subset_taxa(Class != "UNCLASSIFIED")`).
+#' @param figure_ord An optional ggplot object for customizing the ordination plot (default: `NULL`).
+#' @param m Method for ordination (default: `"PCoA"`). Options include "PCoA", "NMDS", etc.
+#' @param pval_cutoff Adjusted p-value cutoff for significant vectors (default: `0.05`).
+#' @param top_r Number of top significant vectors to display (default: `12`).
+#' @param metadata_sel Metadata columns to be used for vector fitting (default: `c("delta_mean_plaque", "delta_mean_bleeding")`).
+#' @param vector_color Color for the vectors (default: `"salmon3"`).
+#' @param fact Scaling factor for vector lengths (default: `1`).
+#' @param seed Random seed for reproducibility (default: `123`).
+#' @param perm Number of permutations for statistical testing (default: `999`).
+#' @param adj_method Method for p-value adjustment (default: `"fdr"`).
+#' @param ggrepel_force Force parameter for text label repulsion in `ggrepel` (default: `25`).
+#' @param norm_method Method for normalizing metadata (default: `"center_scale"`). Options: `"center_scale"`, etc.
+#' @param na_rm If `TRUE`, removes rows with missing metadata values (default: `TRUE`).
+#'
+#' @return A list containing:
+#' - `plot`: The ggplot object of the ordination with significant vectors.
+#' - `ord`: The ordination object (iMDS).
+#' - `envfit`: The fitted metadata vectors.
+#' - `envfit_sel`: The selected significant metadata vectors.
+#' - `ploted_ordination_used_for_envfit`: The ordination plot used for fitting the metadata.
+#'
+#' @importFrom phyloseq sample_data plot_ordination
+#' @importFrom vegan ordinate envfit scores
+#' @importFrom tidyverse select filter_all drop_na top_n
+#' @importFrom ggrepel geom_text_repel
+#' @importFrom gginnards delete_layers
+#' @importFrom unit unit
+#'
+#' @examples
+#' # Example usage of the function
+#' result <- phyloseq_add_metadata_vector_fix(phyloseq = ps_example, dist = beta$rAitchison)
+#' result$plot # Display the ordination plot
+phyloseq_add_metadata_vector_fix <- function(dist = beta$rAitchison,
+                                             phyloseq = ps_up %>%
+                                               subset_taxa(Class != "UNCLASSIFIED"),
+                                             figure_ord = NULL,
+                                             m = "PCoA",
+                                             pval_cutoff = 0.05,
+                                             top_r = 12,
+                                             metadata_sel = NULL,
+                                             vector_color = "salmon3",
+                                             fact = 1,
+                                             seed = 123,
+                                             perm = 999,
+                                             adj_method = "fdr",
+                                             ggrepel_force = 25,
+                                             norm_method = "center_scale",
+                                             na_rm = TRUE) 
 {
-  require(phyloseq); require(tidyverse); require(vegan)
-
-  as.matrix(dist)[sample_names(phyloseq),sample_names(phyloseq)] %>%
+  ####----------------------
+  require(phyloseq); require(tidyverse); require(vegan); require(gginnards); require(microbiome)
+  
+  ####----------------------
+  # Prepare distance matrix for ordination
+  as.matrix(dist)[sample_names(phyloseq), sample_names(phyloseq)] %>%
     as.dist() -> dist
-
-  # Calculate ordination
+  
+  ####---------------------- Calculate ordination
   set.seed(seed)
-
-  iMDS  <- ordinate(phyloseq,
-                    m,
-                    dist)
-
+  iMDS <- ordinate(phyloseq, m, dist)
+  set.seed(seed)
+  cmdscale(dist, eig = TRUE) -> dd
+  
+  ####---------------------- Create plot, store as temp variable, p
+  set.seed(seed)
+  p <- phyloseq::plot_ordination(phyloseq, iMDS)
+  
+  ####---------------------- Extract and normalize metadata
   phyloseq %>%
-    transform_sample_counts(function(x) {x/sum(x)} * 100)  -> tmp1
-
-  #
-  # if (taxrank_glom != "Strain"){
-  #   tmp1 %>%
-  #   speedyseq::tax_glom(taxrank = taxrank_glom) -> tmp1
-  #
-  #   prune_taxa(data.frame(tax_table(tmp1)[,taxrank_glom])  %>%
-  #                dplyr::filter(!get(taxrank_glom) %in% taxnames_rm) %>% rownames(),tmp1) -> tmp1
-  #
-  #   taxa_names(tmp1) <-  tax_table(tmp1)[,taxrank_glom]
-  # }
-
-  tmp1 %>%
-    sample_data()%>%
+    sample_data() %>%
     data.frame() %>%
     dplyr::select(any_of(metadata_sel)) %>%
-    drop_na() -> tmp
-
-
-  if(nrow(tmp) == 0) {
-    print ("No metadata were selected - or only NA.")}else{
-
-
-
-      if (norm_method == "center_scale")
-      {
-        tmp %>%
-          mutate_if(is.numeric, scale) -> tmp
-      }
-
-      # Create plot, store as temp variable, p
-      set.seed(seed)
-      p <- phyloseq::plot_ordination(phyloseq, iMDS)
-
-
-      dune.spp.fit <- envfit(iMDS$vectors, tmp, permutations = perm, na.rm = na.rm) # this fits species vectors
-
-
-      spp.scrs <- as.data.frame(scores(dune.spp.fit, display = "vectors")) #save species intrinsic values into dataframe
-      spp.scrs <- cbind(spp.scrs, id = rownames(spp.scrs)) #add species names to dataframe
-      spp.scrs <- cbind(spp.scrs, pval = dune.spp.fit$vectors$pvals, r = dune.spp.fit$vectors$r) #add pvalues to dataframe so you can select species which are significant
-      #spp.scrs<- cbind(spp.scrs, abrev = abbreviate(spp.scrs$Species, minlength = 6)) #abbreviate species names
-      # sig.spp.scrs <- filter(spp.scrs, pval<=pval_cutoff ) %>% top_n(top_r, r) #subset data to show species significant at 0.05
-      sig.spp.scrs <- spp.scrs
-
-
-      sig.spp.scrs %>%
-        rownames_to_column('label') %>%
-        dplyr::filter(pval<=pval_cutoff) %>%
-        top_n(top_r, r) -> all
-
-
-
-      # !!variable := name_of_col_from_df
-
-      figure_ord  +
-        geom_segment(data = all,
-                     aes(x = 0, xend=Axis.1* fact, y=0, yend=Axis.2 * fact), arrow = arrow(length = unit(0.25, "cm")),linetype= linetype, colour = color, lwd=0.3, inherit.aes = FALSE) + #add vector arrows of significant species
-        ggrepel::geom_text_repel(data = all, aes(x= Axis.1* fact, y=Axis.2*fact, label = label), cex = 3, direction = "both", colour = color, segment.size = 0.25, inherit.aes = FALSE) -> p2
-
-      out <- list("plot" = p2,
-                  "ord" = iMDS,
-                  "envfit" = spp.scrs,
-                  "signenvfit" = all)
-
-      return(out)
-    }
-
-  detach("package:vegan", unload=TRUE)
-
+    drop_na() -> metadata
+  
+  # Remove rows with NA or Inf values and print a message if any rows are removed
+  metadata_clean <- metadata %>%
+    filter_all(all_vars(!is.na(.) & !is.infinite(.)))
+  
+  if (nrow(metadata_clean) == 0) {
+    stop("All metadata values were NA or Inf after cleaning.")
+  }
+  
+  if (nrow(metadata_clean) < nrow(metadata)) {
+    message("Some observations were removed due to NA or Inf values in the metadata.")
+  }
+  
+  # Ensure matching sample names between metadata and ordination
+  sample_names_clean <- rownames(metadata_clean)
+  sample_names_ord <- sample_names(phyloseq)
+  
+  # Check for any sample names that are missing between the two data sets
+  missing_samples <- setdiff(sample_names_ord, sample_names_clean)
+  if (length(missing_samples) > 0) {
+    message("The following samples are missing in the cleaned metadata: ", paste(missing_samples, collapse = ", "))
+  }
+  
+  # Filter ordination vectors to match metadata
+  iMDS$vectors <- iMDS$vectors[sample_names_ord %in% sample_names_clean, , drop = FALSE]
+  
+  iMDS_list <- list(points = iMDS$vectors, eig = iMDS$values)
+  
+  if (nrow(iMDS$vectors) != nrow(metadata_clean)) {
+    stop("The number of observations in the ordination and metadata do not match after filtering.")
+  }
+  
+  # Normalize metadata if required
+  if (norm_method == "center_scale") {
+    metadata_clean <- metadata_clean %>% mutate_if(is.numeric, scale)
+  }
+  
+  ####---------------------- Fit metadata vectors
+  metadata_fit <- suppressWarnings(suppressMessages(envfit(iMDS_list, metadata_clean, perm = perm, na.rm = na_rm)))
+  metadata_vectors <- as.data.frame(scores(metadata_fit, display = "vectors")) * ordiArrowMul(metadata_fit)
+  
+  metadata_vectors <- cbind(metadata_vectors, data = abbreviate(rownames(metadata_vectors), 6), pval = metadata_fit$vectors$pvals, r = metadata_fit$vectors$r)
+  
+  ####---------------------- Adjust p-values and filter significant vectors
+  metadata_vectors_filt <- metadata_vectors %>%
+    rstatix::adjust_pvalue(p.col = "pval", method = adj_method) %>%
+    dplyr::filter(pval.adj <= pval_cutoff) %>%
+    top_n(top_r, r)
+  
+  if (nrow(metadata_vectors_filt) == 0) {
+    stop("No significant metadata vectors after adjustment.")
+  }
+  
+  ####---------------------- Generate plots
+  # Check if figure_ord is NULL and create an empty plot if necessary
+  if (is.null(figure_ord)) {
+    figure_empty <- ggplot() + theme_void()
+  } else {
+    figure_ord %>%
+      gginnards::delete_layers("GeomPoint") %>%
+      gginnards::delete_layers("GeomPath") -> figure_empty
+  }
+  
+  p2 <- figure_empty + 
+    coord_fixed() +
+    geom_segment(data = metadata_vectors_filt,
+                 aes(x = 0, xend = Axis.1 * fact, y = 0, yend = Axis.2 * fact),
+                 arrow = arrow(length = unit(0.25, "cm")), colour = vector_color, lwd = 0.3) +
+    ggrepel::geom_text_repel(data = metadata_vectors_filt,
+                             aes(x = Axis.1 * fact, y = Axis.2 * fact, label = data),
+                             cex = 3, direction = "both", colour = vector_color, segment.size = 0.25,
+                             force = ggrepel_force, segment.linetype = 2, segment.color = vector_color)
+  
+  ####----------------------
+  figure_empty + theme_void() +
+    coord_fixed() + 
+    geom_segment(data = metadata_vectors_filt, aes(x = 0, xend = Axis.1 * fact, y = 0, yend = Axis.2 * fact),
+                 arrow = arrow(length = unit(0.25, "cm")), colour = vector_color, lwd = 0.3, inherit.aes = FALSE) +
+    ggrepel::geom_text_repel(data = metadata_vectors_filt, aes(x = Axis.1 * fact, y = Axis.2 * fact, label = data),
+                             cex = 3, direction = "both", colour = vector_color, 
+                             segment.size = 0.25, inherit.aes = FALSE, force = ggrepel_force, 
+                             segment.linetype = 2, segment.color = vector_color) -> p3
+  
+  ####---------------------- Output
+  out <- list(
+    "plot" = p2,
+    "vectors" = p3,
+    "ord" = iMDS,
+    "envfit" = metadata_vectors,
+    "envfit_sel" = metadata_vectors_filt,
+    "ploted_ordination_used_for_envfit" = p
+  )
+  
+  return(out)
 }
-
 
 
 #' @title ...
@@ -1741,75 +1819,75 @@ phyloseq_dbRDA <- function(ps,
                            forumla = paste0(variables, collapse=" + "),
                            group_plot,
                            vec_ext = 0.2)
-
+  
   #TODO: https://rstudio-pubs-static.s3.amazonaws.com/694016_e2d53d65858d4a1985616fa3855d237f.html
   #   require(ggordiplots)
   # #  devtools::install_github("jfq3/ggordiplots")
   #
   # gg_ordiplot(dbRDA, groups = metadata$Group, pt.size = 3)
-
-
+  
+  
 {
   ### ------
   require(ggvegan); require(ggord); require(vegan);
-
+  
   as.matrix(dm)[sample_names(ps),sample_names(ps)] %>%
     as.dist() -> dist
-
+  
   ps %>% sample_data() %>% data.frame() -> metadata
-
+  
   ### ------
-
+  
   dbRDA <- vegan::capscale(formula(paste0("dist","~",forumla)),
                            metadata,
                            add = TRUE)
-
+  
   ### ------
-
+  
   # overll significance of the model
   anova(dbRDA) %>%
     data.frame() -> anova_all
-
+  
   # significance of different covariables
   anova(dbRDA, by = "terms") %>%
     data.frame() -> anova_terms
-
+  
   # source('https://raw.githubusercontent.com/fawda123/ggord/master/R/ggord.R')
-
+  
   # ggord(dbRDA, grp_in = metadata[,variables]) -> p
   autoplot(dbRDA) -> p
-
+  
   ### ------
-
+  
   if(!is.null(group_plot)){
-
+    
     ggord(dbRDA, metadata[,group_plot],
           vec_ext = vec_ext,
           alpha = 0.5,
           ellipse_pro = 0.8,
           hull = FALSE) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) -> p2
-
+    
     out <- list("plot" = p,
                 "plot2"= p2,
                 "dbRDA" = dbRDA,
                 "anova_all" = anova_all,
                 "anova_terms" = anova_terms)
-
+    
   }else{
-
+    
     out <- list("plot" = p,
                 "dbRDA" = dbRDA,
                 "anova_all" = anova_all,
                 "anova_terms" = anova_terms)
-
+    
   }
   ### ------
-
+  
   return(out)
   ### ------
-
+  
   detach("package:ggvegan", unload=TRUE);detach("package:ggord", unload=TRUE) #detach("package:plyr", unload=TRUE)
-
+  
 }
 
 
@@ -1833,32 +1911,32 @@ phyloseq_dbRDA <- function(ps,
 phyloseq_pairwise_dbRDA <- function(ps,
                                     dm,
                                     RHS_formula = "Treatment"){
-
+  
   require(ggvegan); require(ggord); require(BiodiversityR)
-
+  
   my_dist = NULL; metadata = NULL
-
+  
   as.matrix(dm)[sample_names(ps),sample_names(ps)] %>%
     as.dist() -> my_dist
-
-
+  
+  
   # print("this is my dist")
   # print(my_dist)
   # print("this was my dist")
-
+  
   ps %>% sample_data() %>% data.frame() -> metadata
-
+  
   #
   #   eval(parse(text = paste('multi_dbRDA_test <- multiconstrained(method= "capscale", my_dist ~ ', do.call(paste,
   #                                                                   c(as.list(RHS_formula_test), sep = " + ")), ",data = metadata,add = TRUE)", sep = " ")))
-
+  
   multiconstrained(method="capscale", formula = formula(paste0(" my_dist ~ ", RHS_formula)),
                    data = metadata,
                    add = TRUE) -> multi_dbRDA
-
+  
   out <- multi_dbRDA %>% data.frame() %>%  rownames_to_column("comp")
   return(out)
-
+  
   # detach("package:ggvegan", unload=TRUE);detach("package:ggord", unload=TRUE); detach("package:BiodiversityR", unload=TRUE)
   unloadNamespace("ggvegan"); unloadNamespace("ggord"); unloadNamespace("BiodiversityR")
 }
@@ -1886,13 +1964,13 @@ phyloseq_plot_dbrda <- function(physeq, dm, grouping_column, pvalueCutoff = 0.5,
 {
   abund_table <- otu_table(physeq)
   meta_table <- data.frame(sample_data(physeq))[,c(env.variables,grouping_column)]
-
+  
   complete.cases(meta_table) -> cc
-
-
+  
+  
   as.matrix(dm)[sample_names(physeq),sample_names(physeq)] %>%
     as.dist() -> dm
-
+  
   as.matrix(dm)[cc,cc] -> dm
   meta_table[cc,] -> meta_table
   if (norm_method == "center_scale")
@@ -1905,9 +1983,9 @@ phyloseq_plot_dbrda <- function(physeq, dm, grouping_column, pvalueCutoff = 0.5,
                                       data = meta_table[,c(env.variables)])
   bestEnvVariables <- rownames(abund_table.adonis$aov.tab)[abund_table.adonis$aov.tab$"Pr(>F)" <=
                                                              pvalueCutoff]
-
+  
   # abund_table.adonis <- vegan::adonis(dist_ps ~ ., data = meta_table)
-
+  
   bestEnvVariables <- bestEnvVariables[!is.na(bestEnvVariables)]
   if (!is.null(env.variables) && (env.variables %in% bestEnvVariables)) {
     bestEnvVariables <- env.variables
@@ -1951,7 +2029,7 @@ phyloseq_plot_dbrda <- function(physeq, dm, grouping_column, pvalueCutoff = 0.5,
       scale_shape_manual("", values = 2)
   }
   p <- p + theme_bw() + xlab("CCA1") + ylab("CCA2")
-
+  
   return(list("plot"= p,
               "capscale" = sol,
               "adonis" = abund_table.adonis))
@@ -2068,16 +2146,16 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
                                                  replicate = FALSE,
                                                  replicate_id_var = NULL
 ){
-
-
+  
+  
   require(phyloseq)
   require(microbiome)
   require(tidyverse)
   require(usedist)
-
-
-
-
+  
+  
+  
+  
   plot_beta_div_wrt_timepoint <- function(dist,
                                           bdiv_list,
                                           physeq,
@@ -2088,44 +2166,44 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
                                           fixed_time=NULL,
                                           replicate = FALSE,
                                           replicate_id_var = NULL){
-
+    
     # PREPROCESSING
-
+    
     #extract distance matrix of class dist
     d.mat <- bdiv_list[[dist]]
-
+    
     as.matrix(d.mat)[sample_names(physeq),sample_names(physeq)] %>%
       as.dist() -> d.mat
-
+    
     #sample data as dataframe
     as(sample_data(physeq),"matrix") %>%
       data.frame(check.names=FALSE) %>%
       rownames_to_column("Sample_ID") -> sample.data
-
+    
     #make time column is numeric
-
+    
     if(is.numeric(sample.data[,time_var])){
       stop("Error: You need to make sure your time variable is numeric. Maybe the function parse_number() can help.")
     }
-
-
+    
+    
     sample.data[,time_var] <- as.numeric(sample.data[,time_var])
-
+    
     #check if the labels match, if they don't throw an error
     stopifnot(all.equal(labels(d.mat), sample.data$Sample_ID))
-
+    
     #extract metadata column containing group information
     item_groups <- sample.data[,group_var]
-
+    
     #use library usedist to make a neat dataframe that shows for each distance in
     #`d.mat` which samples were used for calculation and the group info of both samples
     dist_df <- usedist::dist_groups(d.mat,item_groups)
-
+    
     if(replicate==FALSE){
       #add the time info of the samples to `dist_df` . this is what we will use for
       #picking out the distances we want to plot
       meta_df <- sample.data %>% select(Sample_ID,.data[[time_var]])
-
+      
       left_join(dist_df,
                 meta_df %>%
                   dplyr::rename("varGroup1" = .data[[time_var]]
@@ -2134,63 +2212,63 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
         left_join(meta_df %>%
                     dplyr::rename("varGroup2" = .data[[time_var]]),
                   by = c("Item2" = "Sample_ID")) -> dist_df
-
-
+      
+      
       if(timepoint=="previous")
       {
         #only within group distances are needed now
         dist_df %>%
           dplyr::filter(grepl("Within", Label)) -> dist_df
-
-
+        
+        
         #Create a dataframe specifying the days that we need to filter from the distance dataframe
-
+        
         sample.data %>%
           select(Sample_ID,.data[[group_var]],Day1=.data[[time_var]]) %>%
           group_by(.data[[group_var]]) %>%
           arrange(Day1,.by_group=TRUE) -> days.df
-
+        
         #the last day of each group should not be compared the first day of next group
         na_fills<-cumsum(days.df %>% group_size())
         #specify the reverse order so all the right comparisons are picked out
         day2<-c(days.df$Day1[-1],NA)
         day2[na_fills] <- NA
-
+        
         #ungrouping adding Day2 column
         days.df <- days.df %>%
           ungroup() %>%
           mutate(Day2=day2)
-
+        
         #specifying the opposite too just in case `dist_df` has it in this order
         #remmember distance between A and B is same as distance between B and A
         days.df.reverse <- days.df %>%
           rename(Day2=Day1,Day1=Day2)
-
+        
         #combine both dataframes to get the complete one containing all possible day combinations of interest to us
         days.df.complete <- rbind(days.df,days.df.reverse)
-
+        
         #making group info same as that of Label column in `dist_df`
         days.df.complete[,group_var] <- paste("Within",pull(days.df.complete,.data[[group_var]]))
-
+        
         #Getting the right dataframe for plotting: pick out all the distances specified by `days.df.complete`
         # from dist_df
         df_plot <- semi_join(dist_df,days.df.complete,
                              by=c("Label"= group_var,"varGroup1"="Day1","varGroup2"="Day2")) %>%
           arrange(varGroup1) %>%
           arrange(varGroup2)
-
+        
         #arrange and group by label
         df_plot %>%
           group_by(Label) %>%
           arrange(Label) %>%
           arrange(varGroup1,.by_group=TRUE) %>%
           arrange(varGroup2,.by_group=TRUE) -> df_plot
-
+        
         #if day1 > day2 swap them to keep a consistent order: Day2 > Day1
         swap_indices<-which(df_plot$varGroup1 > df_plot$varGroup2)
-
+        
         df_plot[swap_indices,c("Item1","Item2","varGroup1","varGroup2")] <- df_plot[swap_indices,c("Item2","Item1","varGroup2","varGroup1")]
-
+        
         #plotting a connected scatterplot and faceting by Label
         df_plot %>%
           ggplot(aes(x = as.factor(varGroup2) , y = Distance)) +
@@ -2211,39 +2289,39 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
           #                      # nudge_y = 0,
           #                      df_all_t0 %>% filter(Day2 == 6 & metric=="wunifrac") %>% unique()) +
           theme_bw() + xlab("Day") + ylab("Distance to previous timepoint") -> plot
-
+        
       }
-
-
+      
+      
       if(timepoint=="between.ref.group"){
-
+        
         #throw error if group to compare is not specified
         if(is.null(group_to_compare)){
           stop("Error: You need to specify the name of the common group to compare. This group needs to be one of the categories in your group_var argument.")
         }
-
+        
         #keeping only between sample distances with the common group. The days to be compared should be the same
-
+        
         dist_df %>% dplyr::filter(!grepl("Within", Label)) ->dist_df
-
+        
         dist_df %>%
           filter(Group1==group_to_compare | Group2==group_to_compare) %>%
           filter(varGroup1==varGroup2) -> dist_df
-
-
+        
+        
         #to keep a consistent format. reference group is group1 and the other is group2
-
+        
         if(sum(dist_df$Group2==group_to_compare)!=0){
           swap_indices<-which(dist_df$Group2==group_to_compare)
           dist_df[swap_indices,c("Item1","Item2","Group1","Group2")] <- dist_df[swap_indices,c("Item2","Item1","Group2","Group1")]
           dist_df$Label <- paste("Between",dist_df$Group1,"and",dist_df$Group2)
-
-
+          
+          
         }
-
+        
         #the dataframe we will use for plotting
         df_plot<-dist_df %>% group_by(Group2) %>% arrange(varGroup2,.by_group=TRUE)
-
+        
         #plotting a connected scatterplot and faceting by Label=
         df_plot %>%
           ggplot(aes(x = as.factor(varGroup2) , y = Distance)) +
@@ -2264,43 +2342,43 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
           #                      # nudge_y = 0,
           #                      df_all_t0 %>% filter(Day2 == 6 & metric=="wunifrac") %>% unique()) +
           theme_bw() + xlab("Day") + ylab(paste("Distance to ",group_to_compare)) -> plot
-
-
-
-
+        
+        
+        
+        
       }
-
-
-
+      
+      
+      
       if(timepoint == "fixed"){
-
+        
         #throw error if fixed_time is not specified
         if(is.null(fixed_time)){
           stop("Error: You need to specify the fixed time within each group using which we will pick out distances. This time needs to be one of the times in the `time_var` column that is common to all groups.")
         }
-
-
-
+        
+        
+        
         #only within group distances are needed now
         dist_df %>%
           dplyr::filter(grepl("Within", Label)) -> dist_df
-
+        
         #get all the distances computed with a sample of `fixed_time`
         dist_df %>%
           filter(varGroup1==fixed_time | varGroup2==fixed_time) -> dist_df
-
-
+        
+        
         #to keep a consistent format: varGroup1 is the fixed time
         if(sum(dist_df$varGroup2==fixed_time)!=0){
           swap_indices<-which(dist_df$varGroup2==fixed_time)
           dist_df[swap_indices,c("Item1","Item2","Group1","Group2","varGroup1","varGroup2")] <-   dist_df[swap_indices,c("Item2","Item1","Group2","Group1","varGroup2","varGroup1")]
-
+          
         }
-
+        
         #group by label and arrange by day2
         dist_df %>% group_by(Label) %>% arrange(varGroup2,.by_group=TRUE) -> df_plot
-
-
+        
+        
         #plot
         df_plot %>%
           ggplot(aes(x = as.factor(varGroup2) , y = Distance)) +
@@ -2321,27 +2399,27 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
           #                      # nudge_y = 0,
           #                      df_all_t0 %>% filter(Day2 == 6 & metric=="wunifrac") %>% unique()) +
           theme_bw() + xlab("Day") + ylab(paste("Distance to",time_var,fixed_time)) -> plot
-
-
+        
+        
       }
-
+      
       return(plot)
-
+      
     }
-
+    
     if(replicate == TRUE){
-
+      
       #check if replicate id variable is provided . If not throw an error.
       if(is.null(replicate_id_var)){
         stop("Error: You need to specify the metadata column containing the replicate id information.")
       }
-
-
+      
+      
       #add the time info and replicate id info of the samples to `dist_df` . this is what we will use for
       #picking out the distances we want to plot
-
+      
       meta_df <- sample.data %>% select(Sample_ID,.data[[time_var]],.data[[replicate_id_var]])
-
+      
       left_join(dist_df,
                 meta_df %>%
                   dplyr::rename("varGroup1" = .data[[time_var]],"rep_id1"=.data[[replicate_id_var]]
@@ -2350,104 +2428,104 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
         left_join(meta_df %>%
                     dplyr::rename("varGroup2" = .data[[time_var]],"rep_id2"=.data[[replicate_id_var]]),
                   by = c("Item2" = "Sample_ID")) -> dist_df
-
+      
       if(timepoint == "previous"){
-
+        
         #only within group distances are needed now and we need to plot distances between the same mice
         dist_df %>%
           dplyr::filter(grepl("Within", Label)) -> dist_df
         dist_df %>% filter(rep_id1==rep_id2) -> dist_df
-
+        
         sample.data %>%
           select(Sample_ID,.data[[group_var]],Day1=.data[[time_var]]) %>%
           group_by(.data[[group_var]]) %>%
           arrange(Day1,.by_group=TRUE) -> days.df
-
+        
         #the last day of each group should not be compared the first day of next group
         na_fills<-cumsum(days.df %>% group_size())
-
+        
         #specify the reverse order so all the right comparisons are picked out
         day2<-c(days.df$Day1[-1],NA)
         day2[na_fills] <- NA
-
+        
         #ungrouping adding Day2 column
         days.df <- days.df %>%
           ungroup() %>%
           mutate(Day2=day2)
-
+        
         days.df.reverse <- days.df %>%
           rename(Day2=Day1,Day1=Day2)
-
+        
         #combine both dataframes to get the complete one containing all possible day combinations of interest to us
         days.df.complete <- rbind(days.df,days.df.reverse)
-
+        
         #making group info same as that of Label column in `dist_df`
         days.df.complete[,group_var] <- paste("Within",pull(days.df.complete,.data[[group_var]]))
-
+        
         #since we have replicate data and hence the same day comparison we need to get rid of these
         days.df.complete<-days.df.complete %>% filter(Day1!=Day2)
-
-
+        
+        
         #Getting the right dataframe for plotting: pick out all the distances specified by `days.df.complete`
         # from dist_df
         df_plot <- semi_join(dist_df,days.df.complete,
                              by=c("Label"= group_var,"varGroup1"="Day1","varGroup2"="Day2")) %>%
           arrange(varGroup1) %>%
           arrange(varGroup2)
-
+        
         #arrange and group by label
         df_plot %>%
           group_by(Label) %>%
           arrange(Label) %>%
           arrange(varGroup1,.by_group=TRUE) %>%
           arrange(varGroup2,.by_group=TRUE) -> df_plot
-
+        
         #if day1 > day2 swap them to keep a consistent order: Day2 > Day1
         swap_indices<-which(df_plot$varGroup1 > df_plot$varGroup2)
-
+        
         df_plot[swap_indices,c("Item1","Item2","varGroup1","varGroup2")] <- df_plot[swap_indices,c("Item2","Item1","varGroup2","varGroup1")]
-
-
-
+        
+        
+        
         ggplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label)) +
           geom_boxplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label),                 fill = NA,
                        outlier.shape = NA,
                        outlier.colour = NA) +
           geom_point(position=position_jitterdodge(jitter.width = 0.1,seed=123),aes(group=Label),size=0.1, alpha=0.4)+
           theme_bw() + xlab("Day") + ylab("Distance to previous timepoint") -> plot
-
+        
       }
-
-
+      
+      
       if(timepoint=="between.ref.group"){
-
+        
         #throw error if group to compare is not specified
         if(is.null(group_to_compare)){
           stop("Error: You need to specify the name of the common group to compare. This group needs to be one of the categories in your group_var argument.")
         }
-
+        
         #keeping only between sample distances with the common group. The days to be compared should be the same
-
+        
         dist_df %>% dplyr::filter(!grepl("Within", Label)) ->dist_df
-
+        
         dist_df %>%
           filter(Group1==group_to_compare | Group2==group_to_compare) %>%
           filter(varGroup1==varGroup2) -> dist_df
-
-
+        
+        
         #to keep a consistent format. reference group is group1 and the other is group2
-
+        
         if(sum(dist_df$Group2==group_to_compare)!=0){
           swap_indices<-which(dist_df$Group2==group_to_compare)
           dist_df[swap_indices,c("Item1","Item2","Group1","Group2","rep_id1","rep_id2")] <- dist_df[swap_indices,c("Item2","Item1","Group2","Group1","rep_id2","rep_id1")]
           dist_df$Label <- paste("Between",dist_df$Group1,"and",dist_df$Group2)
-
+          
         }
-
+        
         #the dataframe we will use for plotting
         df_plot<-dist_df %>% group_by(Group2)  %>% arrange(varGroup2,.by_group=TRUE)
-
-
+        
+        
         ggplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label)) +
           geom_boxplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label),                 fill = NA,
                        outlier.shape = NA,
@@ -2455,38 +2533,38 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
           geom_point(position=position_jitterdodge(jitter.width = 0.1,seed=123),aes(group=Label),size=0.1, alpha=0.4) +
           theme_bw() + xlab("Day") + ylab(paste("Distance to ",group_to_compare)) -> plot
       }
-
-
+      
+      
       if(timepoint == "fixed"){
-
+        
         #throw error if fixed_time is not specified
         if(is.null(fixed_time)){
           stop("Error: You need to specify the fixed time within each group using which we will pick out distances. This time needs to be one of the times in the `time_var` column that is common to all groups.")
         }
-
-
-
+        
+        
+        
         #only within group distances are needed now and between the same replicates
         dist_df %>%
           dplyr::filter(grepl("Within", Label)) -> dist_df
         dist_df %>% filter(rep_id1==rep_id2) -> dist_df
-
+        
         #get all the distances computed with a sample of `fixed_time`
         dist_df %>%
           filter(varGroup1==fixed_time | varGroup2==fixed_time) -> dist_df
-
-
+        
+        
         #to keep a consistent format: varGroup1 is the fixed time
         if(sum(dist_df$varGroup2==fixed_time)!=0){
           swap_indices<-which(dist_df$varGroup2==fixed_time)
           dist_df[swap_indices,c("Item1","Item2","Group1","Group2","varGroup1","varGroup2")] <-   dist_df[swap_indices,c("Item2","Item1","Group2","Group1","varGroup2","varGroup1")]
-
+          
         }
-
+        
         #group by label and arrange by day2
         dist_df %>% group_by(Label) %>% arrange(varGroup2,.by_group=TRUE) -> df_plot
-
-
+        
+        
         #plot
         ggplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label)) +
           geom_boxplot(data=df_plot,mapping=aes(x=as.factor(varGroup2),y=Distance,color=Label),                 fill = NA,
@@ -2494,15 +2572,15 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
                        outlier.colour = NA) +
           geom_point(position=position_jitterdodge(jitter.width = 0.1,seed=123),aes(group=Label),size=0.1, alpha=0.4) +
           theme_bw() + xlab("Day") + ylab(paste("Distance to",time_var,fixed_time)) -> plot
-
-
+        
+        
       }
-
-
+      
+      
       return(plot)
-
+      
     }
-
+    
   }
   #using lapply to generate plots for a vector of distances
   res<- lapply(X=distances,FUN=plot_beta_div_wrt_timepoint,bdiv_list,
@@ -2513,10 +2591,10 @@ phyloseq_plot_beta_div_wrt_timepoint <- function(distances,
                fixed_time,
                replicate,
                replicate_id_var)
-
+  
   #names of the plots will be the name of the distance metric used to compute the distance matrix
   names(res) <- distances
-
+  
   return(res)
 }
 
@@ -2542,49 +2620,49 @@ physeq_multi_domain_pln <- function(ps,
                                     rename_taxa = FALSE,
                                     tax_glom = FALSE,
                                     formula_model = paste0("Abundance ~ 1 + offset(log(Offset))")){
-
+  
   ## ------------------------------------------------------------------------
   require(tidyverse); require(phyloseq)
   cat(paste0('\n##',"You are using tidyverse version ", packageVersion('tidyverse'),'\n\n'))
   cat(paste0('\n##',"You are using phyloseq version ", packageVersion('phyloseq'),'\n\n'))
-
+  
   ## ------------------------------------------------------------------------
-
+  
   if(tax_glom!=FALSE)
   {
     ps %>%
       tax_glom(taxrank = tax_glom) -> ps
   }
-
-
+  
+  
   if(rename_taxa){
     taxa_names(ps) <-  tax_table(ps)[,tax_glom]
   }
-
+  
   ps %>%
     microbiome::core(detection=0,
                      prevalence=prev_filter) -> ps
-
+  
   ## ------------------------------------------------------------------------
-
+  
   #https://github.com/joey711/phyloseq/issues/1137
-
+  
   # ps %>%
   #   subset_taxa(Kingdom %in% paste0(Kingdom_A_filter)) -> ps_A
-
+  
   taxmat <- as(tax_table(ps), "matrix")
   taxa_A <- rownames(taxmat)[taxmat[,tax_level_filter] %in% A_filter]
-
+  
   prune_taxa(taxa_A, ps) -> ps_A
-
+  
   # ps %>%
   #   subset_taxa(Kingdom %in% paste0(Kingdom_B_filter)) -> ps_B
-
+  
   taxa_B <- rownames(taxmat)[taxmat[,tax_level_filter] %in% B_filter]
-
+  
   prune_taxa(taxa_B, ps) -> ps_B
   ## ------------------------------------------------------------------------
-
+  
   ## extract counts
   counts_A <- as(phyloseq::otu_table(ps_A), "matrix") %>%
     data.frame()
@@ -2592,7 +2670,7 @@ physeq_multi_domain_pln <- function(ps,
   covariates_A  <- phyloseq::sample_data(ps_A)
   ## prepare data
   my_data_A  <- prepare_data(counts = counts_A, covariates = covariates_A)
-
+  
   ## extract counts
   counts_B <- as(phyloseq::otu_table(ps_B), "matrix") %>%
     data.frame()
@@ -2600,64 +2678,64 @@ physeq_multi_domain_pln <- function(ps,
   covariates_B <- phyloseq::sample_data(ps_B)
   ## prepare data
   my_data_B  <- prepare_data(counts = counts_B, covariates = covariates_B)
-
+  
   ## ------------------------------------------------------------------------
-
+  
   don_net <- t(rbind(counts_A,counts_B))
-
+  
   ## ------------------------------------------------------------------------
-
+  
   offset_A <- compute_offset(t(counts_A), offset = "TSS")
   offset_B <- compute_offset(t(counts_B), offset = "TSS")
-
+  
   # Offset=matrix(c(rep(offset_A, nrow(counts_A)),rep(offset_B, nrow(counts_B))),
   #               ncol = ncol(counts_A) + ncol(counts_B), nrow = nrow(counts_A) + nrow(counts_B), byrow=TRUE)
   #
   Offset = matrix(c(rep(offset_A, nrow(counts_A)),rep(offset_B, nrow(counts_B))),
                   dim(don_net)[1], nrow=dim(don_net)[2], byrow=TRUE)
-
+  
   Offset=t(Offset)
   ## ------------------------------------------------------------------------
-
+  
   data_cov <- prepare_data(counts = don_net, covariates = covariates_B)
-
+  
   data_cov$Offset <- Offset
   ## ------------------------------------------------------------------------
-
+  
   models_net <- PLNnetwork(as.formula(formula_model), data = data_cov)
-
+  
   ## ------------------------------------------------------------------------
-
+  
   models_net %>%
     plot("diagnostic") -> diag_p
-
+  
   ## ------------------------------------------------------------------------
-
+  
   models_net %>%
     plot() -> model_p
-
+  
   ## ------------------------------------------------------------------------
-
+  
   models_net %>%
     coefficient_path(corr = TRUE) %>%
     ggplot(aes(x = Penalty, y = Coeff, group = Edge, colour = Edge)) +
     geom_line(show.legend = FALSE) +  coord_trans(x="log10") + theme_bw() -> model_p2
-
-
+  
+  
   ## ------------------------------------------------------------------------
-
-
+  
+  
   models_net %>%
     getBestModel("StARS") -> model_StARS # if StARS is requested, stabiltiy selection is performed if needed
-
+  
   models_net %>%
     getBestModel("BIC") -> model_BIC# if StARS is requested, stabiltiy selection is performed if needed
-
+  
   ## ------------------------------------------------------------------------
-
-
+  
+  
   ## ------------------------------------------------------------------------
-
+  
   out <- list("models" = models_net,
               "diag_p" = diag_p,
               "model_p" = model_p,
@@ -2676,7 +2754,7 @@ physeq_multi_domain_pln <- function(ps,
                 scale_x_log10(limits = c(1,1000)) +
                 scale_y_log10(limits = c(1,1000)) +
                 theme_bw() + annotation_logticks())
-
+  
   return(out)
 }
 
@@ -2705,13 +2783,13 @@ in_vitro_mIMT_STABvsTreat <- function(physeq,
                                       group_alpha,
                                       m = "PCoA")
 {
-
+  
   ps <- prune_samples(get_variable(physeq, var) == group,
                       physeq)
-
+  
   # ps <- physeq %>%
   #   subset_samples(treatment %in% group)
-
+  
   lapply(
     dlist,
     FUN = phyloseq_adonis,
@@ -2723,43 +2801,43 @@ in_vitro_mIMT_STABvsTreat <- function(physeq,
   ) %>%
     bind_rows(.id = "Distance") %>%
     filter(!Distance %in% c("bray", "d_0", "d_0.5")) -> adonis_tmp
-
-
+  
+  
   ps %>%
     phyloseq_plot_bdiv(dlist,
                        m = m,
                        seed = 123,
                        axis1 = 1,
                        axis2 = 2) -> plots
-
+  
   # removing some, otherwise it is too much...
   plots$bray = NULL
   plots$d_0 = NULL
   plots$d_0.5 = NULL
-
+  
   plots %>%
     plyr::ldply(function(x) x$data) -> df
-
+  
   names(df)[1] <- "distance"
   p = ggplot(df, aes_string(colnames(df)[2], colnames(df)[3]))
   p = p + geom_point(size=2,
                      aes_string(color= group_color,
                                 shape = group_shape,
                                 alpha = group_alpha))
-
+  
   p = p + facet_wrap(distance ~ ., scales="free")
-
+  
   p = p + ggtitle(paste0(m," using various distance metrics ", "- ", group, " Group")) +
     theme_light() #+ scale_color_viridis_d()
-
+  
   p + scale_color_viridis_d() +
     scale_alpha_continuous(range = c(0.6, 1),
                            breaks = c(20,30,40)) +
     scale_shape_manual(values = c(1,19,0,15))
-
+  
   output = list("plot" = p,
                 "PERMANOVA" = adonis_tmp)
-
+  
   return(output)
 }
 
@@ -2789,8 +2867,8 @@ phyloseq_generate_pcoa_per_variables <- function(tmp,
                                                  alpha = NULL,
                                                  col_pal = time_pal,
                                                  fill_pal = time_pal){
-
-
+  
+  
   # as.matrix(dist)[sample_names(tmp),sample_names(tmp)] %>%
   #   as.dist() -> dist
   
@@ -2799,7 +2877,7 @@ phyloseq_generate_pcoa_per_variables <- function(tmp,
                                  levels()))
   names(out) <- tmp %>%
     get_variable(group) %>% levels()
-
+  
   for(tp in tmp %>%
       get_variable(group) %>%
       unique()){
@@ -2807,15 +2885,15 @@ phyloseq_generate_pcoa_per_variables <- function(tmp,
     prune_samples(get_variable(tmp, group) == tp,
                   tmp) %>%
       filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> filter_tmp
-
+    
     filter_tmp %>%
       phyloseq_plot_bdiv(dlist = dist,
                          seed = 123,
                          axis1 = 1,
                          axis2 = 2,
                          m =  m,
-                         ) -> out[[tp]]
-  
+      ) -> out[[tp]]
+    
     
     out[[tp]] %>%
       phyloseq_plot_ordinations_facet(color_group = color_group,
@@ -2828,7 +2906,7 @@ phyloseq_generate_pcoa_per_variables <- function(tmp,
     
     
   }
-
+  
   return(out)
 }
 
@@ -2863,57 +2941,57 @@ plot_ratio_Stab_Treat_taxa <- function(ps_new,
                                        stats = FALSE,
                                        ref_group_stat = "NA",
                                        to_remove = c("unknown", "Incertae Sedis")){
-
+  
   #### ------------- get pairwise sample combinations
-
+  
   ps_new %>%
     sample_names() %>%
     as.vector() -> samples_names
-
+  
   tibble::tibble(Sample_A = samples_names,
                  Sample_B = samples_names) %>%
     tidyr::expand(Sample_A, Sample_B) %>%
     dplyr::filter(Sample_A != Sample_B) -> sample_pw  # remove self comparaisons
-
+  
   #### ------------- transformation prevalence filtering - if no taconomic agglomeration
-
+  
   if(is.null(tax_rank)){
-
+    
     ps_new %>%
       microbiome::transform(transform = transform) %>%
       microbiome::core(., detection = detection, prevalence = prevalence ) -> ps_new
-
+    
   }
   #### ------------- Taxonomic agglomeration and transformation prevalence filtering
-
+  
   if(!is.null(tax_rank)){
     ps_new %>%
       speedyseq::tax_glom(taxrank = tax_rank) %>%
       microbiome::transform(transform = transform) %>%
       microbiome::core(., detection = detection, prevalence = prevalence ) -> ps_new
-
+    
     prune_taxa(data.frame(tax_table(ps_new)[,tax_rank])
                %>%  dplyr::filter(!get(tax_rank) %in% to_remove) %>% rownames(),ps_new) -> ps_new
-
+    
     taxa_names(ps_new) <-  tax_table(ps_new)[,tax_rank]
-
+    
   }
-
+  
   #### ------------- Extracting metadata based on meta_sel parameter
-
+  
   ps_new %>%
     sample_data() %>%
     data.frame() %>%
     dplyr::select(one_of(meta_sel)) -> meta_data
-
+  
   meta_data_A <- meta_data
   meta_data_B <- meta_data
-
+  
   names(meta_data_A) <- paste0(names(meta_data), "_A")
   names(meta_data_B) <- paste0(names(meta_data), "_B")
-
+  
   #### ------------- Joining metadata with pairwise sample comparaisons
-
+  
   sample_pw %>%
     left_join(meta_data_A,
               by = c("Sample_A" = "sample_name_A")) %>%
@@ -2923,21 +3001,21 @@ plot_ratio_Stab_Treat_taxa <- function(ps_new,
              Stab_Treat_B == "TREAT" & # and Sample_B has to be TREAT (Stab_Treat_B colum)
              Period_A == Period_B, # and Period_A (of Sample_A has to be the same as the period of Sample_B - no between period ratios)
            Treatment_A == Treatment_B) -> sample_pw_meta # only within treatment ratios
-
+  
   #### ------------- Exporting the OTU 'abundance' data
-
+  
   ps_new %>%
     speedyseq::psmelt() %>%
     dplyr::select(Sample, OTU, Abundance) -> data
-
+  
   data_A <- data
   data_B <- data
-
+  
   names(data_A) <- paste0(names(data), "_A")
   names(data_B) <- paste0(names(data), "_B")
-
+  
   #### ------------- Joining OTU abundance with pairwise sample comparisons + metadata already filter above
-
+  
   sample_pw_meta %>%
     left_join(.,
               data_A,
@@ -2948,19 +3026,19 @@ plot_ratio_Stab_Treat_taxa <- function(ps_new,
     dplyr::filter(OTU_A == OTU_B) %>% # only within 'OTU' ratio - could be Genus...
     dplyr::mutate(ratio = Abundance_B  / Abundance_A ) %>%  # computing ratio
     dplyr::mutate(log10_ratio = log10(ratio)) -> sample_pw_meta_tax
-
+  
   #### -------------
-
+  
   sample_pw_meta_tax %>%
     dplyr::filter(is.finite(log10_ratio)) %>%
     group_by(Period_A, Reactor_A, Treatment_A, OTU_A) %>%
     add_count() %>% # select(n, OTU_A)
     filter(n() >= n_filter) %>% # keeping only OTU (Genus, ...) with at least n_filter pairwise comparaisons
     ungroup() -> sample_pw_meta_tax_filt
-
+  
   #### -------- plot
   if(plot == TRUE){
-
+    
     boxplot_ratio <- sample_pw_meta_tax_filt %>%
       ggplot(., aes(x = OTU_A, y = log10(ratio))) +
       geom_boxplot(aes(color = Treatment_A, fill = Treatment_A),
@@ -2973,15 +3051,15 @@ plot_ratio_Stab_Treat_taxa <- function(ps_new,
       ylab(paste0("log10 ratio Treat/Stab")) + xlab(NULL) + #ylim(c(0,1)) +
       theme_light() + #theme(legtheme(legend.position = "none") +
       ggpubr::rotate_x_text(45)
-
+    
     out <- list("df" = sample_pw_meta_tax,
                 "df_filtered" = sample_pw_meta_tax_filt,
                 "plot" = boxplot_ratio)
   }
-
+  
   #### -------- Stats
   if(stats == TRUE){
-
+    
     sample_pw_meta_tax_filt %>%
       group_by(OTU_A, Period_A) %>%
       rstatix::wilcox_test(log10_ratio ~ Treatment_A,
@@ -2990,7 +3068,7 @@ plot_ratio_Stab_Treat_taxa <- function(ps_new,
       filter(group1 == !!ref_group_stat) %>%
       rstatix::adjust_pvalue(method = "fdr") %>%
       rstatix::add_significance("p.adj") -> boxplot_ratio_stats
-
+    
     out <- list("df" = sample_pw_meta_tax,
                 "df_filtered" = sample_pw_meta_tax_filt,
                 "plot" = boxplot_ratio,
@@ -3000,8 +3078,8 @@ plot_ratio_Stab_Treat_taxa <- function(ps_new,
     out <- list("df" = sample_pw_meta_tax,
                 "df_filtered" = sample_pw_meta_tax_filt)
   }
-
-
+  
+  
   return(out)
 }
 
@@ -3025,34 +3103,34 @@ plot_ratio_Stab_Treat_meta <- function(ps_new,
                                        # plot = TRUE,
                                        # stats = FALSE,
                                        ref_group_stat = "NA"){
-
+  
   #### ------------- get pairwise sample combinations
-
+  
   ps_new %>%
     sample_names() %>%
     as.vector() -> samples_names
-
+  
   tibble::tibble(Sample_A = samples_names,
                  Sample_B = samples_names) %>%
     tidyr::expand(Sample_A, Sample_B) %>%
     dplyr::filter(Sample_A != Sample_B) -> sample_pw  # remove self comparaisons
-
+  
   #### ------------- Extracting metadata based on meta_sel parameter
-
+  
   ps_new %>%
     sample_data() %>%
     data.frame() %>%
     dplyr::select(one_of(meta_sel, meta_plot)) %>%
     dplyr::rename(meta_plot = all_of(meta_plot)) -> meta_data
-
+  
   meta_data_A <- meta_data
   meta_data_B <- meta_data
-
+  
   names(meta_data_A) <- paste0(names(meta_data), "_A")
   names(meta_data_B) <- paste0(names(meta_data), "_B")
-
+  
   #### ------------- Joining metadata with pairwise sample comparaisons
-
+  
   sample_pw %>%
     left_join(meta_data_A,
               by = c("Sample_A" = "sample_name_A")) %>%
@@ -3062,24 +3140,24 @@ plot_ratio_Stab_Treat_meta <- function(ps_new,
              Stab_Treat_B == "TREAT" & # and Sample_B has to be TREAT (Stab_Treat_B colum)
              Period_A == Period_B, # and Period_A (of Sample_A has to be the same as the period of Sample_B - no between period ratios)
            Treatment_A == Treatment_B) -> sample_pw_meta # only within treatment ratios
-
+  
   #### ------------- Joining OTU abundance with pairwise sample comparisons + metadata already filter above
   sample_pw_meta %>%
     dplyr::mutate(ratio = meta_plot_A / meta_plot_B) %>%  # computing ratio
     dplyr::mutate(log10_ratio = log10(ratio)) -> sample_pw_meta
-
+  
   #### -------------
-
+  
   # sample_pw_meta %>%
   #   dplyr::filter(is.finite(log10_ratio)) %>%
   #   group_by(Period_A, Reactor_A, Treatment_A, meta_plot_A) %>%
   #   add_count() %>% # select(n, OTU_A)
   #   filter(n() >= n_filter) %>% # keeping only OTU (Genus, ...) with at least n_filter pairwise comparaisons
   #   ungroup() -> sample_pw_meta_filt
-
+  
   #### -------- plot
   if(plot == TRUE){
-
+    
     boxplot_ratio <- sample_pw_meta %>%
       ggplot(., aes(x = Treatment_A, y = log10(ratio))) +
       geom_boxplot(aes(color = Treatment_A, fill = Treatment_A),
@@ -3092,14 +3170,14 @@ plot_ratio_Stab_Treat_meta <- function(ps_new,
       ylab(paste0("log10 ratio Treat/Stab ", meta_plot)) + xlab(NULL) + #ylim(c(0,1)) +
       theme_light() + #theme(legtheme(legend.position = "none") +
       ggpubr::rotate_x_text(45)
-
+    
     out <- list("df" = sample_pw_meta,
                 "plot" = boxplot_ratio)
   }
-
+  
   #### -------- Stats
   if(stats == TRUE){
-
+    
     sample_pw_meta %>%
       group_by(meta_plot_A, Period_A) %>%
       rstatix::wilcox_test(log10_ratio ~ Treatment_A,
@@ -3108,7 +3186,7 @@ plot_ratio_Stab_Treat_meta <- function(ps_new,
       filter(group1 == !!ref_group_stat) %>%
       rstatix::adjust_pvalue(method = "fdr") %>%
       rstatix::add_significance("p.adj") -> boxplot_ratio_stats
-
+    
     out <- list("df" = sample_pw_meta,
                 "plot" = boxplot_ratio,
                 "stats" = stats)
@@ -3116,8 +3194,8 @@ plot_ratio_Stab_Treat_meta <- function(ps_new,
   if(stats == FALSE & plot == FALSE){
     out <- list("df" = sample_pw_meta)
   }
-
-
+  
+  
   return(out)
 }
 
@@ -3142,32 +3220,32 @@ plot_ratio_Stab_Treat_meta <- function(ps_new,
 #'adonis2 %>% adonis_OmegaSq(partial = FALSE)
 
 adonis_OmegaSq <- function(aov_tab, partial = TRUE){
-
+  
   # if(is.numeric(colSums(aov_tab, na.rm = TRUE)))
   # aov_tab %>%
   #   rownames_to_column('terms') -> aov_tmp
-
+  
   ####---------------------- Compute MeanSqs
-
+  
   aov_tab %>%
     mutate(MeanSqs = SumOfSqs / Df) -> aov_tmp
-
+  
   ####---------------------- Identify MS_res SS_tot and N
-
+  
   aov_tmp %>%
     filter(.[[1]]  == "Residual") %>%
     pull(MeanSqs) -> MS_res
-
+  
   aov_tmp %>%
     filter(.[[1]]  == "Total") %>%
     pull(SumOfSqs) -> SS_tot
-
+  
   aov_tmp %>%
     filter(.[[1]]  == "Total") %>%
     pull(Df) + 1 -> N
-
+  
   ####---------------------- Run (partial) Omega Square
-
+  
   if(partial == TRUE){
     omega <- apply(aov_tmp %>% column_to_rownames('terms'), 1, function(x) (x["Df"]*(x["MeanSqs"]-MS_res))/(x["Df"]*x["MeanSqs"]+(N-x["Df"])*MS_res))
     aov_tmp$parOmegaSq <- c(omega[1:(length(omega)-2)], NA, NA)
@@ -3177,12 +3255,12 @@ adonis_OmegaSq <- function(aov_tab, partial = TRUE){
     aov_tmp$OmegaSq <- c(omega[1:(length(omega)-2)], NA, NA)
     cn_order <- c("Df", "SumOfSqs", "MeanSqs", "F", "R2", "OmegaSq", "Pr(>F)")
   }
-
+  
   ####---------------------- Reorder the table and return the output
-
+  
   aov_tmp %>%
     select(terms, one_of(cn_order)) -> aov_tmp
-
+  
   return(aov_tmp)
 }
 
@@ -3205,31 +3283,31 @@ adonis_OmegaSq <- function(aov_tab, partial = TRUE){
 
 
 phyloseq_comdist_parallel <- function(physeq, abundance.weighted = FALSE, exclude.conspecifics = FALSE, cores = 1, progress = TRUE){
-
+  
   ####---------------------- Load R package
   require(picante); require(doSNOW)
-
+  
   ####---------------------- Extract data
   physeq %>%
     microbiome::transform(transform = "compositional") -> physeq
-
+  
   as(otu_table(physeq), "matrix") %>%
     t() %>%
     as.data.frame() -> comm
-
-
+  
+  
   physeq@phy_tree %>%
     cophenetic() -> dis
-
+  
   ####----------------------
-
+  
   dat <- match.comm.dist(comm, dis)
   comm <- dat$comm
   dis <- dat$dist
   N <- dim(comm)[1]
-
+  
   sppInSamples <- apply(comm,1,function(x) names(which(x > 0)))
-
+  
   if(progress){
     pb <- txtProgressBar(max = (N-1), style = 3)
     progress <- function(n) setTxtProgressBar(pb, n)
@@ -3237,24 +3315,24 @@ phyloseq_comdist_parallel <- function(physeq, abundance.weighted = FALSE, exclud
   } else {
     opts <- NULL
   }
-
+  
   if(cores == 1) {
     registerDoSEQ() }
   else {
     cl <- makeCluster(cores)
     registerDoSNOW(cl)
   }
-
+  
   i <- NULL
   comdisnt <- foreach (i = 1:(N-1),.combine = rbind, .options.snow = opts) %dopar% {
-
+    
     comdisnt.sub <- as.numeric(rep(NA,N))
-
+    
     for (j in (i + 1):N) {
-
+      
       sppInSample1 <- sppInSamples[[i]]
       sppInSample2 <- sppInSamples[[j]]
-
+      
       if ((length(sppInSample1) >= 1) && (length(sppInSample2) >= 1)) {
         sample.dis <- dis[sppInSample1, sppInSample2, drop = FALSE]
         if (exclude.conspecifics) {
@@ -3264,7 +3342,7 @@ phyloseq_comdist_parallel <- function(physeq, abundance.weighted = FALSE, exclud
         sample1NT[sample1NT == Inf] <- NA
         sample2NT <- apply(sample.dis, 2, min, na.rm = TRUE)
         sample2NT[sample2NT == Inf] <- NA
-
+        
         if (abundance.weighted) {
           sample1.weights <- as.numeric(comm[i, sppInSample1])
           sample2.weights <- as.numeric(comm[j, sppInSample2])
@@ -3296,12 +3374,12 @@ phyloseq_comdist_parallel <- function(physeq, abundance.weighted = FALSE, exclud
   }
   if(cores != 1) stopCluster(cl)
   comdisnt <- rbind(comdisnt,rep(NA,N))
-
+  
   rownames(comdisnt) <- colnames(comdisnt) <- rownames(comm)
   return(as.dist(t(comdisnt)))
-
+  
   detach("package:picante", unload=TRUE); detach("package:doSNOW", unload=TRUE)
-
+  
 }
 
 
@@ -3323,46 +3401,46 @@ phyloseq_comdist_parallel <- function(physeq, abundance.weighted = FALSE, exclud
 
 phyloseq_comdist2_SES_NTI_parallel <- function(physeq, method = "swap", fixedmar = "both", shuffle = "both", strata = NULL, mtype = "count", burnin = 0, thin = 1,
                                                abundance.weighted = FALSE, exclude.conspecifics = FALSE, runs = 999, cores = 1){
-
-
+  
+  
   ####---------------------- Load R package
   require(picante); require(vegan)
-
+  
   ####---------------------- Extract data
   # physeq %>%
   #   microbiome::transform(transform = "compositional") -> physeq
-
+  
   as(otu_table(physeq), "matrix") %>%
     t() %>%
     as.data.frame() -> samp
-
-
+  
+  
   physeq@phy_tree %>%
     cophenetic() %>%
     as.matrix() -> dis
-
+  
   ####----------------------
-
+  
   comdistnt.obs <- as.matrix(comdistnt.par(samp, dis, abundance.weighted = abundance.weighted, exclude.conspecifics = exclude.conspecifics, cores = cores, progress = FALSE))
-
+  
   if(is.null(method)) {
     comdistnt.rand <- replicate(runs, as.matrix(comdist_nti_par(permatfull(samp, fixedmar = fixedmar, shuffle = shuffle, strata = strata, mtype = mtype, times = 1)$perm[[1]], dis, abundance.weighted, exclude.conspecifics, cores = cores, progress = FALSE)), simplify = FALSE)
   } else {
     comdistnt.rand <- replicate(runs, as.matrix(comdist_nti_par(permatswap(samp, method = method, fixedmar = fixedmar, shuffle = shuffle, strata = strata, mtype = mtype, burnin = burnin, thin = thin, times = 1)$perm[[1]], dis, abundance.weighted, exclude.conspecifics, cores = cores, progress = FALSE)), simplify = FALSE)
   }
-
+  
   comdistnt.rand.mean <- apply(X = simplify2array(comdistnt.rand), MARGIN = 1:2, FUN = mean, na.rm = TRUE)
-
+  
   comdistnt.rand.sd <- apply(X = simplify2array(comdistnt.rand), MARGIN = 1:2, FUN = sd, na.rm = TRUE)
-
+  
   comdistnt.obs.z <- (comdistnt.obs - comdistnt.rand.mean)/comdistnt.rand.sd
-
+  
   comdistnt.obs.rank <- apply(X = simplify2array(c(list(comdistnt.obs),comdistnt.rand)), MARGIN = 1:2, FUN = rank)[1,,]
   comdistnt.obs.rank <- ifelse(is.na(comdistnt.rand.mean), NA, comdistnt.obs.rank)
   diag(comdistnt.obs.rank) <- NA
-
+  
   comdistnt.obs.p <- comdistnt.obs.rank/(runs + 1)
-
+  
   list(ntaxa = specnumber(samp), comdistnt.obs = comdistnt.obs, comdistnt.rand.mean = comdistnt.rand.mean,
        comdistnt.rand.sd = comdistnt.rand.sd, comdistnt.obs.rank = comdistnt.obs.rank, comdistnt.obs.z = comdistnt.obs.z, comdistnt.obs.p = comdistnt.obs.p, runs = runs)
 }
@@ -3390,26 +3468,26 @@ phyloseq_bNTI_parallel <- function(physeq, null.model = c("taxa.labels", "richne
                                                           "trialswap"), abundance_weighted = TRUE, exclude_conspecifics = FALSE,
                                    runs = 999, iterations = 1000, cores = 1)
 {
-
-
+  
+  
   ####---------------------- Load R package
   require(picante); require(vegan);require(doSNOW)
-
+  
   ####---------------------- Extract data
   # physeq %>%
   #   microbiome::transform(transform = "compositional") -> physeq
-
+  
   as(otu_table(physeq), "matrix") %>%
     t() %>%
     as.data.frame() -> samp
-
-
+  
+  
   physeq@phy_tree %>%
     cophenetic() %>%
     as.matrix() -> dis
-
+  
   ####----------------------
-
+  
   comdistnt.obs <- as.matrix(comdist_nti_par(samp, dis, abundance_weighted = abundance_weighted,
                                              exclude_conspecifics = exclude_conspecifics, cores = cores,
                                              progress = FALSE))
@@ -3450,20 +3528,20 @@ phyloseq_bNTI_parallel <- function(physeq, null.model = c("taxa.labels", "richne
                                NA, comdistnt.obs.rank)
   diag(comdistnt.obs.rank) <- NA
   comdistnt.obs.p <- comdistnt.obs.rank/(runs + 1)
-
+  
   # bNTI <-   weighted.bNTI[rows,columns] = (beta.mntd.weighted[rows,columns] - mean(rand.vals)) / sd(rand.vals)
-
-
+  
+  
   out <- list(ntaxa = specnumber(samp), comdistnt_obs = comdistnt.obs,
               comdistnt_rand.mean = comdistnt.rand.mean, comdistnt_rand_sd = comdistnt.rand.sd,
               comdistnt_obs.rank = comdistnt.obs.rank, comdistnt_obs_z = comdistnt.obs.z,
               comdistnt_obs.p = comdistnt.obs.p, bNTI = -1 * comdistnt.obs.z, runs = runs)
-
-
+  
+  
   return(out)
-
+  
   detach("package:doSNOW", unload=TRUE); detach("package:picante", unload=TRUE)
-
+  
 }
 
 
@@ -3584,27 +3662,27 @@ phyloseq_iCAMP_bNTIn_par <- function(physeq, nworker = 4, memo.size.GB = 50,
                                      special.method=c("MNTD"),
                                      ses.cut=1.96,rc.cut=0.95,conf.cut=0.975,
                                      dirichlet = FALSE){
-
-
+  
+  
   ####---------------------- Load R package
   require(iCAMP); require(vegan)
-
+  
   ####---------------------- Extract data
   # physeq %>%
   #   microbiome::transform(transform = "compositional") -> physeq
-
+  
   as(otu_table(physeq), "matrix") %>%
     t() %>%
     as.matrix() -> commps
-
-
+  
+  
   physeq@phy_tree %>%
     cophenetic() %>%
     as.matrix() -> dis
-
+  
   ####----------------------
-
-
+  
+  
   bNTIn.p(comm = commps, dis = dis, nworker = nworker, memo.size.GB = memo.size.GB,
           weighted = weighted, exclude.consp = exclude.consp,
           rand = rand, output.bMNTD = output.bMNTD,
@@ -3614,12 +3692,12 @@ phyloseq_iCAMP_bNTIn_par <- function(physeq, nworker = 4, memo.size.GB = 50,
           special.method=special.method,
           ses.cut=ses.cut,rc.cut=rc.cut,conf.cut=conf.cut,
           dirichlet = dirichlet) -> out_icamp
-
-
+  
+  
   return(out_icamp)
-
+  
   detach("package:iCAMP", unload=TRUE)
-
+  
 }
 
 
@@ -3637,67 +3715,67 @@ phyloseq_iCAMP_bNTIn_par <- function(physeq, nworker = 4, memo.size.GB = 50,
 #' GlobalPatterns %>% subset_samples(SampleType == "Feces") %>% filter_taxa(function(x) sum(x > 0) > 2, TRUE) %>% phyloseq_bNTI_stegen(.,  weighted = TRUE,exclude.conspecifics= FALSE, beta.reps = 4) -> out_phyloseq_bNTI_stegen
 
 phyloseq_bNTI_stegen <- function(physeq, weighted = TRUE,exclude.conspecifics= FALSE, beta.reps = 999){
-
-
+  
+  
   ####---------------------- Load R package
   require(picante)
-
+  
   ####---------------------- Extract data
   # physeq %>%
   #   microbiome::transform(transform = "compositional") -> physeq
-
+  
   as(otu_table(physeq), "matrix") %>%
     # t() %>%
     as.matrix() -> otu
-
-
+  
+  
   physeq@phy_tree %>%
     cophenetic() %>%
     as.matrix() -> dis
-
+  
   ####----------------------
-
+  
   ## calculate empirical betaMNTD
-
+  
   beta.mntd.weighted = as.matrix(picante::comdistnt(t(otu),dis,abundance.weighted=weighted))
-
+  
   # calculate randomized betaMNTD
-
+  
   # rand.weighted.bMNTD.comp = array(c(-beta.reps),dim=c(nrow(otu),nrow(otu),beta.reps))
   rand.weighted.bMNTD.comp = array(c(-beta.reps),dim=c(ncol(otu),ncol(otu),beta.reps))
   # dim(rand.weighted.bMNTD.comp)
-
+  
   for (rep in 1:beta.reps) {
-
+    
     # rand.weighted.bMNTD.comp[,,rep] = as.matrix(comdistnt(otu,taxaShuffle(dis),abundance.weighted=weighted,exclude.conspecifics = exclude.conspecifics))
     rand.weighted.bMNTD.comp[,,rep] = as.matrix(comdistnt(t(otu),taxaShuffle(dis),abundance.weighted=weighted,exclude.conspecifics = exclude.conspecifics))
     print(c(date(),rep))
-
+    
   }
-
+  
   weighted.bNTI = matrix(c(NA),nrow=ncol(otu),ncol=ncol(otu))
-
-
+  
+  
   for (columns in 1:(ncol(otu)-1)) {
     for (rows in (columns+1):ncol(otu)) {
-
+      
       rand.vals = rand.weighted.bMNTD.comp[rows,columns,]
       weighted.bNTI[rows,columns] = (beta.mntd.weighted[rows,columns] - mean(rand.vals)) / sd(rand.vals)
       rm("rand.vals")
-
+      
     }
   }
-
-
+  
+  
   rownames(weighted.bNTI) = colnames(otu)
   colnames(weighted.bNTI) = colnames(otu)
   # weighted.bNTI;
   # write.csv(weighted.bNTI,"weighted_bNTI.csv",quote=F);
-
+  
   # pdf("weighted_bNTI_Histogram.pdf")
   # hist(weighted.bNTI)
   # dev.off()
-
+  
   return(weighted.bNTI)
   # return(out = list("bNTI" = weighted.bNTI,
   #                   "plot" = hist(weighted.bNTI))
@@ -3725,14 +3803,14 @@ phyloseq_bNTI_phylocomr <- function(physeq,
                                     null_model = 0,
                                     randomizations = 999,
                                     abundance = TRUE){
-
+  
   ####---------------------- Load R package
   require("phylocomr")
-
+  
   ####---------------------- Extract data
   # physeq %>%
   #   microbiome::transform(transform = "compositional") -> physeq
-
+  
   as(otu_table(physeq), "matrix") %>%
     t() %>%
     as.data.frame() %>%
@@ -3741,12 +3819,12 @@ phyloseq_bNTI_phylocomr <- function(physeq,
     select(sample_id_temp, value, name) %>%
     mutate(name = as.factor(name)) %>%
     as.data.frame() -> otu
-
-
+  
+  
   physeq@phy_tree -> phylo
-
+  
   ####----------------------
-
+  
   ph_comdistnt(
     otu,
     phylo,
@@ -3755,11 +3833,11 @@ phyloseq_bNTI_phylocomr <- function(physeq,
     randomizations = randomizations,
     abundance = abundance
   ) -> out
-
+  
   return(out)
-
+  
   detach("package:phylocomr", unload=TRUE)
-
+  
 }
 
 #' @title ...
@@ -3777,44 +3855,44 @@ phyloseq_bNTI_phylocomr <- function(physeq,
 #'
 
 phyloseq_raup_crick_abu_par <- function(phyloseq, reps, ncore, classic_metric=FALSE, split_ties=TRUE){
-
-
-
+  
+  
+  
   ####---------------------- Load R package
   require("parallel");  require("doSNOW")
-
+  
   ####---------------------- Extract data
   # physeq %>%
   #   microbiome::transform(transform = "compositional") -> physeq
-
+  
   as(otu_table(physeq), "matrix") %>%
     t() %>%
     as.matrix() -> com
-
+  
   ####----------------------
-
-
+  
+  
   pb <- txtProgressBar(max =reps, style = 3)
   progress <- function(n) setTxtProgressBar(pb, n)
   opts <- list(progress = progress)
   cl <- makeCluster(ncore)
   registerDoSNOW(cl)
-
+  
   bray.rand <- foreach(randomize = 1:reps,
                        .options.snow = opts,
                        .packages = c("vegan", "picante")) %dopar% {
-
-
+                         
+                         
                          null.dist <- com*0
-
+                         
                          for(i in 1:nrow(com)){
-
+                           
                            com.pa <- (com>0)*1
                            gamma<-ncol(com)
                            occur<-apply(com>0, MARGIN=2, FUN=sum)
                            abundance<-apply(com, MARGIN=2, FUN=sum)
                            com1 <- rep(0,gamma)
-
+                           
                            com1[sample(1:gamma, sum(com.pa[i,]), replace=FALSE, prob=occur)]<-1
                            com1.samp.sp = sample(which(com1>0), (sum(com[i,])-sum(com1)),
                                                  replace=TRUE,prob=abundance[which(com1>0)]);
@@ -3830,37 +3908,37 @@ phyloseq_raup_crick_abu_par <- function(phyloseq, reps, ncore, classic_metric=FA
                          as.matrix(vegdist(null.dist, "bray"))
                        }
   stopCluster(cl)
-
+  
   ## Calculate beta-diversity for obs metacommunity
   bray.obs <- as.matrix(vegdist(com, "bray"))
-
+  
   ##how many null observations is the observed value tied with?
   null_bray_curtis <- bray.rand
   num_exact_matching_in_null <- lapply(null_bray_curtis, function(x) x==bray.obs)
   num_exact_matching_in_null <- apply(simplify2array(num_exact_matching_in_null), 1:2, sum)
-
+  
   ##how many null values are smaller than the observed *dissimilarity*?
   num_less_than_in_null <- lapply(null_bray_curtis, function(x) (x<bray.obs)*1)
   num_less_than_in_null <- apply(simplify2array(num_less_than_in_null), 1:2, sum)
-
-
+  
+  
   rc = (num_less_than_in_null)/reps; # rc;
-
+  
   if(split_ties){
-
+    
     rc = ((num_less_than_in_null +(num_exact_matching_in_null)/2)/reps)
   };
-
-
+  
+  
   if(!classic_metric){
-
+    
     ##our modification of raup crick standardizes the metric to range from -1 to 1 instead of 0 to 1
-
+    
     rc = (rc-.5)*2
   };
-
+  
   return(rc)
-
+  
 }
 
 
@@ -3887,53 +3965,53 @@ phyloseq_kraft_null_model <- function(phyloseq = GlobalPatterns,
                                       verbose = TRUE)
 {
   ####---------------------- Load R package -------
-
+  
   require(phyloseq); require(tidyverse)#; require()
-
+  
   ####---------------------- Extract data -------
-
+  
   phyloseq %>%
     filter_taxa(function(x) sum(x > 0) > 0, TRUE) -> phyloseq
-
+  
   as(otu_table(phyloseq), "matrix") %>%
     data.frame() %>%
     rownames_to_column('Taxa') %>%
     pivot_longer(sample_names(phyloseq)) %>%
     filter(value > 0) -> df
-
+  
   ####---------------------- old way -------
-
+  
   # df <- tibble(spp=rep(df$Taxa,df$value), transect=rep(df$name,df$value))
-
+  
   ####---------------------- XXXXXXXXXXX -------
-
+  
   phyloseq %>%
     sample_names() %>%
     as.vector() -> samples_names
-
+  
   ####---------------------- XXXXXXXXXXX -------
-
+  
   tibble::tibble(Sample_A = samples_names,
                  Sample_B = samples_names) %>%
     tidyr::expand(Sample_A, Sample_B) %>%
     dplyr::filter(Sample_A != Sample_B) -> sample_pw  # remove self comparaisons
-
+  
   #### ------------- Extracting metadata based on meta_sel parameter
-
+  
   phyloseq %>%
     sample_data() %>%
     data.frame() %>%
     dplyr::select(one_of(meta_sel)) %>%
     rownames_to_column("sample_id_tmp") -> meta_data
-
+  
   meta_data_A <- meta_data
   meta_data_B <- meta_data
-
+  
   names(meta_data_A) <- paste0(names(meta_data), "_A")
   names(meta_data_B) <- paste0(names(meta_data), "_B")
-
+  
   #### ------------- Joining metadata with pairwise sample comparaisons
-
+  
   sample_pw %>%
     left_join(meta_data_A,
               by = c("Sample_A" = "sample_id_tmp_A")) %>%
@@ -3941,55 +4019,55 @@ phyloseq_kraft_null_model <- function(phyloseq = GlobalPatterns,
               by = c("Sample_B" = "sample_id_tmp_B")) %>%
     # filter("SampleType_B" == "Mock")
     filter(rlang::eval_tidy(rlang::parse_expr(filtering_expr))) -> sample_pw_meta
-
-
+  
+  
   # Stab_Treat_A  %in% "STAB" & # Sample_A has to be STAB  (Stab_Treat_A colum)
   #        Stab_Treat_B == "TREAT" & # and Sample_B has to be TREAT (Stab_Treat_B colum)
   #        Period_A == Period_B, # and Period_A (of Sample_A has to be the same as the period of Sample_B - no between period ratios)
   #      Treatment_A == Treatment_B) -> sample_pw_meta # only within treatment ratios
-
-
+  
+  
   ####---------------------- XXXXXXXXXXX -------
-
+  
   out_list <- list()
-
+  
   for (i in 1:nrow(sample_pw_meta)){
-
+    
     # print(i)
-
+    
     # df %>%
     #   filter(transect == sample_pw$Sample_A[i] | transect == sample_pw$Sample_B[i]) -> out_list[[i]]
     #
     # names(out_list)[[i]] <- paste0(sample_pw$Sample_A[i], "_", sample_pw$Sample_B[i])
-
+    
     df %>%
       filter( name %in% c(sample_pw$Sample_A[i],
                           sample_pw$Sample_B[i])) %>%
       filter(value > 0 ) -> out_tmp
-
-
+    
+    
     tibble(spp=rep(out_tmp$Taxa,out_tmp$value), transect=rep(out_tmp$name,out_tmp$value)) -> out_list[[i]]
-
+    
     names(out_list)[[i]] <- paste0(sample_pw$Sample_A[i], "_", sample_pw$Sample_B[i])
-
+    
   }
-
-
+  
+  
   ####---------------------- XXXXXXXXXXX -------
-
-
+  
+  
   # out_list[[1]] %>%
   #   ses.beta.function(Nsim = 2)
   #
   # mini_list <- list(  out_list[[1]],   out_list[[2]],   out_list[[3]])
-
+  
   # names(final_out) <- names(out_list)
   #
   # mini_list %>%
   #   lapply(ses.beta.function) -> final_out
-
+  
   final_out <- list()
-
+  
   out_list %>%
     lapply(ses.beta.function) %>%
     bind_rows(.) %>%
@@ -4001,33 +4079,33 @@ phyloseq_kraft_null_model <- function(phyloseq = GlobalPatterns,
            ses.beta   = as.double(ses.beta)) %>%
     mutate(SI = 1 - ((abs(obs.beta - mean.null.beta))/obs.beta )) %>%
     mutate(DS = (abs(obs.beta - mean.null.beta))/obs.beta) -> final_out
-
+  
   ####---------------------- XXXXXXXXXXX -------
-
+  
   ses.beta.function <- function(gdata, Nsim=nsim)
     # 'gdata' is the    data file, 'Nsim' is the number of randomizations for calculating expected/null beta
   {
     ####---------------------- XXXXXXXXXXX -------
-
+    
     require(tidyverse)
-
+    
     ####---------------------- XXXXXXXXXXX -------
-
+    
     gdata %>%
       mutate(transect = as.vector(transect)) %>%
       mutate(spp = as.vector(gdata$spp)) -> gdata
-
+    
     ####---------------------- XXXXXXXXXXX -------
-
+    
     sample_A = unique(gdata$transect)[1]
     sample_B = unique(gdata$transect)[2]
-
+    
     if(verbose == TRUE){
       print(paste0("processing ", sample_A, " and ", sample_B ))
     }
-
+    
     ####---------------------- XXXXXXXXXXX -------
-
+    
     plot.gamma=length(unique(gdata$spp)) #calculate the total number of species at the site
     transect.spp=tapply(gdata$spp,gdata$transect,unique) #generate species list for each transect
     obs.mean.alpha=mean(sapply(transect.spp,length)) #calculate average number of species per transect
@@ -4036,33 +4114,33 @@ phyloseq_kraft_null_model <- function(phyloseq = GlobalPatterns,
     for(j in 1:Nsim) #start loop for simulations
     {
       if(verbose == TRUE){
-
+        
         print(paste0("simulation:  ", j ))
       }
-
+      
       samp=sample(gdata$transect,length(gdata$transect),replace=F)
-
+      
       #swaps order of plotnames
       swap.data=data.frame("transect"=samp,"spp"=gdata$spp)
-
+      
       #assigns random plotnames to individuals
       rand.transect.spp=tapply(swap.data$spp,swap.data$transect,unique)
-
+      
       #generate species list for each transect
       rand.mean.alpha[j]=mean(sapply(rand.transect.spp,length))
-
+      
       #calculate average number of species per transect
     } #end loop for simulations
     null.plot.beta=1-rand.mean.alpha/plot.gamma #calculates the 1000 random beta values
-
+    
     mean.null.beta=mean(null.plot.beta) #calculates the mean of the random beta values
-
+    
     sd.null.beta=sd(null.plot.beta) #calculates the sd of the random beta values
-
+    
     ses.beta=(obs.beta-mean.null.beta)/sd.null.beta #calculates the deviation of the observed from expected (random) beta
-
+    
     out <- c("sample_A" =sample_A, "sample_B" = sample_B,"gamma"=plot.gamma,"obs.mean.alpha"=obs.mean.alpha,"obs.beta"=obs.beta,"mean.null.beta"=mean.null.beta,"sd.null.beta"=sd.null.beta,"ses.beta"=ses.beta)
-
+    
     # # rownames(out)
     # unique(gdata$transect) %>%  as.character() -> samples
     #
@@ -4071,12 +4149,12 @@ phyloseq_kraft_null_model <- function(phyloseq = GlobalPatterns,
     # lapply(strsplit(unique(gdata$transect, ","), as.character)
     #
     #        -> opt$raw_file_pattern
-
+    
     return(out)
   }
-
+  
   ####---------------------- XXXXXXXXXXX -------
-
+  
   return(final_out)
 }
 
