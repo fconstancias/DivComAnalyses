@@ -922,9 +922,6 @@ phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Sal
   return(out)
 }
 
-# 
-# 
-
 
 #' @title ...
 #' @param .
