@@ -575,7 +575,7 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
   
   ####---------------------- feature - trans_diff {microeco}
   
-
+  
   
   
   if ("ancombc2"  %in% method)
@@ -726,65 +726,207 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
   return(out)
 }
 
-#' @title ...
-#' @param .
-#' @param ..
-#' @author Florentin Constancias
-#' @note see: https://chiliubio.github.io/microeco_tutorial/model-based-class.html
-#' @note .
-#' @return .
-#' @export
-#' @examples
+#' Phyloseq Classifier Function
 #'
-
-# ps_up %>% subset_samples(Sample == "Saliva") %>% 
-# subset_taxa(Kingdom != "UNCLASSIFIED") %>% 
-# transform_sample_counts(function(x) x/sum(x) * 100) %>% 
-#   phyloseq_classifier(physeq = .,
-#                       y_response = "Time",
-#                       x_predictors = "Species",
-#                       ref_train_max_mtry = 2,
-#                       ref_train_ntree = 10,
-#                       feature_imp_nrep = 10) -> class_out
-  
-  
+#' This function performs classification on a given `phyloseq` object using the `microeco` package. 
+#' It includes data preprocessing, feature selection, training, and evaluation of a machine learning model.
+#'
+#' @param physeq A `phyloseq` object. Default is a subset of `ps_up` where Sample is "Saliva".
+#' @param y_response Character. The response variable name. Default is "Time".
+#' @param x_predictors Character. The predictor variables. Default is "All".
+#' @param prop_train Numeric. Proportion of data to use for training. Default is 3/4.
+#' @param method Character. Classification method. Default is "rf" (random forest).
+#' @param plot_group Character. Group to plot. Default is "all".
+#' @param color_values Named vector. Color palette for plots. Default is `time_pal`.
+#' @param ref_train_max_mtry Integer. Maximum number of variables randomly sampled as candidates at each split in the training phase. Default is 5.
+#' @param ref_train_ntree Numeric vector. Number of trees in the random forest. Default is c(100, 500, 1000).
+#' @param feature_imp_nrep Integer. Number of repetitions for feature importance analysis. Default is 1000.
+#' @param boruta_pValue Numeric. p-value threshold for Boruta feature selection. Default is 0.05.
+#' @param boruta_maxRuns Integer. Maximum number of Boruta iterations. Default is 300.
+#' @param seed Integer. Random seed for reproducibility. Default is 123456.
+#' 
+#' @return A list containing trained models, confusion matrices, feature importance plots, and prediction results.
+#' @import microeco phyloseq file2meco tidyverse doParallel caret randomForest
+#' @examples
+#' # Example usage
+#' result <- phyloseq_classifier(ps_up, y_response = "Group", method = "svmRadial")
+#' @export
 phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Saliva"), 
                                 y_response = "Time", 
                                 x_predictors = "All",
                                 prop_train = 3/4,
                                 method = "rf", plot_group = "all",
                                 color_values = time_pal,
-                                ref_train_max_mtry = 6,
-                                ref_train_ntree = 1000,
-                                feature_imp_nrep = 1000){
+                                ref_train_max_mtry = 5,
+                                ref_train_ntree = c(100, 500, 1000),
+                                feature_imp_nrep = 1000,
+                                boruta_pValue = 0.05,
+                                boruta_maxRuns = 300,
+                                seed = 123456){
   
-  ####---------------------- Load R package
-  
+  ####---------------------- Load R packages
   require(microeco); require(phyloseq); require(file2meco); require(tidyverse)
   
-  out=NULL
+  out <- NULL
   
   ####---------------------- Extract data
-  # sample_data(physeq)$temp  <- rnorm(nsamples(physeq), mean=22, sd=6)
-  
+  # Convert `phyloseq` object to `meco` format
   physeq %>%
     file2meco::phyloseq2meco(.) -> data
   
+  # Extract environmental data
   data$sample_table -> env_data
   
-  ####---------------------- feature - trans_classifier {microeco}
+  ####---------------------- Feature: `trans_classifier` {microeco}
   
+  # Initialize classifier with dataset and response variable
+  t1 <- trans_classifier$new(dataset = data, y.response = y_response, x.predictors = x_predictors)
+  
+  # Perform Boruta feature selection if p-value is specified
+  if (!is.null(boruta_pValue)) {
+    set.seed(seed)
+    t1$cal_feature_sel(boruta.maxRuns = boruta_maxRuns, boruta.pValue = boruta_pValue)
+  }
+  
+  # Generate train/test split
+  set.seed(seed)
+  t1$cal_split(prop.train = prop_train)
+  
+  # Set training parameters
+  set.seed(seed)
+  t1$set_trainControl()
+  
+  # Parallelize training
+  n <- parallel::detectCores() / 2
+  cl <- parallel::makeCluster(n)
+  doParallel::registerDoParallel(cl)
+  
+  # Train the model
+  set.seed(seed)
+  t1$cal_train(method = ifelse(method == "logistic_regression", "rf", method), max.mtry = ref_train_max_mtry, ntree = ref_train_ntree)
+  
+  # Make predictions
+  set.seed(seed)
+  t1$cal_predict()
+  
+  # Store training results
+  out$res_train <- t1$res_train
+  out$res_confusion_stats <- t1$res_confusion_stats
+  out$res_confusion_fit <- t1$res_confusion_fit
+  
+  # Plot confusion matrix if applicable
+  if (method != "logistic_regression") {
+    out$confusionMatrix <- t1$plot_confusionMatrix()
+  }
+  
+  # Plot ROC and PR curves if method allows
+  if (method != "logistic_regression") {
+    t1$cal_ROC(input = "train")
+    out$plotROCtrain <- t1$plot_ROC(plot_type = "ROC", size = 0.5, alpha = 0.7)
+    out$plotPRtrain <- t1$plot_ROC(plot_type = "PR", size = 0.5, alpha = 0.7)
+    t1$cal_ROC(input = "pred")
+    out$plotROCpred <- t1$plot_ROC(plot_type = "ROC", size = 0.5, alpha = 0.7)
+    out$plotPRpred <- t1$plot_ROC(plot_type = "PR", size = 0.5, alpha = 0.7)
+  }
+  
+  # Calculate feature importance
+  if (method != "svmRadial") {
+    set.seed(seed)
+    t1$cal_feature_imp(rf_feature_sig = TRUE, num.rep = feature_imp_nrep)
+    out$res_feature_imp <- t1$res_feature_imp
+    
+    # Generate feature importance plots
+    out$plot_feature_imp1 <- t1$plot_feature_imp(coord_flip = TRUE, add_sig = TRUE)
+    out$plot_feature_imp2 <- t1$plot_feature_imp(coord_flip = TRUE, add_sig = FALSE)
+    out$plot_feature_imp3 <- t1$plot_feature_imp(show_sig_group = TRUE, coord_flip = TRUE, add_sig = TRUE)
+    out$plot_feature_imp4 <- t1$plot_feature_imp(show_sig_group = FALSE, coord_flip = TRUE, add_sig = FALSE)
+  }
+  
+  ####---------------------- Return results
+  out$t1 <- clone(t1)
+  return(out)
+}
+
+#' Phyloseq Classifier Function
+#'
+#' This function performs classification on a given `phyloseq` object using the `microeco` package. 
+#' It includes data preprocessing, feature selection, training, and evaluation of a machine learning model.
+#'
+#' @param physeq A `phyloseq` object. Default is a subset of `ps_up` where Sample is "Saliva".
+#' @param y_response Character. The response variable name. Default is "Time".
+#' @param x_predictors Character. The predictor variables. Default is "All".
+#' @param prop_train Numeric. Proportion of data to use for training. Default is 3/4.
+#' @param method Character. Classification method. Default is "rf" (random forest).
+#' @param plot_group Character. Group to plot. Default is "all".
+#' @param color_values Named vector. Color palette for plots. Default is `time_pal`.
+#' @param ref_train_max_mtry Integer. Maximum number of variables randomly sampled as candidates at each split in the training phase. Default is 5.
+#' @param ref_train_ntree Numeric vector. Number of trees in the random forest. Default is c(100, 500, 1000).
+#' @param feature_imp_nrep Integer. Number of repetitions for feature importance analysis. Default is 1000.
+#' @param boruta_pValue Numeric. p-value threshold for Boruta feature selection. Default is 0.05.
+#' @param boruta_maxRuns Integer. Maximum number of Boruta iterations. Default is 300.
+#' @param seed Integer. Random seed for reproducibility. Default is 123456.
+#' 
+#' @return A list containing trained models, confusion matrices, feature importance plots, and prediction results.
+#' @import microeco phyloseq file2meco tidyverse doParallel caret randomForest
+#' @examples
+#' # Example usage
+#' result <- phyloseq_classifier(ps_up, y_response = "Group", method = "svmRadial")
+#' @export
+
+phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Saliva"),
+                                y_response = "Time",
+                                x_predictors = "All",
+                                prop_train = 3/4,
+                                method = "rf", plot_group = "all",
+                                color_values = time_pal,
+                                ref_train_max_mtry = 5,
+                                ref_train_ntree = c(100, 500, 1000),
+                                feature_imp_nrep = 1000,
+                                boruta_pValue = 0.05,
+                                boruta_maxRuns = 300,
+                                seed = 123456){
+
+  ####---------------------- Load R package
+
+  require(microeco); require(phyloseq); require(file2meco); require(tidyverse)
+
+  out=NULL
+
+  ####---------------------- Extract data
+  # sample_data(physeq)$temp  <- rnorm(nsamples(physeq), mean=22, sd=6)
+
+  physeq %>%
+    file2meco::phyloseq2meco(.) -> data
+
+  data$sample_table -> env_data
+
+  ####---------------------- feature - trans_classifier {microeco}
+
   # initialize: use "genotype" as response variable
   # x.predictors parameter is used to select the taxa; here we use all the taxa data in d1$taxa_abund
   t1 <- trans_classifier$new(dataset = data, y.response = y_response, x.predictors = x_predictors)
-  
+
+  if (!is.null(boruta_pValue))
+  {
+    set.seed(seed)
+    t1$cal_feature_sel(boruta.maxRuns = boruta_maxRuns, boruta.pValue = boruta_pValue)
+
+  }
+
+  set.seed(seed)
   # generate train and test set
   t1$cal_split(prop.train = prop_train)
-  
-  # Before training the model, we run the set_trainControl to invoke the trainControl function of caret package to generate the parameters used for training. 
+
+  # Before training the model, we run the set_trainControl to invoke the trainControl function of caret package to generate the parameters used for training.
   #Here we use the default parameters in trainControl function.
+  set.seed(seed)
+
   t1$set_trainControl()
-  
+  # t1$set_trainControl(
+  #   method = "repeatedcv",
+  #   classProbs = TRUE,
+  #   savePredictions = TRUE)
+
   # use default parameter method = "rf"
   # require(doParallel)
   # library(caret)
@@ -792,50 +934,84 @@ phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Sal
   n <- parallel::detectCores()/2 # experiment!
   cl <- parallel::makeCluster(n)
   doParallel::registerDoParallel(cl)
-  
-  t1$cal_train(method = method, max.mtry = ref_train_max_mtry, ntree = ref_train_ntree)
-  
+
+  set.seed(seed)
+  t1$cal_train(method = ifelse(method == "logistic_regression", "rf", method), max.mtry = ref_train_max_mtry, ntree = ref_train_ntree)
+
+  set.seed(seed)
   t1$cal_predict()
-  
+
   out$res_train <- t1$res_train
-  
+
   # plot the confusionMatrix to check out the performance
-  
+
   out$res_confusion_stats <- t1$res_confusion_stats
   out$res_confusion_fit <- t1$res_confusion_fit
-  
+
+  if(method != "logistic_regression")
+  {
   out$confusionMatrix <- t1$plot_confusionMatrix()
+  }
   # t1$plot_confusion()
-  
-  t1$cal_ROC()
+
+  if(method != "logistic_regression")
+  {
+    t1$cal_ROC(input = "train")
+    out$plotROCtrain  <- t1$plot_ROC(plot_type = "ROC", size = 0.5, alpha = 0.7)
+    out$plotPRtrain <-  t1$plot_ROC(plot_type = "PR", size = 0.5, alpha = 0.7)
+    out$resROCtrain <- t1$res_ROC
+
+
   #Using cal_ROC and plot_ROC can get the ROC (Receiver Operator Characteristic) curve.
   # out$Specificitysensitivity() <- t1$res_ROC$res_roc
   # out$RecallPrecision() <- t1$res_ROC$res_pr
-  
-  out$plotROC  <- t1$plot_ROC(plot_group = plot_group, color_values = color_values)
+
+  t1$cal_ROC(input = "pred")
+  out$plotROCpred  <- t1$plot_ROC(plot_type = "ROC", size = 0.5, alpha = 0.7)
+  out$plotPRpred <-  t1$plot_ROC(plot_type = "PR", size = 0.5, alpha = 0.7)
+  out$resROCpred <- t1$res_ROC
+  }
+
+
   # default all groups
   #t1$plot_ROC(size = 0.5, alpha = 0.7)
-  
-  
+
   # default method in caret package without significance
-  t1$cal_feature_imp()
-  
-  # out$res_feature_imp <-  t1$res_feature_imp()
-  
-  out$plot_feature_imp1 <- t1$plot_feature_imp(colour = "red", fill = "red", width = 0.6)
   # generate significance with rfPermute package
+
+  set.seed(seed)
+
+  if(method != "svmRadial")
+  {
   t1$cal_feature_imp(rf_feature_sig = TRUE, num.rep = feature_imp_nrep)
-  
   out$res_feature_imp <- t1$res_feature_imp
-  # add_sig = TRUE: add significance label
-   
-  out$plot_feature_imp2 <- t1$plot_feature_imp(coord_flip = TRUE, colour = "red", fill = "red", width = 0.6, add_sig = TRUE)
-  
-  
+
+
+  # out$res_feature_imp <-  t1$res_feature_imp()
+  if(method != "logistic_regression")
+  {
+  # default method in caret package without significance
+  out$plot_feature_imp1 <- t1$plot_feature_imp(coord_flip = TRUE, colour = "grey5", fill = "grey10", width = 0.6, add_sig = TRUE)
+  out$plot_feature_imp2 <- t1$plot_feature_imp(coord_flip = TRUE, colour = "grey5", fill = "grey10", width = 0.6, add_sig = FALSE)
+
+  # rf_sig_show = "MeanDecreaseGini": switch to MeanDecreaseGini
   out$plot_feature_imp3 <- t1$plot_feature_imp(show_sig_group = TRUE, rf_sig_show = "MeanDecreaseGini", coord_flip = TRUE, width = 0.6, add_sig = TRUE, group_aggre = TRUE)
-  
-  
-  # 
+  out$plot_feature_imp4 <- t1$plot_feature_imp(show_sig_group = FALSE, colour = "grey5", fill = "grey10", rf_sig_show = "MeanDecreaseGini", coord_flip = TRUE, width = 0.6, add_sig = FALSE, group_aggre = FALSE)
+  }
+
+  # out$res_feature_imp <-  t1$res_feature_imp()
+  if(method == "logistic_regression")
+  {
+    # default method in caret package without significance
+    out$plot_feature_imp1 <- t1$plot_feature_imp(coord_flip = TRUE, colour = "grey5", fill = "grey10", width = 0.6, add_sig = TRUE)
+    out$plot_feature_imp2 <- t1$plot_feature_imp(coord_flip = TRUE, colour = "grey5", fill = "grey10", width = 0.6, add_sig = FALSE)
+
+    # rf_sig_show = "MeanDecreaseGini": switch to MeanDecreaseGini
+    out$plot_feature_imp3 <- t1$plot_feature_imp(show_sig_group = TRUE, rf_sig_show = "IncNodePurity", coord_flip = TRUE, width = 0.6, add_sig = TRUE, group_aggre = TRUE)
+    out$plot_feature_imp4 <- t1$plot_feature_imp(show_sig_group = FALSE, colour = "grey5", fill = "grey10", rf_sig_show = "IncNodePurity", coord_flip = TRUE, width = 0.6, add_sig = FALSE, group_aggre = FALSE)
+  }
+  }
+  #
   # # show_sig_group = TRUE: show different colors in groups with different significance labels
   # t1$plot_feature_imp(show_sig_group = TRUE, coord_flip = FALSE, width = 0.6, add_sig = TRUE)
   # t1$plot_feature_imp(show_sig_group = TRUE, coord_flip = TRUE, width = 0.6, add_sig = TRUE)
@@ -843,11 +1019,11 @@ phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Sal
   # t1$plot_feature_imp(show_sig_group = TRUE, rf_sig_show = "MeanDecreaseGini", coord_flip = TRUE, width = 0.6, add_sig = TRUE)
   # # group_aggre = FALSE: donot aggregate features for each group
   # t1$plot_feature_imp(show_sig_group = TRUE, rf_sig_show = "MeanDecreaseGini", coord_flip = TRUE, width = 0.6, add_sig = TRUE, group_aggre = TRUE)
-  # 
-  # 
+  #
+  #
   # require Boruta package
   # t1$cal_feature_sel(boruta.maxRuns = boruta_maxRuns, boruta.pValue = 0.01)
-  # 
+  #
   # t2 <- trans_classifier$new(dataset = data, y.response = y_response, x.predictors =  x_predictors)
   # t2$cal_feature_sel(boruta.maxRuns = boruta_maxRuns, boruta.pValue = 0.01)
   # t2$cal_split(prop.train = prop_train)
@@ -857,14 +1033,17 @@ phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Sal
   # t2$plot_confusionMatrix()
   # t2$cal_ROC()
   # t2$plot_ROC(size = 0.5, alpha = 0.7)
-  
-  
+
+
   ####---------------------- return
-  
+
+  out$t1 <- clone(t1)
+
   return(out)
 }
 
-
+# 
+# 
 
 
 #' @title ...
