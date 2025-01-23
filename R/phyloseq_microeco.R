@@ -756,6 +756,7 @@ phyloseq_diff <- function(physeq = ps_up %>% subset_samples(Sample == "Plaque"),
 phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Saliva"),
                                 y_response = "Time",
                                 x_predictors = "All",
+                                additional_predictors = FALSE,
                                 prop_train = 3/4,
                                 method = "rf", plot_group = "all",
                                 color_values = time_pal,
@@ -765,48 +766,68 @@ phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Sal
                                 boruta_pValue = 0.05,
                                 boruta_maxRuns = 300,
                                 seed = 123456){
-
+  
   ####---------------------- Load R package
-
+  
   require(microeco); require(phyloseq); require(file2meco); require(tidyverse)
-
+  
   out=NULL
-
+  
   ####---------------------- Extract data
   # sample_data(physeq)$temp  <- rnorm(nsamples(physeq), mean=22, sd=6)
-
+  
   physeq %>%
     file2meco::phyloseq2meco(.) -> data
-
+  
   data$sample_table -> env_data
-
+  
   ####---------------------- feature - trans_classifier {microeco}
-
+  
   # initialize: use "genotype" as response variable
   # x.predictors parameter is used to select the taxa; here we use all the taxa data in d1$taxa_abund
   t1 <- trans_classifier$new(dataset = data, y.response = y_response, x.predictors = x_predictors)
+  
+  
+  if (!isFALSE(additional_predictors))
+  {
+    # To include additional non microbiota data into the model, the best way is to directly adding them into the prepared data (i.e. data_feature) before the cal_split function step.
+    # t1 <- trans_classifier$new(dataset = tmp, y.response = "pH", x.predictors = "Genus")
+    # View(t1$data_feature)
+    # please merge them into t1$data_feature
+    t1$data_feature %>%  
+      rownames_to_column('sample_tmp') %>%  
+      as_tibble() %>% left_join(
+        data$sample_table %>% 
+          rownames_to_column('sample_tmp') %>%
+          select(any_of(c("sample_tmp",additional_predictors)))
+      ) %>% 
+      column_to_rownames("sample_tmp") ->  t1$data_feature
 
+
+  }
+  
+  
   if (!is.null(boruta_pValue))
   {
     set.seed(seed)
     t1$cal_feature_sel(boruta.maxRuns = boruta_maxRuns, boruta.pValue = boruta_pValue)
-
+    
   }
-
+  
   set.seed(seed)
   # generate train and test set
   t1$cal_split(prop.train = prop_train)
-
+  
   # Before training the model, we run the set_trainControl to invoke the trainControl function of caret package to generate the parameters used for training.
   #Here we use the default parameters in trainControl function.
   set.seed(seed)
-
+  
   t1$set_trainControl()
   # t1$set_trainControl(
   #   method = "repeatedcv",
   #   classProbs = TRUE,
   #   savePredictions = TRUE)
-
+  
   # use default parameter method = "rf"
   # require(doParallel)
   # library(caret)
@@ -814,82 +835,91 @@ phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Sal
   n <- parallel::detectCores()/2 # experiment!
   cl <- parallel::makeCluster(n)
   doParallel::registerDoParallel(cl)
-
+  
   set.seed(seed)
   t1$cal_train(method = ifelse(method == "logistic_regression", "rf", method), max.mtry = ref_train_max_mtry, ntree = ref_train_ntree)
-
+  
   set.seed(seed)
   t1$cal_predict()
-
+  
   out$res_train <- t1$res_train
-
+  
   # plot the confusionMatrix to check out the performance
-
+  
   out$res_confusion_stats <- t1$res_confusion_stats
   out$res_confusion_fit <- t1$res_confusion_fit
-
+  
   if(method != "logistic_regression")
   {
-  out$confusionMatrix <- t1$plot_confusionMatrix()
-  }
-  # t1$plot_confusion()
+    out$confusionMatrix <- t1$plot_confusionMatrix()
 
-  if(method != "logistic_regression")
-  {
     t1$cal_ROC(input = "train")
     out$plotROCtrain  <- t1$plot_ROC(plot_type = "ROC", size = 0.5, alpha = 0.7)
     out$plotPRtrain <-  t1$plot_ROC(plot_type = "PR", size = 0.5, alpha = 0.7)
     out$resROCtrain <- t1$res_ROC
-
-
-  #Using cal_ROC and plot_ROC can get the ROC (Receiver Operator Characteristic) curve.
-  # out$Specificitysensitivity() <- t1$res_ROC$res_roc
-  # out$RecallPrecision() <- t1$res_ROC$res_pr
-
-  t1$cal_ROC(input = "pred")
-  out$plotROCpred  <- t1$plot_ROC(plot_type = "ROC", size = 0.5, alpha = 0.7)
-  out$plotPRpred <-  t1$plot_ROC(plot_type = "PR", size = 0.5, alpha = 0.7)
-  out$resROCpred <- t1$res_ROC
+    
+    
+    #Using cal_ROC and plot_ROC can get the ROC (Receiver Operator Characteristic) curve.
+    # out$Specificitysensitivity() <- t1$res_ROC$res_roc
+    # out$RecallPrecision() <- t1$res_ROC$res_pr
+    
+    t1$cal_ROC(input = "pred")
+    out$plotROCpred  <- t1$plot_ROC(plot_type = "ROC", size = 0.5, alpha = 0.7)
+    out$plotPRpred <-  t1$plot_ROC(plot_type = "PR", size = 0.5, alpha = 0.7)
+    out$resROCpred <- t1$res_ROC
   }
-
-
+  
+  
   # default all groups
   #t1$plot_ROC(size = 0.5, alpha = 0.7)
-
+  
   # default method in caret package without significance
   # generate significance with rfPermute package
-
+  
   set.seed(seed)
-
+  
   if(method != "svmRadial")
   {
-  t1$cal_feature_imp(rf_feature_sig = TRUE, num.rep = feature_imp_nrep)
-  out$res_feature_imp <- t1$res_feature_imp
-
-
-  # out$res_feature_imp <-  t1$res_feature_imp()
-  if(method != "logistic_regression")
-  {
-  # default method in caret package without significance
-  out$plot_feature_imp1 <- t1$plot_feature_imp(coord_flip = TRUE, colour = "grey5", fill = "grey10", width = 0.6, add_sig = TRUE)
-  out$plot_feature_imp2 <- t1$plot_feature_imp(coord_flip = TRUE, colour = "grey5", fill = "grey10", width = 0.6, add_sig = FALSE)
-
-  # rf_sig_show = "MeanDecreaseGini": switch to MeanDecreaseGini
-  out$plot_feature_imp3 <- t1$plot_feature_imp(show_sig_group = TRUE, rf_sig_show = "MeanDecreaseGini", coord_flip = TRUE, width = 0.6, add_sig = TRUE, group_aggre = TRUE)
-  out$plot_feature_imp4 <- t1$plot_feature_imp(show_sig_group = FALSE, colour = "grey5", fill = "grey10", rf_sig_show = "MeanDecreaseGini", coord_flip = TRUE, width = 0.6, add_sig = FALSE, group_aggre = FALSE)
-  }
-
-  # out$res_feature_imp <-  t1$res_feature_imp()
-  if(method == "logistic_regression")
-  {
-    # default method in caret package without significance
-    out$plot_feature_imp1 <- t1$plot_feature_imp(coord_flip = TRUE, colour = "grey5", fill = "grey10", width = 0.6, add_sig = TRUE)
-    out$plot_feature_imp2 <- t1$plot_feature_imp(coord_flip = TRUE, colour = "grey5", fill = "grey10", width = 0.6, add_sig = FALSE)
-
-    # rf_sig_show = "MeanDecreaseGini": switch to MeanDecreaseGini
-    out$plot_feature_imp3 <- t1$plot_feature_imp(show_sig_group = TRUE, rf_sig_show = "IncNodePurity", coord_flip = TRUE, width = 0.6, add_sig = TRUE, group_aggre = TRUE)
-    out$plot_feature_imp4 <- t1$plot_feature_imp(show_sig_group = FALSE, colour = "grey5", fill = "grey10", rf_sig_show = "IncNodePurity", coord_flip = TRUE, width = 0.6, add_sig = FALSE, group_aggre = FALSE)
-  }
+    t1$cal_feature_imp(rf_feature_sig = TRUE, num.rep = feature_imp_nrep)
+    out$res_feature_imp <- t1$res_feature_imp
+    
+    
+    # out$res_feature_imp <-  t1$res_feature_imp()
+    if(method != "logistic_regression")
+    {
+      # default method in caret package without significance
+      out$plot_feature_imp1 <- t1$plot_feature_imp(coord_flip = TRUE, colour = "grey5", fill = "grey10", width = 0.6, add_sig = TRUE)
+      out$plot_feature_imp2 <- t1$plot_feature_imp(coord_flip = TRUE, colour = "grey5", fill = "grey10", width = 0.6, add_sig = FALSE)
+      
+      # rf_sig_show = "MeanDecreaseGini": switch to MeanDecreaseGini
+      out$plot_feature_imp3 <- t1$plot_feature_imp(show_sig_group = TRUE, rf_sig_show = "MeanDecreaseGini", coord_flip = TRUE, width = 0.6, add_sig = TRUE, group_aggre = TRUE)
+      out$plot_feature_imp4 <- t1$plot_feature_imp(show_sig_group = FALSE, colour = "grey5", fill = "grey10", rf_sig_show = "MeanDecreaseGini", coord_flip = TRUE, width = 0.6, add_sig = FALSE, group_aggre = FALSE)
+    }
+    
+    # out$res_feature_imp <-  t1$res_feature_imp()
+    if(method == "logistic_regression")
+    {
+      
+      predict_value <- t1$res_predict
+      obs_value <- t1$data_test[names(predict_value), 1]
+      predict_obs <- data.frame(predict = predict_value, observe = obs_value)
+      
+      predict_obs %>% 
+        ggplot(data = ., aes(x=predict, y=observe)) + geom_point(size = 5, color = "orange") + 
+        xlab(paste0("Predicted ", y_response)) + ylab(paste0("Observed ", y_response)) +
+        # lims(x = c(0,5), y = c(0,5)) +
+        geom_abline(linetype = 5, color = "blue", size = 1)+ # Plot a perfect fit line
+        theme(panel.border = element_rect(colour = "black", fill = NA),
+              panel.background = element_blank()) -> out$pred_obs
+      
+      # default method in caret package without significance
+      out$plot_feature_imp1 <- t1$plot_feature_imp(coord_flip = TRUE, colour = "grey5", fill = "grey10", width = 0.6, add_sig = TRUE)
+      out$plot_feature_imp2 <- t1$plot_feature_imp(coord_flip = TRUE, colour = "grey5", fill = "grey10", width = 0.6, add_sig = FALSE)
+      
+      # rf_sig_show = "MeanDecreaseGini": switch to MeanDecreaseGini
+      out$plot_feature_imp3 <- t1$plot_feature_imp(show_sig_group = TRUE, rf_sig_show = "IncNodePurity", coord_flip = TRUE, width = 0.6, add_sig = TRUE, group_aggre = TRUE)
+      out$plot_feature_imp4 <- t1$plot_feature_imp(show_sig_group = FALSE, colour = "grey5", fill = "grey10", rf_sig_show = "IncNodePurity", coord_flip = TRUE, width = 0.6, add_sig = FALSE, group_aggre = FALSE)
+    }
   }
   #
   # # show_sig_group = TRUE: show different colors in groups with different significance labels
@@ -913,12 +943,12 @@ phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Sal
   # t2$plot_confusionMatrix()
   # t2$cal_ROC()
   # t2$plot_ROC(size = 0.5, alpha = 0.7)
-
-
+  
+  
   ####---------------------- return
-
+  
   out$t1 <- clone(t1)
-
+  
   return(out)
 }
 
