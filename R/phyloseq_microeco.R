@@ -760,6 +760,7 @@ phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Sal
                                 prop_train = 3/4,
                                 method = "rf", plot_group = "all",
                                 color_values = time_pal,
+                                preprocess = c("center", "scale", "nzv"),
                                 ref_train_max_mtry = 5,
                                 ref_train_ntree = c(100, 500, 1000),
                                 feature_imp_nrep = 1000,
@@ -802,8 +803,12 @@ phyloseq_classifier <- function(physeq = ps_up %>% subset_samples(Sample == "Sal
           select(any_of(c("sample_tmp",additional_predictors)))
       ) %>% 
       column_to_rownames("sample_tmp") ->  t1$data_feature
-
-
+  }
+  
+  if(!is.null(preprocess))
+  {
+    t1$cal_preProcess(method = preprocess)
+    
   }
   
   
