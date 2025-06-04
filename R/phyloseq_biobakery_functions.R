@@ -1,3 +1,91 @@
+#' Import mOTUs data and create a phyloseq object
+#'
+#' This function imports mOTUs abundance data from a tab-delimited file, parses taxonomy,
+#' and returns a `phyloseq` object for downstream microbial community analysis.
+#'
+#' @param file_path Character. Path to the mOTUs TSV file.
+#' @param tax_label Character vector. Names of taxonomy ranks to extract. Default:
+#'   \code{c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")}.
+#' @param tax_sep Character. Separator used in the taxonomy string. Default: `"\\|"`.
+#' @param taxa_are_rows Logical. Are taxa rows in the OTU table? Passed to `otu_table()`. Default: \code{TRUE}.
+#' @param rm_unclassified Logical. Whether to remove unclassified taxa. Currently unused (commented out). Default: \code{FALSE}.
+#'
+#' @return A `phyloseq` object with OTU and taxonomy tables.
+#' @import tidyverse
+#' @import phyloseq
+#' @importFrom microViz tax_mutate
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' physeq_obj <- import_motus_phyloseq("motus_output.tsv")
+#' }
+
+import_motus_phyloseq <- function(file_path,
+                                  tax_label = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"),
+                                  tax_sep = "\\|",
+                                  taxa_are_rows = TRUE,
+                                  rm_unclassified = FALSE) {
+  library(tidyverse)
+  library(phyloseq)
+  
+  # Read input file while skipping the two comment lines at the top
+  motu_raw <- read_tsv(file_path, 
+                       comment = "",
+                       skip = 2)
+  
+  # Separate taxonomy string into multiple columns using the defined taxonomic levels
+  motu_tax <- motu_raw %>%
+    separate(consensus_taxonomy, into = tax_label, sep = tax_sep, fill = "right", remove = FALSE)
+  
+  # Optional filtering of unclassified taxa (currently commented out)
+  # if (rm_unclassified) {
+  #   motu_tax <- motu_tax %>%
+  #     filter(!is.na(Species), Kingdom != "UNCLASSIFIED")
+  # }
+  
+  # Create taxonomy table from selected taxonomic levels
+  tax_table_df <- motu_tax %>%
+    mutate(mOTU = `#mOTU`) %>%
+    select(`#mOTU`, all_of(tax_label), mOTU) %>%
+    column_to_rownames(var = "#mOTU") %>%
+    as.matrix()
+  
+  # Create OTU (abundance) table by selecting only numeric columns
+  otu_table_df <- motu_tax %>%
+    select(`#mOTU`, where(is.numeric)) %>%
+    column_to_rownames(var = "#mOTU") %>%
+    as.matrix()
+  
+  # Combine OTU and taxonomy tables into a phyloseq object
+  physeq <- phyloseq(
+    otu_table(otu_table_df, taxa_are_rows = taxa_are_rows),
+    tax_table(tax_table_df)
+  )
+  
+  # Clean taxonomic labels (e.g., remove prefixes like "g__") and replace NAs with "UNCLASSIFIED"
+  tax_table(physeq) <- tax_table(physeq) %>%
+    gsub(pattern = "[a-t]__", replacement = "") %>%
+    data.frame() %>%
+    replace(is.na(.), "UNCLASSIFIED") %>%
+    as.matrix() %>%
+    tax_table()
+  
+  # Add a cleaned and truncated species name (Species2) using microViz
+  physeq %>%
+    microViz::tax_mutate(Species2 = str_remove_all(Species, "[^[:alnum:]]+") %>%
+                           abbreviate(minlength = 25) %>%
+                           stringr::str_trunc(width = 20, side = "center")) %>%
+    tax_table() -> tax_table(physeq)
+  
+  # Filter out taxa with zero total abundance across all samples
+  physeq <- filter_taxa(physeq, function(x) sum(x) > 0, prune = TRUE)
+  
+  return(physeq)
+}
+
+
+
 #' @title ...
 #' @param .
 #' @param ..
