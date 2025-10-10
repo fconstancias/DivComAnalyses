@@ -997,7 +997,8 @@ phyloseq_maaslin3 <- function(phyloseq,
                               save_models = TRUE,
                               verbosity = 'FINEST',
                               output_dir = "~/test_masslin3/",
-                              add_ASV_taxonomy = TRUE){
+                              add_ASV_taxonomy = TRUE,
+                              small_random_effects = FALSE)){
   
   ##---------------------------------------------
   require(tidyverse); require(maaslin3); require(phyloseq)
@@ -1043,7 +1044,8 @@ phyloseq_maaslin3 <- function(phyloseq,
            max_pngs = max_pngs,
            cores = cores,
            save_models = save_models,
-           verbosity = verbosity) -> out
+           verbosity = verbosity,
+           small_random_effects = small_random_effects) -> out
   # 
   # if(add_ASV_taxonomy == TRUE){
   #   
