@@ -1,8 +1,574 @@
-# Required libraries
-library(phyloseq)  # For handling microbiome data
-library(umap)      # For performing UMAP dimensionality reduction
-library(ggplot2)   # For plotting
-library(dplyr)     # For data manipulation
+#' Plot Heatmap and/or Stacked Barplot for Phyloseq Object
+#'
+#' Generates a combined visualization for a phyloseq object including:
+#' - Sample dendrogram based on a distance or hclust object
+#' - Heatmap of taxa abundances
+#' - Stacked barplots of selected taxa
+#' - Differential effect plot (optional)
+#' - Metadata annotations (categorical or continuous)
+#'
+#' @param ps A phyloseq object containing abundance, taxonomy, and sample data.
+#' @param dist_or_hclust Distance matrix (`dist`) or hierarchical clustering (`hclust`) of samples for dendrogram. Default: `beta$bray`.
+#' @param hclust_method Method for hierarchical clustering if `dist_or_hclust` is a distance. Default: `"complete"`.
+#' @param sample_metadata_vars Character vector of categorical sample metadata variables to annotate.
+#' @param continuous_metadata_vars Character vector of continuous sample metadata variables to plot as histograms.
+#' @param top_n_taxa Number of top taxa to select if type = "top". Default: 20.
+#' @param show_as Whether to show the main panel as `"stacked_bar"` or `"heatmap"`.
+#' @param rel_heights Relative heights for patchwork layout.
+#' @param annotation_colors List of named color palettes for metadata annotations or taxonomy.
+#' @param filter_exp Expression (as string) to filter taxa (e.g., `'Class != "unassigned"'`).
+#' @param transform Transformation to apply to phyloseq abundances. Default: `"compositional"`.
+#' @param tax_level Taxonomic level for aggregation. Default: `"Genus"`.
+#' @param taxa_sel Optional vector of taxa to include in plots.
+#' @param type Type of taxa selection: `"diff"` for differential table or `"top"` for top taxa.
+#' @param stacked_palette Optional palette for stacked barplots.
+#' @param barplot_level Taxonomic level for stacked barplot. Default is `tax_level`.
+#' @param viridis_dir Direction for viridis color scale. Default: 1.
+#' @param viridis_color Option for viridis palette. Default: `"C"`.
+#' @param show_sample_labs Logical, whether to display sample labels on heatmap. Default: FALSE.
+#' @param diff_table Data frame containing differential abundance results. Default: `diff_sp_genomes`.
+#' @param diff_table_ef Column name for effect size in `diff_table`. Default: `"ef_CLR_diff_mean"`.
+#' @param diff_table_group Column name for grouping variable in `diff_table`. Default: `"enrich_group"`.
+#' @param df_ordered_feat Column name in `diff_table` for ordering features. Default: `"Genus"`.
+#' @param filter_expr_string Optional expression to filter `diff_table`.
+#' @param heat_vis_trans Transformation for heatmap visualization. Default: `"sqrt"`.
+#' @param annotation_tax_heatmap_level Taxonomy level to annotate heatmap. Default: `"Class"`.
+#' @param heatmap_label Expression to label heatmap taxa. Default: `"paste0(Phylum, ' ', Genus)"`.
+#' @param tax_annot_heat Logical, whether to include taxonomy annotation heatmap.
+#' @param ann_heights Relative heights for metadata annotation panels.
+#'
+#' @return A named list containing:
+#' \describe{
+#'   \item{pts_dendrogram}{ggplot object of the sample dendrogram with rotated labels.}
+#'   \item{p_ann}{Patchwork object of sample annotation panels (categorical + continuous).}
+#'   \item{p_heatmap}{Heatmap of selected taxa abundances.}
+#'   \item{p_stacked_bar}{Stacked barplot of selected taxa abundances.}
+#'   \item{hc}{hclust object used for dendrogram.}
+#'   \item{eff_plot}{Differential effect plot (if `diff_table` provided).}
+#'   \item{hist_plots}{List of histograms for continuous metadata.}
+#'   \item{ann_plots}{List of ggplots for categorical metadata.}
+#'   \item{p_heatmap_tax_annot}{Optional taxonomy annotation heatmap.}
+#'   \item{ps_toplot}{Phyloseq object filtered and transformed for plotting.}
+#' }
+#'
+#' @details
+#' - Clusters samples using a distance matrix or hclust object.
+#' - Filters and transforms taxa abundances using `microbiome::transform()`.
+#' - Aggregates taxa to the selected taxonomic level using `microViz::tax_agg()`.
+#' - Constructs heatmap and/or stacked barplot for selected taxa.
+#' - Optionally plots differential abundance or effect size from a table.
+#' - Metadata (categorical and continuous) can be visualized as annotation panels.
+#' - Dendrogram, heatmap, and barplots are returned separately for flexible composition.
+#'
+#' @importFrom patchwork wrap_plots
+#' @importFrom ggdendro dendro_data segment label
+#' @importFrom microViz tax_agg tax_top comp_barplot
+#' @importFrom microbiome transform
+#' @importFrom dplyr arrange mutate filter select across
+#' @importFrom tidyr pivot_longer
+#' @importFrom rlang parse_expr sym .data
+#' @importFrom ggplot2 ggplot geom_tile geom_col geom_point geom_segment aes_string theme element_text scale_fill_manual scale_color_manual labs ylab
+#' @importFrom viridis scale_fill_viridis scale_fill_viridis_d
+#' @importFrom tidyselect any_of all_of
+#' @importFrom stats hclust as.dist
+#' @importFrom utils head
+#' 
+#' @examples
+#' \dontrun{
+#' plot_phyloseq_heatmap_barplot(ps,
+#'   dist_or_hclust = beta$bray,
+#'   sample_metadata_vars = c("group"),
+#'   continuous_metadata_vars = c("PAG_ng_ml", "PAA_ng_ml"),
+#'   top_n_taxa = 15,
+#'   type = "top",
+#'   tax_level = "Genus"
+#' )
+#' }
+#' library(ggplot2)
+# library(patchwork)
+# 
+# # Set matching x-limits for all central plots
+# x_limits <- ggplot_build(test$p_heatmap$p)$layout$panel_params[[1]]$x.range
+# 
+# pts_dendrogram_fixed <- test$pts_dendrogram + 
+#   coord_cartesian(xlim = x_limits, expand = FALSE) +
+#   theme_void() +
+#   theme(plot.margin = margin(0, 0, 0, 0))
+# 
+# extra_panels_fixed <- test$extra_panels + 
+#   coord_cartesian(xlim = x_limits, expand = FALSE) +
+#   # theme_void() +
+#   theme(plot.margin = margin(0, 0, 0, 0))
+# 
+# heatmap_fixed <- test$p_heatmap$p + 
+#   theme(plot.margin = margin(0, 0, 0, 0),
+#         axis.text.y = element_blank())
+# 
+# # Side plots
+# tax_annot_empty <- ggplot() + theme_void()
+# tax_annot_plot <- test$p_heatmap_tax_annot$p
+# 
+# effect_empty <- ggplot() + theme_void()
+# effect_plot <- test$eff_plot$p + theme(axis.text.y = element_blank()) + xlab(NULL)#+ theme_void()
+# 
+# # Create design matrix (3 columns x 3 rows)
+# layout <- "
+# ABC
+# DEF
+# GHI
+# "
+# 
+# final_plot <- wrap_plots(
+#   A = tax_annot_empty, B = pts_dendrogram_fixed, C = effect_empty,
+#   D = tax_annot_empty, E = extra_panels_fixed, F = effect_empty,
+#   G = tax_annot_plot,  H = heatmap_fixed,        I = effect_plot,
+#   design = layout
+# )
+# 
+# # Set relative widths and heights
+# final_plot <- final_plot + plot_layout(
+#   widths = c(0.3, 10, 3), 
+#   heights = c(1, 1, 4)
+# )
+# 
+# final_plot
+# 
+# final_plot %>% 
+#   export::graph2ppt(append = TRUE,
+#                     width = 317.48031496 * 2,
+#                     height = 0.618 * 317.48031496 * 3 , paper = "A3",  scaling = 2,
+#                     file = out_pptx)
+
+plot_phyloseq_heatmap_barplot <- function(
+    ps,
+    dist_or_hclust = beta$bray,
+    hclust_method = "complete",
+    sample_metadata_vars = c("group"),
+    continuous_metadata_vars = c("PAG_ng_ml", "PAA_ng_ml"),
+    top_n_taxa = 20,
+    show_as = "stacked_bar", # or "heatmap"
+    rel_heights = c(0.2, 0.4, 1),
+    annotation_colors = list(group = group_pal, Class = annotation_colors_Class),
+    filter_exp = 'Class != "unassigned"',
+    transform = "compositional",
+    tax_level = "Genus",
+    taxa_sel = NULL,
+    type = "diff", # or "sel"
+    stacked_palette = NULL,
+    barplot_level = NULL,
+    viridis_dir = 1,
+    viridis_color = "C",
+    show_sample_labs = FALSE,
+    diff_table = diff_sp_genomes, # NULL,
+    diff_table_ef =  "ef_CLR_diff_mean", # NULL,
+    diff_table_group = "enrich_group",
+    df_ordered_feat = "Genus",
+    filter_expr_string = NULL,
+    heat_vis_trans = "sqrt",
+    annotation_tax_heatmap_level = "Class",
+    heatmap_label = "paste0(Phylum, ' ', Genus)",
+    tax_annot_heat = TRUE,
+    ann_heights = c(0.2, 0.4, 0.4)
+) {
+  
+  require(patchwork);  require(ggdendro)
+  
+  
+  # === Clustering samples ===
+  hc <- if (inherits(dist_or_hclust, "dist")) {
+    hclust(as.dist(as.matrix(dist_or_hclust)[sample_names(ps), sample_names(ps)]), method = hclust_method)
+  } else if (inherits(dist_or_hclust, "hclust")) {
+    dist_or_hclust
+  } else {
+    stop("dist_or_hclust must be a distance matrix or hclust object")
+  }
+  sample_order <- hc$labels[hc$order]
+  
+  # === Filter and transform ===
+  if (!is.null(filter_exp)) {
+    ps <- ps %>% speedyseq::filter_tax_table(!!rlang::parse_expr(filter_exp))
+  }
+  ps <- ps %>%
+    microViz::tax_agg(tax_level) %>%
+    microbiome::transform(transform = transform)
+  
+  taxa_names(ps) <- as.character(tax_table(ps)[, tax_level])
+  
+  # === Taxa selection ===
+  if (type == "top") {
+    taxa_sel <- microViz::tax_top(ps, n = top_n_taxa, by = sum, rank = tax_level)
+  }
+  if (is.null(barplot_level)) barplot_level <- tax_level
+  if (type == "diff") {
+    taxa_sel = unique(diff_table[,df_ordered_feat])
+  }
+  ps_toplot <- ps %>% speedyseq::filter_tax_table(get(barplot_level) %in% taxa_sel)
+  
+  
+  
+  # === Barplot palette ===
+  # if (is.null(stacked_palette)) {
+  #   stacked_palette <- microViz::distinct_palette(pal = "greenArmytage", n = min(length(taxa_sel), 25))
+  # }
+  
+  # === Barplot ===
+  p_stacked_bar <- ps_toplot %>%
+    microViz::comp_barplot(
+      bar_width = 1,
+      n_taxa = min(length(taxa_sel), 25),
+      sample_order = sample_order,
+      tax_transform_for_plot = "identity",
+      taxon_renamer = ~ stringr::str_replace_all(., "_", " "),
+      label = NULL,
+      # palette = stacked_palette,
+      tax_level = tax_level,
+      merge_other = FALSE
+    ) +
+    ylab("Proportion - %") +
+    theme_linedraw() +
+    theme(axis.ticks = element_blank())
+  
+  p_stacked_bar <- get_plotandlegend(p_stacked_bar)
+  
+  
+  # === Differential effect plot ===
+  eff_plot <- NULL
+  if (!is.null(diff_table)) {
+    if (!is.null(filter_expr_string)) {
+      diff_table <- diff_table %>% filter(!!rlang::parse_expr(filter_expr_string))
+    }
+    
+    # Arrange your data by group and effect descending
+    diff_table_ordered <- diff_table %>%
+      arrange(!!sym(diff_table_group), (!!sym(diff_table_ef)))  # sort by group asc, effect desc
+    
+    # Create ordered factor for y-axis (features or whatever)
+    diff_table_ordered <- diff_table_ordered %>%
+      mutate(
+        # Create a combined key to order features by group and effect descending
+        df_ordered_feat = factor(!!sym(df_ordered_feat), levels = unique(!!sym(df_ordered_feat)))
+      )
+    
+    ggplot(diff_table_ordered, aes_string(
+      x = diff_table_ef,
+      y = "df_ordered_feat",
+      color = diff_table_group
+    )) +
+      geom_segment(aes_string(
+        x = "0",
+        xend = diff_table_ef,
+        y = "df_ordered_feat",
+        yend = "df_ordered_feat"
+      ), size = 0.5) +
+      geom_point(size = 2) +
+      theme_minimal(base_size = 8) +
+      theme(
+        legend.position = "top",
+        panel.grid.minor = element_blank(),         # remove minor grid
+        # panel.grid.major.y = element_line(color = "grey90"),  # subtle Y grid
+        panel.grid.major.x = element_line(color = "grey90"),
+        panel.background = element_blank(),
+        axis.ticks.y    = element_blank()
+      ) +
+      ylab(NULL) -> eff_plot
+    
+    # ADD CUSTOM COLOR SCALE IF PALETTE EXISTS
+    if (!is.null(annotation_colors)) {
+      if (diff_table_group %in% names(annotation_colors)) {
+        eff_plot <- eff_plot +
+          scale_color_manual(
+            values = annotation_colors[[diff_table_group]],
+            name = diff_table_group
+          )
+      }
+    }
+    
+    eff_plot <- get_plotandlegend(eff_plot)
+  }
+  # scale_fill_manual(values = annotation_colors[[diff_table_group]]) +
+  # 
+  # eff_plot <- diff_table %>%
+  #   arrange(!!sym(diff_table_group), !!sym(diff_table_ef)) %>%
+  #   ggplot(aes_string(x = diff_table_ef, y = df_ordered_feat, fill = diff_table_group)) +
+  #   geom_col() +
+  #   # scale_fill_manual(values = annotation_colors[[diff_table_group]]) +
+  #   theme(axis.text.y = element_text(size = 6), legend.position = "top") +
+  #   ylab(NULL)
+  # eff_plot <- get_plotandlegend(eff_plot)
+  # }
+  
+  # === Melt abundance for heatmap ===
+  ps_melt <- ps_toplot %>%
+    speedyseq::psmelt() %>%
+    mutate(Sample = factor(Sample, levels = sample_order))
+  
+  tax_order <- if (!is.null(diff_table)) unique(eff_plot$p$data[[df_ordered_feat]]) else taxa_sel
+  ps_melt <- ps_melt %>% mutate(OTU = factor(OTU, levels = tax_order))
+  
+  # === Heatmap ===
+  p_heatmap <- ps_melt %>%
+    select(OTU, Sample, Abundance) %>%
+    mutate(Abundance = na_if(Abundance, 0)) %>% 
+    ggplot(aes(x = Sample, y = OTU, fill = Abundance)) +
+    geom_tile(color = "grey50", size = 0.05) +
+    viridis::scale_fill_viridis(name = "Rel. Abund.",
+                                direction = viridis_dir,
+                                option = viridis_color,
+                                na.value = "lightgrey",
+                                trans = heat_vis_trans) +
+    # theme_minimal(base_size = 9) +
+    labs(x = NULL, y = NULL)
+  
+  p_heatmap <- p_heatmap +
+    theme(axis.text.x = if (show_sample_labs) element_text(angle = 45, hjust = 1, size = 5) else element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.ticks.y    = element_blank())
+  p_heatmap <- get_plotandlegend(p_heatmap)
+  
+  
+  # === Optional taxonomy annotation heat ===
+  p_heatmap_tax_annot <- NULL
+  # annotation_tax_heatmap_level <- tax_level
+  # annotation_tax_heatmap_level <- annotation_tax_heatmap_level %||% "Family"  # default to Family if NULL
+  
+  if (tax_annot_heat) {
+    if (!annotation_tax_heatmap_level %in% colnames(tax_table(ps_toplot))) {
+      stop(paste("Taxonomy level", annotation_tax_heatmap_level, "not found in tax_table(ps)"))
+    }
+    
+    # Make sure Phylum and Family columns exist for the label
+    if (!all(c("Phylum", "Family") %in% colnames(ps_melt))) {
+      stop("Phylum and/or Family columns not found in ps_melt")
+    }
+    
+    
+    tax_annot_df <- ps_melt %>%
+      select(any_of(c("OTU", rank_names(ps), annotation_tax_heatmap_level))) %>%
+      distinct(OTU, .keep_all = TRUE) %>%
+      mutate(
+        AnnotTax = .data[[annotation_tax_heatmap_level]],
+        Label = !!rlang::parse_expr(heatmap_label)
+      ) %>% 
+      mutate(
+        Label = factor(Label, levels = unique(Label[order(match(OTU, tax_order))])
+        )
+      )
+    
+    # tax_annot_df <- ps_melt %>%
+    #   select(any_of(c("OTU", "Phylum", "Family", annotation_tax_heatmap_level))) %>%
+    #   distinct(OTU, .keep_all = TRUE) %>%
+    #   mutate(
+    #     AnnotTax = .data[[annotation_tax_heatmap_level]],
+    #     Label = !!rlang::parse_expr(heatmap_label)
+    #   ) %>% 
+    #   # mutate(OTU = factor(OTU, levels = tax_order))
+    #        mutate(
+    #   Label = factor(Label, levels = unique(Label[order(match(OTU, tax_order))])
+    # )
+    #        )
+    
+    fill_scale <- if (!is.null(annotation_colors) && 
+                      annotation_tax_heatmap_level %in% names(annotation_colors)) {
+      scale_fill_manual(values = annotation_colors[[annotation_tax_heatmap_level]], na.value = "grey80")
+    } else {
+      scale_fill_viridis_d(option = "D", na.value = "grey80")
+    }
+    
+    tax_annot <- ggplot(tax_annot_df, aes(x = 1, y = Label, fill = AnnotTax)) +
+      geom_tile() +
+      fill_scale +
+      theme_void() +
+      theme(
+        axis.text.y = element_text(size = 6,  hjust = 1),
+        # legend.position = "right"
+      )
+    
+    p_heatmap_tax_annot <- get_plotandlegend(tax_annot)
+  }
+  
+  
+  # (p_heatmap_tax_annot$p  + (p_heatmap$p + theme(
+  #   axis.text.y = element_blank())) + 
+  #     (eff_plot$p + theme(
+  #       axis.text.y = element_blank())
+  #     )
+  # )+ 
+  #   plot_layout(nrow = 1, widths = c(0.3, 10, 3))
+  
+  # if (tax_annot_heat) {
+  #   tax_annot <- ps_melt %>%
+  #     select(any_of(c("OTU", rank_names(ps)))) %>%
+  #     distinct(OTU, .keep_all = TRUE) %>%
+  #     ggplot(aes(x = 1, y = OTU, fill = Family)) +
+  #     geom_tile() +
+  #     scale_fill_viridis_d(option = "D") +
+  #     theme_void() +
+  #     theme(axis.text.y = element_text(size = 6)) +
+  #     theme(legend.position = "right")
+  #   p_heatmap_tax_annot <- get_plotandlegend(tax_annot)
+  # }
+  # 
+  # === Sample metadata ===
+  sample_df <- sample_data(ps) %>%
+    data.frame() %>%
+    rownames_to_column("Sample")
+  
+  # === Annotation plots (categorical) ===
+  ann_plots <- list()
+  if (!is.null(sample_metadata_vars)) {
+    ann_df <- sample_df %>%
+      select(Sample, all_of(sample_metadata_vars)) %>%
+      mutate(Sample = factor(Sample, levels = sample_order)) %>%
+      mutate(across(-Sample, ~ as.factor(.x)))
+    
+    ann_plots <- sample_metadata_vars %>%
+      set_names() %>%
+      map(function(var) {
+        fill_scale <- if (!is.null(annotation_colors) && var %in% names(annotation_colors)) {
+          scale_fill_manual(values = annotation_colors[[var]], na.value = "grey80")
+        } else {
+          scale_fill_viridis_d(na.value = "grey80")
+        }
+        ggplot(ann_df, aes(x = Sample, y = var, fill = .data[[var]])) +
+          geom_tile(color = "white") +
+          fill_scale +
+          theme_minimal(base_size = 6) +
+          theme(
+            axis.text.x     = element_blank(),
+            axis.ticks.x    = element_blank(),
+            axis.text.y     = element_text(size = 6),
+            legend.position = "none",
+            plot.margin     = margin(0,0,0,0)
+          ) +
+          labs(x = NULL, y = NULL, fill = var)
+      })
+  }
+  
+  # === Continuous metadata (histograms) ===
+  hist_plots <- list()
+  if (!is.null(continuous_metadata_vars)) {
+    cont_df <- sample_df %>%
+      select(Sample, all_of(continuous_metadata_vars)) %>%
+      pivot_longer(-Sample, names_to = "Variable", values_to = "Value") %>%
+      mutate(Sample = factor(Sample, levels = sample_order))
+    
+    hist_plots <- continuous_metadata_vars %>%
+      set_names() %>%
+      map(function(var) {
+        ggplot(filter(cont_df, Variable == var), aes(x = Sample, y = Value)) +
+          geom_col(fill = "grey10", color = "black") +
+          theme_minimal(base_size = 6) +
+          theme(
+            axis.text.x  = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.text.y  = element_text(size = 6),
+            plot.margin  = margin(0,0,0,0)
+          ) +
+          labs(x = NULL, y = NULL)
+      })
+  }
+  
+  extra_panels <- if (length(ann_plots) || length(hist_plots)) {
+    wrap_plots(c(ann_plots, hist_plots), ncol = 1, heights = ann_heights)
+  } else {
+    NULL
+  }
+  
+  #   # === Dendrogram panel ===
+  #   dendro_data <- ggdendro::dendro_data(hc, type = "rectangle")
+  #   
+  #   # dendro_data(dg, type = "rectangle")
+  #   
+  #   p_dendro <- ggplot() + 
+  #     geom_segment(data = dendro_data$segments, size = 0.1,
+  #                  aes(x = x, y = y, xend = xend, yend = yend)) +
+  #     scale_x_continuous(breaks = seq_along(sample_order),
+  #                        labels = sample_order, expand = c(0,0)) +
+  #     theme_minimal() +
+  #     scale_x_continuous(expand = expansion(mult = c(0.005, 0))) +  # add 5% padding bottom and top
+  #     theme(
+  #       axis.text.x     = element_blank(),
+  #       axis.ticks.x    = element_blank(), #element_line(size = 0.1),
+  #       panel.grid      = element_blank(),
+  #       axis.title      = element_blank(),             # no axis titles
+  #       axis.text.y     = element_text(size = 6), #, color = "grey85"),  # light y tick labels
+  #       axis.ticks.y   = element_line(size = 0.1), # color = "grey85"), # light y axis ticks
+  #       axis.line.y    = element_line(size = 0.1) #, color = "grey85")  # light y axis line
+  #     )
+  #   
+  # library(ggdendro)
+  # library(ggplot2)
+  # 
+  # # Assuming 'dend' is your dendrogram object
+  dendro_data <- dendro_data(hc)
+  # n <- length(labels(hc))
+  n <- nsamples(ps)
+  
+  pts_dendrogram <-
+    ggplot() +
+    geom_segment(
+      data = segment(dendro_data), linewidth = 0.05,
+      aes(x = x, y = y, xend = xend, yend = yend)
+    ) +
+    geom_text(
+      data = label(dendro_data),
+      aes(x = x, y = -0.1, label = label),
+      size = 2, color = "#444444", vjust = 0.5, angle = 90, hjust = 1
+    ) +
+    scale_x_continuous(limits = c(0, n + 1), expand = c(0, 0)) +
+    # scale_x_continuous(limits = c(0,nsamples(ps)), expand = c(0, 0)) +
+    scale_y_continuous(expand = expansion(mult = c(0.05, 0))) + # allow space below 0
+    theme_dendro() +
+    # theme(
+    #   axis.text.x     = element_blank(),
+    #   axis.ticks.x    = element_blank(), #element_line(size = 0.1),
+    #   panel.grid      = element_blank(),
+    #   axis.title      = element_blank(),             # no axis titles
+    #   axis.text.y     = element_text(size = 6), #, color = "grey85"),  # light y tick labels
+    #   axis.ticks.y   = element_line(size = 0.1), # color = "grey85"), # light y axis ticks
+    #   axis.line.y    = element_line(size = 0.1) #, color = "grey85")  # light y axis line
+    # ) +
+    coord_cartesian(clip = "off")
+  
+  # # === Assemble final ===
+  # main_panel <- if (show_as == "heatmap") p_heatmap else p_stacked_bar
+  # if (!is.null(extra_panels)) {
+  #   final_plot <- plot_grid(
+  #     p_dendro,
+  #     # extra_panels,
+  #     main_panel$p,
+  #     ncol = 1, align = "v", axis = "lr",
+  #     rel_heights = rel_heights
+  #   )
+  # } else {
+  #   final_plot <- plot_grid(
+  #     p_dendro,
+  #     main_panel,
+  #     ncol = 1, align = "v", axis = "lr",
+  #     rel_heights = c(0.2, 1)
+  #   )
+  # }
+  
+  return(list(
+    pts_dendrogram     = pts_dendrogram,
+    # p_dendro       = p_dendro,
+    p_ann          = extra_panels,
+    p_heatmap      = p_heatmap,
+    extra_panels = extra_panels,
+    p_stacked_bar  = p_stacked_bar,
+    hc             = hc,
+    eff_plot = eff_plot,
+    hist_plots = hist_plots,
+    ann_plots = ann_plots,
+    p_heatmap_tax_annot = p_heatmap_tax_annot,
+    ps_toplot = ps_toplot
+    
+    
+  ))
+}
+
+
+
 
 #' UMAP Visualization of Beta Diversity from a Phyloseq Object
 #'
@@ -22,6 +588,14 @@ plot_umap_beta <- function(ps,
                            beta = "bray", 
                            preserve_seed = TRUE, method = c("naive", "umap-learn") ,
                            color_var = NULL, shape_var = NULL, umap_config = umap::umap.defaults) {
+  
+  
+  # Required libraries
+  library(phyloseq)  # For handling microbiome data
+  library(umap)      # For performing UMAP dimensionality reduction
+  library(ggplot2)   # For plotting
+  library(dplyr)     # For data manipulation
+  
   
   # --- Check input validity ---
   if (!inherits(ps, "phyloseq")) {
