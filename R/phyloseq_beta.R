@@ -1,3 +1,93 @@
+# Required libraries
+library(phyloseq)  # For handling microbiome data
+library(umap)      # For performing UMAP dimensionality reduction
+library(ggplot2)   # For plotting
+library(dplyr)     # For data manipulation
+
+#' UMAP Visualization of Beta Diversity from a Phyloseq Object
+#'
+#' @param ps A `phyloseq` object containing microbiome data.
+#' @param beta Either a character string specifying the distance method (e.g., "bray", "jaccard"),
+#'             or a precomputed distance object (of class `dist`).
+#' @param color_var (Optional) Name of a variable in `sample_data(ps)` to use for point color in the plot.
+#' @param shape_var (Optional) Name of a variable in `sample_data(ps)` to use for point shape in the plot.
+#' @param umap_config (Optional) A list of UMAP configuration parameters (default: `umap.defaults`).
+#'
+#' @return A `ggplot2` object showing the UMAP projection of the beta diversity matrix.
+#' @export
+#'
+#' @examples
+#' plot_umap_beta(ps, beta = "bray", color_var = "Group", shape_var = "Treatment")
+plot_umap_beta <- function(ps, 
+                           beta = "bray", 
+                           preserve_seed = TRUE, method = c("naive", "umap-learn") ,
+                           color_var = NULL, shape_var = NULL, umap_config = umap::umap.defaults) {
+  
+  # --- Check input validity ---
+  if (!inherits(ps, "phyloseq")) {
+    stop("Input must be a phyloseq object.")
+  }
+  
+  # --- Compute or validate distance matrix ---
+  if (inherits(beta, "dist")) {
+    # If user provided a precomputed distance object
+    # dist_matrix <- beta
+    
+    dist_matrix <-  as.matrix(beta)[sample_names(ps),sample_names(ps)] %>%
+      as.dist()
+    
+  } else if (is.character(beta)) {
+    # Compute distance using a method name
+    dist_matrix <- phyloseq::distance(ps, method = beta)
+  } else {
+    stop("Invalid 'beta' input. Provide either a distance matrix or a valid distance method name (e.g., 'bray').")
+  }
+  
+  # --- Convert distance matrix to square matrix format for UMAP ---
+  dist_mat <- as.matrix(dist_matrix)
+  
+  # --- Run UMAP on distance matrix ---
+  umap_result <- umap::umap(dist_mat, preserve.seed = preserve_seed, 
+                            method = method,config = umap_config)
+  
+  # Convert UMAP output to a data frame
+  umap_df <- as.data.frame(umap_result$layout)
+  colnames(umap_df) <- c("UMAP1", "UMAP2")
+  umap_df$SampleID <- rownames(umap_df)
+  
+  # --- Extract and merge metadata from phyloseq object ---
+  meta <- data.frame(sample_data(ps))
+  meta$SampleID <- rownames(meta)
+  
+  # Merge UMAP coordinates with metadata using SampleID
+  plot_data <- left_join(umap_df, meta, by = "SampleID")
+  
+  # --- Create ggplot object ---
+  p <- ggplot(plot_data, aes(x = UMAP1, y = UMAP2))
+  
+  # Add color and/or shape aesthetics if provided
+  if (!is.null(color_var)) {
+    p <- p + aes_string(color = color_var)
+  }
+  if (!is.null(shape_var)) {
+    p <- p + aes_string(shape = shape_var)
+  }
+  
+  # Add points and customize plot
+  p <- p +
+    geom_point(size = 3, alpha = 0.8) +
+    theme_minimal() +
+    labs(
+      title = paste("UMAP on", ifelse(is.character(beta), beta, "custom distance")),
+      x = "UMAP 1",
+      y = "UMAP 2"
+    ) +
+    theme(plot.title = element_text(hjust = 0.5))
+  
+  return(p)
+}
+
+
 #' @title ...
 #' @param .
 #' @param ..
