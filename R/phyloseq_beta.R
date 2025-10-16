@@ -1,3 +1,182 @@
+#' t-SNE Perplexity Scan with Optional Convex Hulls
+#'
+#' Runs t-SNE across multiple perplexity scaling factors, generating 2D embeddings
+#' and associated plots. Optionally returns the raw \code{Rtsne} results. 
+#' The distance matrix is automatically reordered to match the sample order in
+#' the provided \code{phyloseq} object.
+#'
+#' @param ps A \code{phyloseq} object containing microbiome data and sample metadata.
+#' @param dist_mat A distance matrix or object coercible to \code{dist}. Must match 
+#'   the samples in \code{ps}. Default: \code{beta$hjaccard}.
+#' @param factors Numeric vector of scaling factors used to determine perplexity as
+#'   \code{((n_samples - 1)/3) / factor}. Default: \code{c(1.25, 1.5, 1.75, 2, 4, 10)}.
+#' @param seed Integer seed for reproducibility. Default: \code{1234}.
+#' @param color_group Optional. Name of a sample metadata column used to color points.
+#' @param shape_group Optional. Name of a sample metadata column used to shape points.
+#' @param palette Optional. Named vector of colors for manual scales.
+#' @param return_tsne Logical; if \code{TRUE}, includes raw \code{Rtsne} outputs,
+#'   along with perplexity and factor used. Default: \code{FALSE}.
+#' @param show_legend Logical; if \code{FALSE}, the legend is removed from the plot.
+#'   Default: \code{FALSE}.
+#' @param add_hull Logical; if \code{TRUE}, draws convex hulls for each group in 
+#'   \code{color_group}. Default: \code{TRUE}.
+#' @param theta Numeric; trade-off between accuracy and speed in \code{Rtsne}. 
+#'   Default: \code{0} (exact).
+#' @param num_threads Integer; number of threads used by \code{Rtsne}. Default: \code{3}.
+#'
+#' @return A named list (one element per factor) where each element contains:
+#'   \describe{
+#'     \item{plot}{A ggplot2 object of the t-SNE embedding.}
+#'     \item{tsne_out}{(Optional) The raw \code{Rtsne} output if \code{return_tsne = TRUE}.}
+#'     \item{perplexity}{(Optional) The perplexity value used.}
+#'     \item{factor}{(Optional) The scaling factor used.}
+#'   }
+#'
+#' @details
+#' Perplexity is derived as \code{round(((n_samples - 1) / 3) / factor, 0)} 
+#' and bounded between 1 and the theoretical maximum \code{(n_samples - 1) / 3}.
+#' The distance matrix is reordered to match \code{sample_names(ps)} prior to t-SNE.
+#'
+#' @examples
+#' \dontrun{
+#' tsne_perplexity_scan(ps, dist_mat = beta$hjaccard, color_group = "Treatment")
+#' }
+#'
+#' @import phyloseq
+#' @import ggplot2
+#' @import ggpubr
+#' @import dplyr
+#' @importFrom Rtsne Rtsne
+#' @export
+tsne_perplexity_scan <- function(ps,
+                                 dist_mat = beta$hjaccard,
+                                 factors = c(1.25, 1.5, 1.75, 2, 4, 10),
+                                 seed = 1234,
+                                 color_group = NULL,
+                                 shape_group = NULL,
+                                 palette = NULL,
+                                 return_tsne = FALSE,
+                                 show_legend = FALSE,
+                                 add_hull = TRUE,
+                                 theta = 0,
+                                 num_threads = 3) {
+  
+  # --- Load packages safely ---------------------------------------------------
+  if (!requireNamespace("Rtsne", quietly = TRUE)) stop("Package 'Rtsne' is required.")
+  if (!requireNamespace("phyloseq", quietly = TRUE)) stop("Package 'phyloseq' is required.")
+  if (!requireNamespace("ggplot2", quietly = TRUE)) stop("Package 'ggplot2' is required.")
+  if (!requireNamespace("ggpubr", quietly = TRUE)) stop("Package 'ggpubr' is required.")
+  if (!requireNamespace("dplyr", quietly = TRUE)) stop("Package 'dplyr' is required.")
+  
+  library(phyloseq)
+  library(ggplot2)
+  library(dplyr)
+  library(ggpubr)
+  
+  # --- Extract & align metadata ----------------------------------------------
+  meta <- as(sample_data(ps), "data.frame")
+  sample_order <- sample_names(ps)
+  
+  # Reorder distance matrix to match samples in ps
+  dist_mat <- as.matrix(dist_mat)[sample_order, sample_order]
+  dist_mat <- as.dist(dist_mat)
+  
+  # --- Prepare output container ----------------------------------------------
+  out_list <- vector("list", length(factors))
+  names(out_list) <- paste0("factor_", factors)
+  
+  n_samples <- nsamples(ps)
+  max_perp <- round((n_samples - 1) / 3, 0)
+  
+  # --- Loop over perplexity scaling factors ----------------------------------
+  for (i in seq_along(factors)) {
+    f <- factors[i]
+    
+    # Compute perplexity: (max / factor), bounded between 1 and max_perp
+    perp <- round(max_perp / f, 0)
+    perp <- max(1, min(perp, max_perp))
+    
+    # Run t-SNE
+    set.seed(seed)
+    tsne_out <- Rtsne::Rtsne(
+      dist_mat,
+      theta = theta,
+      num_threads = num_threads,
+      is_distance = TRUE,
+      perplexity = perp,
+      verbose = FALSE
+    )
+    
+    # --- Create plotting dataframe -------------------------------------------
+    df <- data.frame(
+      TSNE1 = tsne_out$Y[, 1],
+      TSNE2 = tsne_out$Y[, 2],
+      meta
+    )
+    
+    # Dynamically build aesthetics (avoid warnings if NULL)
+    aes_params <- list(x = df$TSNE1, y = df$TSNE2)
+    if (!is.null(color_group)) aes_params$color <- df[[color_group]]
+    if (!is.null(shape_group)) aes_params$shape <- df[[shape_group]]
+    
+    p <- ggplot(df, do.call(aes, aes_params)) +
+      geom_point(size = 3, alpha = 0.8) +
+      theme_classic() +
+      labs(
+        x = "t-SNE dim. 1",
+        y = "t-SNE dim. 2",
+        title = paste0(
+          "t-SNE | distance = ",
+          attr(dist_mat, "method"),
+          " | perplexity = ",
+          perp
+        )
+      ) +
+      theme(
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        plot.title = element_text(hjust = 0.5)
+      )
+    
+    # Optional convex hull layer (only if color_group provided)
+    if (add_hull && !is.null(color_group)) {
+      p <- p +
+        ggpubr::stat_chull(
+          aes(fill = .data[[color_group]], color = .data[[color_group]]),
+          geom = "polygon",
+          alpha = 0.2
+        )
+    }
+    
+    # Apply manual palette if provided
+    if (!is.null(palette) && !is.null(color_group)) {
+      p <- p +
+        scale_color_manual(values = palette) +
+        scale_fill_manual(values = palette)
+    }
+    
+    # Hide legend if requested
+    if (isFALSE(show_legend)) {
+      p <- p + theme(legend.position = "none")
+    }
+    
+    # Prepare output entry
+    entry <- list(plot = p)
+    
+    # Optionally include t-SNE raw output and metadata
+    if (return_tsne) {
+      entry$tsne_out <- tsne_out
+      entry$perplexity <- perp
+      entry$factor <- f
+    }
+    
+    out_list[[i]] <- entry
+  }
+  
+  # --- Return full results ---------------------------------------------------
+  return(out_list)
+}
+
 #' Plot Heatmap and/or Stacked Barplot for Phyloseq Object
 #'
 #' Generates a combined visualization for a phyloseq object including:
