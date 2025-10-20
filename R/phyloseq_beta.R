@@ -1,3 +1,214 @@
+#' Run UMAP2 (uwot) on a phyloseq object with enhanced visualization
+#'
+#' @param ps phyloseq object
+#' @param beta Either a dist object OR a character metric name for UMAP
+#' @param n_neighbors Integer UMAP parameter
+#' @param min_dist Numeric UMAP parameter
+#' @param spread Numeric UMAP parameter
+#' @param dens_scale Numeric, UMAP2-specific density scaling parameter
+#' @param color_group Optional column in sample_data for ggplot coloring
+#' @param shape_group Optional column in sample_data for ggplot shaping
+#' @param seed Random seed for reproducibility
+#' @param hull Logical, whether to draw convex hulls (uses color_group)
+#' @param palette Optional named vector of colors for manual scale
+#' @param point_size Numeric, point size
+#' @param point_alpha Numeric, transparency of points
+#' @param init Initialization for UMAP2 ("pca", "spectral", etc.)
+#' @param show_legend Logical, whether to show legend
+#' @param ... Additional parameters passed to `uwot::umap2()`
+#'
+#' @return A list with:
+#'   - layout: UMAP2 coordinates
+#'   - plot: ggplot scatterplot of embedding
+#'   - dist_mat: distance matrix used (if any)
+#' @export
+umap_phyloseq_uwot2 <- function(ps,
+                                beta = "bray",
+                                n_neighbors = 5,
+                                min_dist = 0.1,
+                                spread = 1,
+                                dens_scale = NULL,
+                                color_group = NULL,
+                                shape_group = NULL,
+                                seed = 1234,
+                                hull = FALSE,
+                                palette = NULL,
+                                point_size = 3,
+                                point_alpha = 0.8,
+                                init = "pca",
+                                show_legend = FALSE,
+                                ...) {
+  require(uwot)
+  require(tidyverse)
+  require(ggpubr)
+  
+  # ---- Prepare data ----
+  if (inherits(beta, "dist")) {
+    X <- as.matrix(beta)[sample_names(ps), sample_names(ps)] %>% as.dist()
+    dist_mat <- beta
+    metric_used <- "euclidean"
+  } else if (is.character(beta)) {
+    X <- otu_table(ps) %>% as.matrix()
+    dist_mat <- NULL
+    metric_used <- beta
+  } else {
+    stop("beta must be a dist object or a character string for metric.")
+  }
+  
+  # ---- Run UMAP2 ----
+  set.seed(seed)
+  umap_res <- uwot::umap2(
+    X,
+    n_neighbors = n_neighbors,
+    min_dist = min_dist,
+    spread = spread,
+    dens_scale = dens_scale,
+    metric = metric_used,
+    init = init,
+    seed = seed,
+    ...
+  )
+  
+  df <- as.data.frame(umap_res)
+  colnames(df) <- c("UMAP1", "UMAP2")
+  df$SampleID <- rownames(df)
+  
+  # ---- Merge with metadata ----
+  meta <- as(sample_data(ps), "data.frame") %>%
+    rownames_to_column("SampleID")
+  df <- dplyr::left_join(df, meta, by = "SampleID")
+  
+  # ---- Plot ----
+  p <- ggplot(df, aes(x = UMAP1, y = UMAP2)) +
+    geom_point(aes_string(color = color_group, shape = shape_group),
+               size = point_size, alpha = point_alpha)
+  
+  if (hull && !is.null(color_group)) {
+    p <- p + ggpubr::stat_chull(
+      geom = "polygon",
+      aes_string(color = color_group, fill = color_group),
+      alpha = 0.2
+    )
+  }
+  
+  if (!is.null(palette) && !is.null(color_group)) {
+    p <- p + scale_color_manual(values = palette) +
+      scale_fill_manual(values = palette)
+  }
+  
+  p <- p +
+    theme_classic() +
+    labs(
+      x = "UMAP 1",
+      y = "UMAP 2",
+      title = paste0(
+        "UMAP2 (uwot) | metric = ", metric_used,
+        " | n_neighbors = ", n_neighbors,
+        " | min_dist = ", min_dist,
+        if (!is.null(dens_scale)) paste0(" | dens_scale = ", dens_scale) else ""
+      )
+    ) +
+    theme(
+      axis.text = element_blank(),
+      axis.ticks = element_blank(),
+      plot.title = element_text(hjust = 0.5)
+    )
+  
+  if (!show_legend) {
+    p <- p + theme(legend.position = "none")
+  }
+  
+  return(list(
+    layout = umap_res,
+    plot = p,
+    dist_mat = dist_mat
+  ))
+}
+
+
+#' Explore UMAP2 Parameters for Phyloseq Objects with Grid Visualization
+#'
+#' @inheritParams umap_phyloseq_uwot2
+#' @param n_neighbors_vals Vector of integers for `n_neighbors` to explore
+#' @param min_dist_vals Vector of numerics for `min_dist` to explore
+#' @param init_vals Vector of initializations for UMAP2
+#' @param dens_scale_vals Vector of numerics for `dens_scale`
+#' @param ncol Number of columns in the grid plot
+#' @param ... Additional parameters passed to `umap_phyloseq_uwot2()`
+#' @export
+umap_explore_grid2 <- function(ps,
+                               beta,
+                               color_group = "Subject",
+                               palette = NULL,
+                               hull = TRUE,
+                               show_legend = FALSE,
+                               n_neighbors_vals = c(5, 10, 20),
+                               min_dist_vals = c(0.1, 0.3, 0.5),
+                               init_vals = c("pca", "spectral"),
+                               dens_scale_vals = c(0.5, 0.75, 1),
+                               ncol = 3,
+                               ...) {
+  
+  # ---- Generate all parameter combinations ----
+  param_grid <- expand.grid(
+    n_neighbors = n_neighbors_vals,
+    min_dist = min_dist_vals,
+    init = init_vals,
+    dens_scale = dens_scale_vals,
+    stringsAsFactors = FALSE
+  )
+  
+  # ---- Run UMAP2 for each combination ----
+  res_list <- purrr::pmap(param_grid, function(n_neighbors, min_dist, init, dens_scale) {
+    res <- umap_phyloseq_uwot2(
+      ps = ps,
+      beta = beta,
+      color_group = color_group,
+      palette = palette,
+      hull = hull,
+      show_legend = show_legend,
+      n_neighbors = n_neighbors,
+      min_dist = min_dist,
+      init = init,
+      dens_scale = dens_scale,
+      ...
+    )
+    
+    # Add parameters
+    res$parameters <- list(
+      n_neighbors = n_neighbors,
+      min_dist = min_dist,
+      init = init,
+      dens_scale = dens_scale
+    )
+    
+    # Add parameter info to plot title
+    res$plot <- res$plot +
+      ggtitle(paste0("n_neighbors=", n_neighbors,
+                     ", min_dist=", min_dist,
+                     ", init=", init,
+                     ", dens_scale=", dens_scale))
+    
+    res
+  })
+  
+  # ---- Combine plots in grid ----
+  all_plots <- purrr::map(res_list, "plot")
+  
+  grid_plot <- ggpubr::ggarrange(plotlist = all_plots,
+                                 ncol = ncol,
+                                 nrow = ceiling(length(all_plots) / ncol),
+                                 common.legend = TRUE,
+                                 legend = ifelse(show_legend, "right", "none"))
+  
+  list(
+    results = res_list,
+    param_grid = param_grid,
+    grid_plot = grid_plot
+  )
+}
+
+
 #' Run UMAP (uwot) on a phyloseq distance matrix with enhanced visualization
 #'
 #' @param ps phyloseq object
