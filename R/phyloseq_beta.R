@@ -1,3 +1,234 @@
+#' Run UMAP (uwot) on a phyloseq distance matrix with enhanced visualization
+#'
+#' @param ps phyloseq object
+#' @param beta Either a dist object OR a character method name for phyloseq::distance()
+#' @param n_neighbors Integer UMAP parameter
+#' @param min_dist Numeric UMAP parameter
+#' @param spread Numeric UMAP parameter
+#' @param color_group Optional column in sample_data for ggplot coloring
+#' @param shape_group Optional column in sample_data for ggplot shaping
+#' @param seed Random seed for reproducibility
+#' @param hull Logical, whether to draw convex hulls (uses color_group)
+#' @param palette Optional named vector of colors for manual scale
+#' @param point_size Numeric, point size
+#' @param point_alpha Numeric, transparency of points
+#' @param ... Additional parameters passed to `uwot::umap()`
+#'
+#' @return A list with:
+#'   - layout: UMAP coordinates
+#'   - plot: ggplot scatterplot of embedding
+#'   - dist_mat: distance matrix used
+#' @export
+umap_phyloseq_uwot <- function(ps,
+                               beta = "bray",
+                               n_neighbors = 5,
+                               min_dist = 0.1,
+                               spread = 1,
+                               color_group = NULL,
+                               shape_group = NULL,
+                               seed = 1234,
+                               hull = FALSE,
+                               palette = NULL,
+                               point_size = 3,
+                               point_alpha = 0.8,
+                               init = "pca",
+                               metric = "euclidean",
+                               show_legend = FALSE,
+                               ...) {
+  require(phyloseq)
+  require(uwot)
+  require(tidyverse)
+  require(ggpubr)
+  
+  
+  # ---- Distances / metric ----
+  if (inherits(beta, "dist")) {
+    # Already a distance matrix → convert to matrix
+    X <- as.matrix(beta)[sample_names(ps), sample_names(ps)] %>% as.dist()
+    metric_used <- "euclidean"
+  } else if (is.character(beta)) {
+    # Just pass the method name to UMAP
+    X <- otu_table(ps) %>% as.matrix()  # raw counts/abundances
+    metric_used <- beta
+  } else {
+    stop("beta must be a dist object or a method name.")
+  }
+  
+  # ---- UMAP ----
+  set.seed(seed)
+  umap_res <- uwot::umap(
+    X,
+    n_neighbors = n_neighbors,
+    min_dist = min_dist,
+    spread = spread,
+    metric = metric,     # since X is a distance matrix
+    init = init,
+    pca_center = FALSE,
+    seed = seed,
+    ...
+  )
+  
+  df <- as.data.frame(umap_res)
+  colnames(df) <- c("UMAP1", "UMAP2")
+  df$SampleID <- rownames(df)
+  
+  # ---- Merge with metadata ----
+  meta <- as(sample_data(ps), "data.frame") %>%
+    rownames_to_column("SampleID")
+  
+  df <- dplyr::left_join(df, meta, by = "SampleID")
+  
+  # ---- Plot ----
+  p <- ggplot(df, aes(x = UMAP1, y = UMAP2)) +
+    geom_point(aes_string(color = color_group, shape = shape_group),
+               size = point_size, alpha = point_alpha)
+  
+  # ---- Hulls (using color_group) ----
+  if (hull && !is.null(color_group)) {
+    p <- p + ggpubr::stat_chull(
+      geom = "polygon",
+      aes_string(color = color_group, fill = color_group),
+      alpha = 0.2
+    )
+  }
+  
+  # ---- Apply custom palette if provided ----
+  if (!is.null(palette) && !is.null(color_group)) {
+    p <- p + scale_color_manual(values = palette) +
+      scale_fill_manual(values = palette)
+  }
+  
+  p <- p +
+    theme_classic() +
+    labs(
+      x = "UMAP 1",
+      y = "UMAP 2",
+      title = paste0(
+        "UMAP (uwot) | distance = ", attr(dist_mat, "method"),
+        " | n_neighbors = ", n_neighbors,
+        " | min_dist = ", min_dist
+      )
+    ) +
+    theme(
+      axis.text = element_blank(),
+      axis.ticks = element_blank(),
+      plot.title = element_text(hjust = 0.5)
+    )
+  
+  # ---- Hide legend if show_legend is FALSE ----
+  if (!show_legend) {
+    p <- p + theme(legend.position = "none")
+  }
+  
+  return(list(
+    # layout = umap_res,
+    plot = p#,
+    # dist_mat = dist_mat
+  ))
+}
+
+
+#' Explore UMAP Parameters for Phyloseq Objects with Grid Visualization
+#'
+#' Runs `umap_phyloseq_uwot()` over multiple combinations of microbiome-relevant
+#' UMAP parameters (`n_neighbors`, `min_dist`, `init`, `dens_scale`) and returns
+#' both the results and a combined grid plot of all embeddings for comparison.
+#'
+#' @param ps A `phyloseq` object containing your microbiome data.
+#' @param beta Either a `dist` object (precomputed distance) or a character
+#'   string indicating a distance method name (passed as metric to UMAP).
+#' @param color_group Optional column name from `sample_data(ps)` for coloring points.
+#' @param palette Optional named vector of colors for the color_group.
+#' @param hull Logical; if TRUE, draw convex hulls around groups in `color_group`.
+#' @param show_legend Logical; if FALSE, legend is hidden.
+#' @param n_neighbors_vals Vector of integers for `n_neighbors` to explore.
+#' @param min_dist_vals Vector of numerics for `min_dist` to explore.
+#' @param init_vals Vector of initializations for UMAP: e.g., "pca", "spectral".
+#' @param dens_scale_vals Vector of numeric values for `dens_scale` parameter.
+#' @param ncol Number of columns in the grid plot.
+#' @param ... Additional arguments passed to `umap_phyloseq_uwot()`.
+#'
+#' @return A list with:
+#'   - `results`: a list of UMAP outputs (each contains `plot` and `parameters` list)
+#'   - `param_grid`: a data.frame of parameter combinations used
+#'   - `grid_plot`: a `ggplot` object with all UMAP plots arranged in a grid
+#'
+#' @export
+umap_explore_grid <- function(ps,
+                              beta,
+                              color_group = "Subject",
+                              palette = NULL,
+                              hull = TRUE,
+                              show_legend = FALSE,
+                              n_neighbors_vals = c(5, 10, 20),
+                              min_dist_vals = c(0.1, 0.3, 0.5),
+                              init_vals = c("pca", "spectral"),
+                              dens_scale_vals = c(0.5, 0.75, 1),
+                              ncol = 3,
+                              ...) {
+  
+  # ---- Generate all combinations of parameters ----
+  param_grid <- expand.grid(
+    n_neighbors = n_neighbors_vals,
+    min_dist = min_dist_vals,
+    init = init_vals,
+    dens_scale = dens_scale_vals,
+    stringsAsFactors = FALSE
+  )
+  
+  # ---- Run UMAP for each combination ----
+  res_list <- purrr::pmap(param_grid, function(n_neighbors, min_dist, init, dens_scale) {
+    
+    res <- umap_phyloseq_uwot(
+      ps = ps,
+      beta = beta,
+      color_group = color_group,
+      palette = palette,
+      hull = hull,
+      show_legend = show_legend,
+      n_neighbors = n_neighbors,
+      min_dist = min_dist,
+      init = init,
+      dens_scale = dens_scale,
+      ...
+    )
+    
+    # Attach the parameter settings
+    res$parameters <- list(
+      n_neighbors = n_neighbors,
+      min_dist = min_dist,
+      init = init,
+      dens_scale = dens_scale
+    )
+    
+    # Add a title showing parameters on the plot itself
+    res$plot <- res$plot +
+      ggtitle(paste0("n_neighbors=", n_neighbors,
+                     ", min_dist=", min_dist,
+                     ", init=", init,
+                     ", dens_scale=", dens_scale))
+    
+    res
+  })
+  
+  # ---- Combine all plots into a single grid ----
+  all_plots <- purrr::map(res_list, "plot")
+  
+  grid_plot <- ggpubr::ggarrange(plotlist = all_plots,
+                                 ncol = ncol,
+                                 nrow = ceiling(length(all_plots) / ncol),
+                                 common.legend = TRUE,
+                                 legend = ifelse(show_legend, "right", "none"))
+  
+  # Return results and grid
+  list(
+    results = res_list,
+    param_grid = param_grid,
+    grid_plot = grid_plot
+  )
+}
+
+
 #' t-SNE Perplexity Scan with Optional Convex Hulls
 #'
 #' Runs t-SNE across multiple perplexity scaling factors, generating 2D embeddings
