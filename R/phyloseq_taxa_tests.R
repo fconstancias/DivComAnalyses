@@ -998,7 +998,7 @@ phyloseq_maaslin3 <- function(phyloseq,
                               verbosity = 'FINEST',
                               output_dir = "~/test_masslin3/",
                               add_ASV_taxonomy = TRUE,
-                              small_random_effects = FALSE)){
+                              small_random_effects = FALSE){
   
   ##---------------------------------------------
   require(tidyverse); require(maaslin3); require(phyloseq)
