@@ -724,6 +724,472 @@ tsne_perplexity_scan <- function(ps,
   return(out_list)
 }
 
+
+#' Generate a Composite Microbiome Heatmap/Barplot with Metadata and Statistics
+#'
+#' This function creates a comprehensive visualization dashboard for a `phyloseq` object.
+#' It aligns a sample dendrogram, categorical/continuous metadata strips, a main abundance 
+#' heatmap (or stacked barplot), and an optional differential abundance effect size plot.
+#'
+#' @description
+#' The function performs the following steps:
+#' 1. **Clustering**: Hierarchically clusters samples (or accepts a pre-calculated `dist`/`hclust`).
+#' 2. **Aggregation**: Aggregates taxa to a specific level (e.g., Genus) using `microViz::tax_agg`.
+#' 3. **Selection**: Selects taxa based on abundance ("top") or a provided differential statistics table ("diff").
+#' 4. **Transformation**: Transforms abundances (default: compositional) for plotting.
+#' 5. **Visualization**: Generates ggplot objects for the dendrogram, metadata, heatmap, taxonomy sidebar, and effect plot.
+#' 6. **Alignment**: Returns these objects in a list, optimized for assembly using the `patchwork` or `aplot` packages.
+#'
+#' @param ps A `phyloseq` object containing otu_table, tax_table, and sample_data.
+#' @param dist_or_hclust A `dist` matrix, an `hclust` object, or `NULL`. If `NULL`, a Bray-Curtis distance is calculated automatically.
+#' @param hclust_method Character string. The agglomeration method to be used by `hclust` (e.g., "complete", "average"). Default is "complete".
+#' @param sample_metadata_vars Character vector of column names in `sample_data(ps)` to plot as categorical annotation strips.
+#' @param continuous_metadata_vars Character vector of column names in `sample_data(ps)` to plot as continuous histograms/bars.
+#' @param top_n_taxa Integer. Number of top taxa to select if `type = "top"`. Default is 20.
+#' @param annotation_colors A named list of custom color palettes for metadata or taxonomy. Names must match variable names (e.g., `list(Group = c("A"="red", "B"="blue"))`).
+#' @param filter_exp Character string. A logical expression for `speedyseq::filter_tax_table` to filter taxa before aggregation (e.g., `'Class != "unassigned"'`).
+#' @param transform Character string. Transformation to apply via `microbiome::transform`. Default is "compositional".
+#' @param tax_level Character string. The taxonomic rank to aggregate by (e.g., "Genus", "Family").
+#' @param taxa_sel Character vector. A specific list of taxa names to plot. Use only if you want to manually enforce selection.
+#' @param type Character string. Selection strategy: `"diff"` (uses `diff_table`) or `"top"` (uses abundance).
+#' @param stacked_palette (Optional) Character vector. A custom color palette for the stacked barplot (if generated).
+#' @param barplot_level (Optional) Character string. Taxonomic level for the stacked barplot. Defaults to `tax_level`.
+#' @param viridis_dir Integer. Direction of the viridis color scale (1 or -1).
+#' @param viridis_color Character string. Viridis color map option ("A", "B", "C", "D", "E"). Default "C" (plasma).
+#' @param show_sample_labs Logical. Whether to display sample names on the X-axis of the heatmap. Default `FALSE`.
+#' @param diff_table Data frame. A table of differential abundance results. Required if `type = "diff"`.
+#' @param diff_table_ef Character string. Column name in `diff_table` containing effect sizes (e.g., LFC, CLR difference).
+#' @param diff_table_group Character string. Column name in `diff_table` containing the group/contrast label.
+#' @param df_ordered_feat Character string. Column name in `diff_table` containing the feature names (must match `tax_level` names).
+#' @param filter_expr_string (Optional) Character string. Expression to filter rows in `diff_table` (e.g., `"p_adj < 0.05"`).
+#' @param heat_vis_trans Character string. Transformation for the heatmap fill scale (e.g., "sqrt", "log10", "identity"). Default "sqrt".
+#' @param annotation_tax_heatmap_level Character string. Taxonomic rank to display as a side annotation bar (e.g., "Class" or "Phylum").
+#' @param heatmap_label Character string. An R expression (as string) to generate hover labels or internal IDs (e.g., `"paste0(Phylum, ' ', Genus)"`).
+#' @param tax_annot_heat Logical. Whether to show the taxonomy side annotation bar. Default `TRUE`.
+#' @param ann_heights Numeric vector. Relative heights for metadata panels (deprecated/unused in current logic, controlled via external layout).
+#'
+#' @return A named list containing the following components:
+#' \describe{
+#'   \item{pts_dendrogram}{ggplot object of the sample dendrogram.}
+#'   \item{p_ann}{A patchwork object combining all metadata strips.}
+#'   \item{ann_list}{A list of individual ggplot objects for metadata strips (for fine-grained control).}
+#'   \item{p_heatmap}{A list containing `$p` (the heatmap ggplot) and `$legend` (the extracted legend).}
+#'   \item{p_stacked_bar}{A list containing `$p` (stacked barplot) and `$legend`.}
+#'   \item{hc}{The `hclust` object used for sample ordering.}
+#'   \item{eff_plot}{A list containing `$p` (the effect size dot plot) and `$legend`.}
+#'   \item{p_heatmap_tax_annot}{A list containing `$p` (the taxonomy side bar) and `$legend`.}
+#'   \item{ps_toplot}{The processed `phyloseq` object used for plotting.}
+#' }
+#' 
+#' @examples
+#' \dontrun{
+#' library(phyloseq)
+#' library(ggplot2)
+#' library(patchwork)
+#' library(dplyr)
+#' library(microViz)
+#' library(tibble)
+#' 
+#' # --- 1. Generate Synthetic Data ---
+#' # Create a phyloseq object with 20 samples and 30 taxa (no NAs)
+#' n_samples <- 20; n_taxa <- 30
+#' counts <- matrix(sample(0:100, n_samples * n_taxa, replace = TRUE), nrow = n_samples)
+#' colnames(counts) <- paste0("Taxa_", 1:n_taxa)
+#' rownames(counts) <- paste0("Sample_", 1:n_samples)
+#' 
+#' tax_mat <- matrix(NA, nrow = n_taxa, ncol = 3)
+#' colnames(tax_mat) <- c("Phylum", "Class", "Genus")
+#' rownames(tax_mat) <- colnames(counts)
+#' tax_mat[, "Phylum"] <- rep(c("Firmicutes", "Bacteroidetes", "Proteobacteria"), each = 10)
+#' tax_mat[, "Class"]  <- rep(c("Clostridia", "Bacteroidia", "Gammaproteobacteria"), each = 10)
+#' tax_mat[, "Genus"]  <- paste0("Genus_", 1:n_taxa) 
+#' 
+#' meta_df <- data.frame(
+#'   SampleID = rownames(counts),
+#'   Group = rep(c("Treatment", "Control"), each = 10),
+#'   Age = sample(20:60, n_samples, replace = TRUE),
+#'   row.names = rownames(counts)
+#' )
+#' 
+#' ps_test <- phyloseq(
+#'   otu_table(counts, taxa_are_rows = FALSE),
+#'   tax_table(tax_mat),
+#'   sample_data(meta_df)
+#' )
+#' 
+#' # --- 2. Create Mock Differential Stats ---
+#' # Simulate "significant" taxa
+#' top_10 <- taxa_names(ps_test)[1:10]
+#' diff_sim <- data.frame(
+#'   Genus = as.character(tax_table(ps_test)[top_10, "Genus"]),
+#'   enrich_group = rep(c("Treatment", "Control"), each = 5),
+#'   ef_CLR_diff_mean = c(runif(5, 1, 3), runif(5, -3, -1)) 
+#' )
+#' 
+#' # --- 3. Run the Function ---
+#' res <- plot_phyloseq_heatmap_barplot(
+#'   ps = ps_test,
+#'   dist_or_hclust = NULL,        # Auto-calculate Bray-Curtis
+#'   tax_level = "Genus",          # Aggregate to Genus
+#'   type = "diff",                # Select based on differential table
+#'   diff_table = diff_sim,        
+#'   diff_table_ef = "ef_CLR_diff_mean",
+#'   diff_table_group = "enrich_group",
+#'   df_ordered_feat = "Genus",
+#'   sample_metadata_vars = c("Group"),
+#'   continuous_metadata_vars = c("Age"),
+#'   annotation_tax_heatmap_level = "Class", 
+#'   heatmap_label = "paste(Phylum, '-', Genus)",
+#'   show_sample_labs = TRUE
+#' )
+#' 
+#' # --- 4. Assemble with Patchwork ---
+#' # Vertical stack: Dendrogram -> Metadata -> Heatmap
+#' center_stack <- (res$pts_dendrogram / res$p_ann / res$p_heatmap$p) + 
+#'   plot_layout(heights = c(1, 1, 4), guides = "collect")
+#' 
+#' # Horizontal assembly: TaxBar | CenterStack | EffectPlot
+#' final_plot <- (res$p_heatmap_tax_annot$p | center_stack | res$eff_plot$p) + 
+#'   plot_layout(widths = c(0.1, 3, 1))
+#' 
+#' print(final_plot)
+#' }
+#' @export
+plot_phyloseq_heatmap_barplot_googleAI <- function(
+    ps,
+    dist_or_hclust = NULL,
+    hclust_method = "complete",
+    sample_metadata_vars = NULL,
+    continuous_metadata_vars = NULL,
+    top_n_taxa = 20,
+    annotation_colors = NULL,
+    filter_exp = 'Class != "unassigned"',
+    transform = "compositional",
+    tax_level = "Genus",
+    taxa_sel = NULL,
+    type = "diff", # Options: "diff" or "top"
+    stacked_palette = NULL,
+    barplot_level = NULL,
+    viridis_dir = 1,
+    viridis_color = "C",
+    show_sample_labs = FALSE,
+    diff_table = NULL,
+    diff_table_ef = "ef_CLR_diff_mean",
+    diff_table_group = "enrich_group",
+    df_ordered_feat = "Genus",
+    filter_expr_string = NULL,
+    heat_vis_trans = "sqrt",
+    annotation_tax_heatmap_level = "Class",
+    heatmap_label = "paste0(Phylum, ' ', Genus)",
+    tax_annot_heat = TRUE,
+    ann_heights = c(0.2, 0.4, 0.4)
+) {
+  
+  # --- Dependencies ---
+  # These packages must be installed. 
+  require(ggplot2); require(patchwork); require(ggdendro)
+  require(dplyr); require(tidyr); require(microViz); require(microbiome)
+  require(viridis); require(tibble); require(rlang)
+  
+  # --- Internal Helper: Get Plot and Legend ---
+  # Extracts the legend from a ggplot and returns a list(plot_no_legend, legend_object)
+  get_plotandlegend <- function(p) {
+    leg <- tryCatch(cowplot::get_legend(p), error = function(e) NULL)
+    p_no <- p + theme(legend.position = "none")
+    return(list(p = p_no, legend = leg))
+  }
+  
+  # ==============================================================================
+  # 1. CLUSTERING SAMPLES
+  # ==============================================================================
+  # Calculate distance if not provided, then run hierarchical clustering
+  if (is.null(dist_or_hclust)) {
+    dist_or_hclust <- phyloseq::distance(ps, method = "bray")
+  }
+  
+  hc <- if (inherits(dist_or_hclust, "dist")) {
+    hclust(as.dist(as.matrix(dist_or_hclust)[sample_names(ps), sample_names(ps)]), method = hclust_method)
+  } else if (inherits(dist_or_hclust, "hclust")) {
+    dist_or_hclust
+  } else {
+    stop("dist_or_hclust must be a distance matrix or hclust object")
+  }
+  
+  # Store the order of samples derived from clustering
+  sample_order <- hc$labels[hc$order]
+  
+  # ==============================================================================
+  # 2. FILTERING AND TRANSFORMATION
+  # ==============================================================================
+  # Apply logical filter to taxa (e.g., remove unassigned)
+  if (!is.null(filter_exp)) {
+    ps <- ps %>% speedyseq::filter_tax_table(!!rlang::parse_expr(filter_exp))
+  }
+  
+  # Aggregate to specified tax_level and apply transformation (e.g., compositional)
+  ps <- ps %>%
+    microViz::tax_agg(tax_level) %>%
+    microbiome::transform(transform = transform)
+  
+  # Rename taxa to match the aggregation level (usually Genus) for cleaner plotting
+  taxa_names(ps) <- as.character(tax_table(ps)[, tax_level])
+  
+  # ==============================================================================
+  # 3. TAXA SELECTION
+  # ==============================================================================
+  # Strategy A: Top N abundant taxa
+  if (type == "top") {
+    taxa_sel <- microViz::tax_top(ps, n = top_n_taxa, by = sum, rank = tax_level)
+  } 
+  # Strategy B: From Differential Abundance Table
+  else if (type == "diff" && !is.null(diff_table)) {
+    if (!is.null(filter_expr_string)) {
+      diff_table <- diff_table %>% filter(!!rlang::parse_expr(filter_expr_string))
+    }
+    # Get the features (genera) present in the filtered diff table
+    taxa_sel <- unique(diff_table[[df_ordered_feat]])
+  }
+  
+  if (is.null(barplot_level)) barplot_level <- tax_level
+  
+  # Subset the phyloseq object to only selected taxa
+  ps_toplot <- ps %>% speedyseq::filter_tax_table(get(barplot_level) %in% taxa_sel)
+  
+  # ==============================================================================
+  # 4. PLOT TYPE A: STACKED BARPLOT
+  # ==============================================================================
+  p_stacked_bar <- ps_toplot %>%
+    microViz::comp_barplot(
+      bar_width = 1,
+      n_taxa = min(length(taxa_sel), 50),
+      sample_order = sample_order,
+      tax_transform_for_plot = "identity",
+      taxon_renamer = ~ stringr::str_replace_all(., "_", " "),
+      label = NULL,
+      # palette = stacked_palette, # Use if customized
+      tax_level = tax_level,
+      merge_other = FALSE
+    ) +
+    ylab("Proportion") +
+    theme_linedraw() +
+    theme(axis.ticks.x = element_blank())
+  
+  p_stacked_bar <- get_plotandlegend(p_stacked_bar)
+  
+  # ==============================================================================
+  # 5. DIFFERENTIAL EFFECT PLOT (Dot Plot)
+  # ==============================================================================
+  eff_plot <- NULL
+  tax_order <- taxa_sel # Default tax order if no diff table
+  
+  if (!is.null(diff_table) && type == "diff") {
+    
+    # Sort data: Group first, then Effect Size
+    diff_table_ordered <- diff_table %>%
+      arrange(!!sym(diff_table_group), !!sym(diff_table_ef)) 
+    
+    # Extract order for plotting to synchronize Y-axis across plots
+    ordered_levels <- unique(diff_table_ordered[[df_ordered_feat]])
+    tax_order <- ordered_levels 
+    
+    diff_table_ordered <- diff_table_ordered %>%
+      mutate(
+        df_ordered_feat = factor(!!sym(df_ordered_feat), levels = ordered_levels)
+      )
+    
+    # Create Dot Plot
+    p_eff <- ggplot(diff_table_ordered, aes(
+      x = .data[[diff_table_ef]],
+      y = df_ordered_feat,
+      color = .data[[diff_table_group]]
+    )) +
+      geom_segment(aes(
+        x = 0, xend = .data[[diff_table_ef]],
+        y = df_ordered_feat, yend = df_ordered_feat
+      ), linewidth = 0.5) +
+      geom_point(size = 2) +
+      theme_minimal(base_size = 8) +
+      theme(
+        legend.position = "top",
+        panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_line(color = "grey90"),
+        panel.background = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.text.y = element_blank() # Hide Y text (will rely on side heatmap)
+      ) +
+      ylab(NULL)
+    
+    # Apply custom colors if provided
+    if (!is.null(annotation_colors) && diff_table_group %in% names(annotation_colors)) {
+      p_eff <- p_eff + scale_color_manual(values = annotation_colors[[diff_table_group]], name = diff_table_group)
+    }
+    
+    eff_plot <- get_plotandlegend(p_eff)
+  }
+  
+  # ==============================================================================
+  # 6. DATA PREP FOR HEATMAP
+  # ==============================================================================
+  ps_melt <- ps_toplot %>%
+    speedyseq::psmelt() %>%
+    mutate(Sample = factor(Sample, levels = sample_order)) %>%
+    mutate(OTU = factor(OTU, levels = tax_order))
+  
+  # ==============================================================================
+  # 7. PLOT TYPE B: HEATMAP
+  # ==============================================================================
+  p_heatmap_gg <- ps_melt %>%
+    select(OTU, Sample, Abundance) %>%
+    mutate(Abundance = na_if(Abundance, 0)) %>% 
+    ggplot(aes(x = Sample, y = OTU, fill = Abundance)) +
+    geom_tile(color = "grey50", linewidth = 0.05) +
+    scale_fill_viridis(
+      name = "Rel. Abund.",
+      direction = viridis_dir,
+      option = viridis_color,
+      na.value = "white", # Zero/NA values are white
+      trans = heat_vis_trans
+    ) +
+    labs(x = NULL, y = NULL) +
+    theme_minimal() +
+    theme(
+      axis.text.x = if (show_sample_labs) element_text(angle = 45, hjust = 1, size = 5) else element_blank(),
+      axis.ticks = element_blank(),
+      panel.grid = element_blank()
+    )
+  
+  p_heatmap <- get_plotandlegend(p_heatmap_gg)
+  
+  # ==============================================================================
+  # 8. TAXONOMY SIDE ANNOTATION BAR
+  # ==============================================================================
+  p_heatmap_tax_annot <- NULL
+  
+  if (tax_annot_heat) {
+    if (!annotation_tax_heatmap_level %in% colnames(tax_table(ps_toplot))) {
+      warning(paste("Taxonomy level", annotation_tax_heatmap_level, "not found. Skipping tax annotation."))
+    } else {
+      
+      # Prepare annotation data frame
+      tax_annot_df <- ps_melt %>%
+        select(OTU, any_of(rank_names(ps)), all_of(annotation_tax_heatmap_level)) %>%
+        distinct(OTU, .keep_all = TRUE) %>%
+        mutate(AnnotTax = .data[[annotation_tax_heatmap_level]])
+      
+      # Try to generate label using user expression, fallback to OTU name on failure
+      try_label <- try(ps_melt %>% mutate(Label = !!rlang::parse_expr(heatmap_label)), silent = TRUE)
+      if(!inherits(try_label, "try-error")) {
+        tax_annot_df$Label <- try_label %>% distinct(OTU, .keep_all = TRUE) %>% pull(Label)
+      } else {
+        tax_annot_df$Label <- tax_annot_df$OTU
+      }
+      
+      # Color Scale Logic
+      fill_scale <- if (!is.null(annotation_colors) && annotation_tax_heatmap_level %in% names(annotation_colors)) {
+        scale_fill_manual(values = annotation_colors[[annotation_tax_heatmap_level]], na.value = "grey90")
+      } else {
+        scale_fill_viridis_d(option = "D", na.value = "grey90")
+      }
+      
+      # The Plot: Map Y to OTU to ensure alignment with main heatmap
+      tax_annot_gg <- ggplot(tax_annot_df, aes(x = 1, y = OTU, fill = AnnotTax)) +
+        geom_tile() +
+        fill_scale +
+        theme_void() +
+        theme(
+          axis.text.y = element_text(size = 6, hjust = 1), # Shows tax/OTU names
+          legend.position = "right",
+          plot.margin = margin(0,0,0,0)
+        )
+      
+      p_heatmap_tax_annot <- get_plotandlegend(tax_annot_gg)
+    }
+  }
+  
+  # ==============================================================================
+  # 9. SAMPLE METADATA STRIPS
+  # ==============================================================================
+  
+  # Helper to make individual metadata strips
+  make_strip <- function(df, var_name, is_continuous = FALSE) {
+    p <- ggplot(df, aes(x = Sample, y = var_name))
+    
+    if (is_continuous) {
+      p <- p + geom_col(aes(y = Value), fill = "grey30", width = 1)
+    } else {
+      fill_scale <- if (!is.null(annotation_colors) && var_name %in% names(annotation_colors)) {
+        scale_fill_manual(values = annotation_colors[[var_name]], na.value = "grey90")
+      } else {
+        scale_fill_viridis_d(na.value = "grey90", guide = guide_legend(ncol = 1))
+      }
+      p <- p + geom_tile(aes(fill = .data[[var_name]]), color = "white", linewidth = 0) + fill_scale
+    }
+    
+    p + theme_void() +
+      theme(
+        legend.key.size = unit(0.3, "cm"),
+        legend.text = element_text(size = 6),
+        plot.margin = margin(0,0,1,0) # small bottom margin to separate strips
+      ) +
+      labs(y = var_name)
+  }
+  
+  sample_df <- sample_data(ps) %>% data.frame() %>% rownames_to_column("Sample") %>%
+    mutate(Sample = factor(Sample, levels = sample_order))
+  
+  # Generate Categorical Strips
+  ann_plots <- list()
+  if (!is.null(sample_metadata_vars)) {
+    ann_plots <- lapply(sample_metadata_vars, function(v) {
+      make_strip(sample_df, v, is_continuous = FALSE)
+    })
+  }
+  
+  # Generate Continuous (Histogram-like) Strips
+  hist_plots <- list()
+  if (!is.null(continuous_metadata_vars)) {
+    cont_df <- sample_df %>%
+      select(Sample, all_of(continuous_metadata_vars)) %>%
+      pivot_longer(-Sample, names_to = "Variable", values_to = "Value")
+    
+    hist_plots <- lapply(continuous_metadata_vars, function(v) {
+      make_strip(filter(cont_df, Variable == v), v, is_continuous = TRUE)
+    })
+  }
+  
+  # Combine metadata panels
+  extra_panels <- c(ann_plots, hist_plots)
+  p_ann_patchwork <- if(length(extra_panels) > 0) wrap_plots(extra_panels, ncol = 1) else NULL
+  
+  # ==============================================================================
+  # 10. SAMPLE DENDROGRAM
+  # ==============================================================================
+  dendro_data_obj <- dendro_data(hc)
+  n_samples <- length(sample_names(ps))
+  
+  pts_dendrogram <- ggplot() +
+    geom_segment(data = segment(dendro_data_obj), linewidth = 0.3,
+                 aes(x = x, y = y, xend = xend, yend = yend)) +
+    scale_x_continuous(limits = c(0.5, n_samples + 0.5), expand = c(0, 0)) +
+    theme_dendro() +
+    theme(plot.margin = margin(0,0,0,0))
+  
+  # ==============================================================================
+  # 11. RETURN OBJECTS
+  # ==============================================================================
+  return(list(
+    pts_dendrogram      = pts_dendrogram,
+    p_ann               = p_ann_patchwork,
+    ann_list            = extra_panels, 
+    p_heatmap           = p_heatmap,
+    p_stacked_bar       = p_stacked_bar,
+    hc                  = hc,
+    eff_plot            = eff_plot,
+    p_heatmap_tax_annot = p_heatmap_tax_annot,
+    ps_toplot           = ps_toplot
+  ))
+}
+
 #' Plot Heatmap and/or Stacked Barplot for Phyloseq Object
 #'
 #' Generates a combined visualization for a phyloseq object including:

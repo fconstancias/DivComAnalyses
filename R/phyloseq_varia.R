@@ -1,3 +1,53 @@
+#' Extract Plot and Legend as Separate ggplot Objects
+#'
+#' This function extracts the legend from a ggplot object and prepares it as a separate 
+#' ggplot object. It also modifies the original plot to remove its legend.
+#'
+#' @param p A ggplot object from which the legend will be extracted.
+#' @return A list with two elements:
+#'   \itemize{
+#'     \item `p`: The original ggplot object without a legend.
+#'     \item `p_leg`: The legend of the original plot as a separate ggplot object.
+#'   }
+#' @examples
+#' library(ggplot2)
+#' library(ggpubr)
+#' p <- ggplot(mtcars, aes(x = wt, y = mpg, color = factor(cyl))) +
+#'   geom_point() +
+#'   theme_minimal()
+#' result <- get_plotandlegend(p)
+#' result$p # The plot without a legend
+#' result$p_leg # The legend as a separate ggplot object
+#' @export
+get_plotandlegend <- function(p){
+  # Suppress warnings and messages during legend extraction
+  suppressWarnings(
+    suppressMessages(
+      {
+        # Extract the legend from the ggplot object and convert it to a ggplot object
+        p_leg <- p %>% 
+          ggpubr::get_legend() %>% 
+          ggpubr::as_ggplot()
+      }
+    )
+  )
+  
+  # Suppress warnings and messages during plot modification
+  suppressWarnings(
+    suppressMessages(
+      {
+        # Remove the legend from the original ggplot object
+        p <- p + theme(legend.position = "none")
+      }
+    )
+  )
+  
+  # Return the modified plot and the extracted legend as a list
+  list(p_leg = p_leg, p = p)
+}
+
+
+
 #' @title ...
 #' @param .
 #' @param ..
@@ -93,113 +143,117 @@ physeq_most_abundant <- function(physeq,
 
 '%!in%' <- function(x,y)!('%in%'(x,y))
 
-#' @title ...
-#' @param .
-#' @param ..
+#' @title Extract Unique Values from a Phyloseq Object
+#' @description Extracts the unique values of a specified variable from a phyloseq object. 
+#'   Works on taxonomic table information or sample metadata.
+#' @param ps A `phyloseq` object.
+#' @param var Name of the variable/column to extract unique values from. This can be a taxonomic rank
+#'   (e.g., "Kingdom", "Phylum") or a sample metadata variable (e.g., "Primer").
 #' @author Florentin Constancias
-#' @note .
-#' @note .
-#' @note .
-#' @return .
+#' @note Uses `speedyseq::psmelt()` to melt the phyloseq object into a long format tibble.
+#' @note The function is general and works with any column present in the melted phyloseq object.
+#' @note Returns a vector of unique values, preserving the original class (character, factor, etc.).
+#' @return A vector containing the unique values of the specified variable.
 #' @export
 #' @examples
+#' library(phyloseq)
+#' data("GlobalPatterns")
 #'
-#'library(phyloseq)
+#' # Applied on tax_table information
+#' physeq_get_unique(GlobalPatterns, "Kingdom")
 #'
-#'data("GlobalPatterns")
+#' physeq_get_unique(GlobalPatterns, "Phylum") %>% length()
 #'
-#'# Applied on tax_table information
-#'GlobalPatterns %>%
-#'  physeq_get_unique("Kingdom")
+#' # Applied on sample_metadata
+#' # First check the variable names
+#' sample_variables(GlobalPatterns)
 #'
-#'GlobalPatterns %>%
-#'  physeq_get_unique("Phylum") %>%
-#'  length()
-#'
-#'# Applied on sample_metadata
-#'# First check the variable names
-#'GlobalPatterns %>%
-#'  sample_variables()
-#'
-#'# apply
-#'GlobalPatterns %>%
-#'  physeq_get_unique("Primer")
-#'
+#' # Apply
+#' physeq_get_unique(GlobalPatterns, "Primer")
 
 physeq_get_unique <- function(ps, var){
-
+  
   ps %>%
     speedyseq::psmelt() %>%
     distinct(get(var)) %>%  # could be anything: taxa, metadata, ...
     pull() -> out
-
+  
   return(out)
-
+  
 }
 
 
-#' @title ...
-#' @param .
-#' @param ..
+
+#' @title Generate a Color Palette for a Variable
+#' @description Generate a distinct color palette for a variable from a phyloseq object, dataframe, or vector. 
+#'   Can use `randomcoloR` or `ggpubr` palettes. Optionally displays a pie chart of the colors.
+#' @param input A `phyloseq` object, `data.frame`, or vector containing the variable of interest.
+#' @param var Name of the variable/column to generate colors for (ignored if `input` is a vector).
+#' @param seed Numeric seed for reproducibility (default = 123456).
+#' @param pal Character string: "randomcoloR" (default) or any palette name supported by `ggpubr::get_palette`.
+#' @param runTsne Logical; only used if `pal = "randomcoloR"` (default = FALSE).
+#' @param altCol Logical; only used if `pal = "randomcoloR"` (default = FALSE).
+#' @param print Logical; if TRUE, displays a pie chart of the colors (default = TRUE).
 #' @author Florentin Constancias
-#' @note .
-#' @note .
-#' @note .
-#' @return .
+#' @note Works with phyloseq objects via `physeq_get_unique()`.
+#' @note For dataframes, the variable must exist as a column.
+#' @note For vectors, `var` is ignored and the vector unique values are used.
+#' @return A named vector of colors, with names corresponding to the unique values of the variable.
 #' @export
 #' @examples
-#'
-#'library(phyloseq)
-#'data("GlobalPatterns")
-#'
-#'# First check the variable names
-#'GlobalPatterns %>%
-#'  sample_variables()
-#'
-#'# apply
-#'GlobalPatterns %>%
-#'  generate_color_palette(var = "SampleType",
-#'                         pal = "npg") -> my_pal
-#'my_pal
+#' library(phyloseq)
+#' data("GlobalPatterns")
+#' 
+#' # Check the sample variables
+#' sample_variables(GlobalPatterns)
+#' 
+#' # Apply to phyloseq object
+#' my_pal <- generate_color_palette(GlobalPatterns, var = "SampleType", pal = "npg")
+#' my_pal
+#' 
+#' # Apply to dataframe
+#' df <- data.frame(group = c("A", "B", "C", "A"))
+#' generate_color_palette(df, var = "group", pal = "npg")
+#' 
+#' # Apply to vector
+#' generate_color_palette(c("X", "Y", "Z", "X"), pal = "npg")
 
-generate_color_palette <- function(ps,
-                                   var,
+generate_color_palette <- function(input,
+                                   var = NULL,
                                    seed = 123456,
                                    pal = "randomcoloR",
                                    runTsne = FALSE,
                                    altCol = FALSE,
                                    print = TRUE){
-
-  ps %>%
-    physeq_get_unique(var) -> var_uniq
-
-  if(pal == "randomcoloR"){
-    require(randomcoloR)
+  
+  # Determine unique values
+  unique_vals <- NULL
+  if ("phyloseq" %in% class(input)) {
+    if (is.null(var)) stop("For phyloseq objects, 'var' must be specified")
+    unique_vals <- physeq_get_unique(input, var)
+  } else if (is.data.frame(input)) {
+    if (is.null(var)) stop("For data frames, 'var' must be specified")
+    if (!var %in% colnames(input)) stop("Variable not found in dataframe")
+    unique_vals <- unique(input[[var]])
+  } else if (is.vector(input)) {
+    unique_vals <- unique(input)
+  } else {
+    stop("Input must be a phyloseq object, dataframe, or vector")
+  }
+  
+  # Generate color palette
+  if (pal == "randomcoloR") {
     set.seed(seed)
-    var_uniq %>%
-      length() %>%
-      randomcoloR::distinctColorPalette(k = ., altCol = altCol, runTsne = runTsne) -> col
-
-    detach("package:randomcoloR", unload=TRUE)
-
-  }else{
-    require(ggpubr)
-
-    var_uniq %>%
-      length() %>%
-      ggpubr::get_palette(k = ., palette = pal) -> col
-
-    detach("package:ggpubr", unload=TRUE)
-
+    col <- randomcoloR::distinctColorPalette(k = length(unique_vals), altCol = altCol, runTsne = runTsne)
+  } else {
+    col <- ggpubr::get_palette(k = length(unique_vals), palette = pal)
   }
-
-  if(print == TRUE){
-    pie(rep(1, length(col)),
-        col = col)
-  }
-
-  names(col) <- var_uniq
-
+  
+  # Optionally display pie chart
+  if (print) pie(rep(1, length(col)), col = col)
+  
+  # Name colors
+  names(col) <- unique_vals
   return(col)
 }
 
