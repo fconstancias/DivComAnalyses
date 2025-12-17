@@ -217,7 +217,6 @@ physeq_get_unique <- function(ps, var){
 #' 
 #' # Apply to vector
 #' generate_color_palette(c("X", "Y", "Z", "X"), pal = "npg")
-
 generate_color_palette <- function(input,
                                    var = NULL,
                                    seed = 123456,
@@ -227,7 +226,6 @@ generate_color_palette <- function(input,
                                    print = TRUE){
   
   # Determine unique values
-  unique_vals <- NULL
   if ("phyloseq" %in% class(input)) {
     if (is.null(var)) stop("For phyloseq objects, 'var' must be specified")
     unique_vals <- physeq_get_unique(input, var)
@@ -241,18 +239,32 @@ generate_color_palette <- function(input,
     stop("Input must be a phyloseq object, dataframe, or vector")
   }
   
-  # Generate color palette
-  if (pal == "randomcoloR") {
+  n <- length(unique_vals)
+  
+  # ---- Palette logic ----
+  if (is.character(pal) && length(pal) == 1 && pal == "randomcoloR") {
     set.seed(seed)
-    col <- randomcoloR::distinctColorPalette(k = length(unique_vals), altCol = altCol, runTsne = runTsne)
+    col <- randomcoloR::distinctColorPalette(
+      k = n, altCol = altCol, runTsne = runTsne
+    )
+    
+  } else if (is.character(pal) && length(pal) == 1) {
+    # ggpubr palette name
+    col <- ggpubr::get_palette(k = n, palette = pal)
+    
+  } else if (is.vector(pal)) {
+    # manual palette (e.g. distinct_palette)
+    if (length(pal) < n) {
+      stop("Provided palette has fewer colors than required")
+    }
+    col <- pal[seq_len(n)]
+    
   } else {
-    col <- ggpubr::get_palette(k = length(unique_vals), palette = pal)
+    stop("pal must be a palette name, 'randomcoloR', or a vector of colors")
   }
   
-  # Optionally display pie chart
   if (print) pie(rep(1, length(col)), col = col)
   
-  # Name colors
   names(col) <- unique_vals
   return(col)
 }
